@@ -1,0 +1,412 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CLIENT)
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vendorProfile VendorProfile?
+  adminProfile  AdminProfile?
+  projects      Project[]
+  messages      Message[]
+  activities    ActivityLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  VENDOR
+  CLIENT
+}
+
+model VendorProfile {
+  id           String  @id @default(uuid())
+  userId       String  @unique @map("user_id")
+  user         User    @relation(fields: [userId], references: [id])
+  businessName String  @map("business_name")
+  slug         String  @unique
+  tagline      String?
+  description  String?
+  logo         String?
+  website      String?
+  instagram    String?
+  phone        String?
+  location     String?
+  isActive     Boolean @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  projects    Project[]
+  packages    Package[]
+  templates   Template[]
+  invitations Invitation[]
+
+  @@map("vendor_profiles")
+}
+
+model AdminProfile {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("admin_profiles")
+}
+
+model Project {
+  id        String        @id @default(uuid())
+  vendorId  String        @map("vendor_id")
+  vendor    VendorProfile @relation(fields: [vendorId], references: [id])
+  clientId  String?       @map("client_id")
+  client    User?         @relation(fields: [clientId], references: [id])
+  title     String
+  slug      String        @unique
+  status    ProjectStatus @default(LEAD)
+  type      ProjectType
+  eventDate DateTime?     @map("event_date")
+  location  String?
+  budget    Decimal?      @db.Decimal(10, 2)
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  questionnaire Questionnaire?
+  proposal      Proposal?
+  contract      Contract?
+  payments      Payment[]
+  milestones    Milestone[]
+  messages      Message[]
+  files         File[]
+  activities    ActivityLog[]
+  invitations   Invitation[]
+  approvals        Approval[]
+  revisionRequests RevisionRequest[]
+  review           Review?
+
+  @@map("projects")
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  CHANGES_REQUESTED
+}
+
+enum ProjectStatus {
+  LEAD
+  QUESTIONNAIRE_SENT
+  QUESTIONNAIRE_COMPLETED
+  PROPOSAL_SENT
+  PROPOSAL_ACCEPTED
+  CONTRACT_SENT
+  CONTRACT_SIGNED
+  DEPOSIT_PAID
+  FULLY_PAID
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectType {
+  MATERNITY
+  NEWBORN
+  CAKE_SMASH
+  FIRST_BIRTHDAY
+  INDIAN_CEREMONY
+  EVENT
+  WEDDING
+  PORTRAIT
+  OTHER
+}
+
+model Questionnaire {
+  id              String   @id @default(uuid())
+  projectId       String   @unique @map("project_id")
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  guestCount      Int?     @map("guest_count")
+  venueType       String?  @map("venue_type")
+  stylePreference String?  @map("style_preference")
+  mustHaveShots   String?  @map("must_have_shots")
+  timelineNotes   String?  @map("timeline_notes")
+  specialRequests String?  @map("special_requests")
+
+  // Stage 3 — flexible answers keyed off the Client Journey Template,
+  // so a motherhood journey and a live-stream setup can both store
+  // honest data instead of being forced through wedding columns.
+  answers         Json?
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("questionnaires")
+}
+
+model Proposal {
+  id          String   @id @default(uuid())
+  projectId   String   @unique @map("project_id")
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  packageId   String?  @map("package_id")
+  package     Package? @relation(fields: [packageId], references: [id])
+  title       String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  items       Json
+  // Deposit is defined here so the amount is NEVER taken from the browser.
+  depositPercent Int?    @map("deposit_percent")   // e.g. 50 = 50%
+  depositAmount  Decimal? @db.Decimal(10, 2) @map("deposit_amount") // or a fixed sum
+  expiryDate  DateTime? @map("expiry_date")
+  acceptedAt  DateTime? @map("accepted_at")
+  declinedAt  DateTime? @map("declined_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("proposals")
+}
+
+model Contract {
+  id       String   @id @default(uuid())
+  projectId String  @unique @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  content   String  @db.Text
+  version   Int      @default(1)
+
+  // Stage 3 item 9 — signature evidence. A typed name only binds if we
+  // can show who typed it and what they saw.
+  signedAt        DateTime? @map("signed_at")
+  signedBy        String?   @map("signed_by")
+  signedIp        String?   @map("signed_ip")
+  signedUserAgent String?   @db.Text @map("signed_user_agent")
+  contentHash     String?   @map("content_hash")      // SHA-256 of content at signing
+  acceptanceText  String?   @db.Text @map("acceptance_text")
+  clientSessionId String?   @map("client_session_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contracts")
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  projectId String        @map("project_id")
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stripeId  String?       @map("stripe_id")
+  amount    Decimal       @db.Decimal(10, 2)
+  currency  String        @default("GBP")
+  type      PaymentType
+  status    PaymentStatus @default(PENDING)
+
+  // "manual" when the vendor records an offline payment; "stripe" otherwise.
+  method    String        @default("stripe")
+  paidAt    DateTime?     @map("paid_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("payments")
+}
+
+enum PaymentType {
+  DEPOSIT
+  INSTALMENT
+  FINAL
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Package {
+  id          String    @id @default(uuid())
+  vendorId    String    @map("vendor_id")
+  vendor      VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Decimal   @db.Decimal(10, 2)
+  items       Json
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  proposals   Proposal[]
+
+  @@unique([vendorId, name])
+  @@map("packages")
+}
+
+model Template {
+  id        String        @id @default(uuid())
+  vendorId  String        @map("vendor_id")
+  vendor    VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  type      TemplateType
+  name      String
+  content   Json
+  isDefault Boolean       @default(false) @map("is_default")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("templates")
+}
+
+enum TemplateType {
+  CLIENT_KIT
+  MOOD_BOARD
+  PLAYBOOK
+}
+
+model Milestone {
+  id          String    @id @default(uuid())
+  projectId   String    @map("project_id")
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int       @default(0)
+  owner       String    @default("VENDOR")   // VENDOR | CLIENT
+  status      MilestoneStatus @default(PENDING)
+  dueDate     DateTime? @map("due_date")
+  submittedAt DateTime? @map("submitted_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  approvals       Approval[]
+  revisionRequests RevisionRequest[]
+
+  @@unique([projectId, title])
+  @@index([projectId, order])
+  @@map("milestones")
+}
+
+model Approval {
+  id          String    @id @default(uuid())
+  projectId   String    @map("project_id")
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId String?   @map("milestone_id")
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  approvedBy  String    @map("approved_by")   // client name at time of approval
+  note        String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@map("approvals")
+}
+
+model RevisionRequest {
+  id          String    @id @default(uuid())
+  projectId   String    @map("project_id")
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId String?   @map("milestone_id")
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  requestedBy String    @map("requested_by")
+  detail      String    @db.Text
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@map("revision_requests")
+}
+
+model Review {
+  id             String   @id @default(uuid())
+  projectId      String   @unique @map("project_id")
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  communication  Int
+  professionalism Int
+  delivery       Int
+  quality        Int
+  overall        Int
+  comment        String?  @db.Text
+  submittedBy    String   @map("submitted_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("reviews")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  senderId  String   @map("sender_id")
+  sender    User     @relation(fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("messages")
+}
+
+model File {
+  id         String   @id @default(uuid())
+  projectId  String   @map("project_id")
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name       String
+  url        String
+  size       Int
+  type       String
+  uploadedBy String   @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("files")
+}
+
+model Invitation {
+  id          String        @id @default(uuid())
+  vendorId    String        @map("vendor_id")
+  vendor      VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  // 4 — linked to exactly ONE project. A required FK, not a loose slug.
+  projectId   String        @map("project_id")
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 4 — optionally linked to one client email.
+  email       String?
+
+  // 4 — unique, high-entropy. 256 bits, base64url.
+  token       String        @unique
+
+  status      InviteStatus  @default(PENDING)
+
+  // 4 — expires, and is revocable.
+  expiresAt   DateTime      @map("expires_at")
+  revokedAt   DateTime?     @map("revoked_at")
+
+  // 5 — first open is recorded.
+  openedAt    DateTime?     @map("opened_at")
+  completedAt DateTime?     @map("completed_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@index([expiresAt])
+  @@map("invitations")
+}
+
+enum InviteStatus {
+  PENDING
+  OPENED
+  COMPLETED
+  EXPIRED
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  projectId String?  @map("project_id")
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  event     String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@index([event])
+  @@index([createdAt])
+  @@map("activity_logs")
+}

@@ -1,0 +1,50 @@
+TRUSTOS v13 — NETLIFY SETTINGS FIX
+===================================
+
+GOOD NEWS FIRST
+---------------
+The code is FINE now. The last error was NOT about the code - the build
+got all the way through your code and failed on a Netlify SETTING.
+That means the TypeScript fix worked. Real progress.
+
+
+THE PROBLEM (and why a file alone can't fix it)
+-----------------------------------------------
+Your site's "Publish directory" was set to the wrong folder inside
+Netlify's own settings screen.
+
+A setting typed into the Netlify website ALWAYS overrides my file.
+So I cannot fix this from the zip alone. You must change ONE setting.
+
+
+THE FIX — 2 STEPS, BOTH ON YOUR PHONE
+-------------------------------------
+
+STEP 1 — fix the setting (this is the actual fix):
+  Netlify -> your site -> Site configuration -> Build & deploy
+  -> Build settings -> Edit
+  Find "Publish directory".
+  Set it to exactly:   .next
+  Save.
+
+STEP 2 — deploy this v13 folder:
+  Upload trustos-v13 as usual (app.netlify.com/drop -> browse).
+  OR just press: Deploys -> Trigger deploy -> Deploy site
+
+
+IF NETLIFY DROP KEEPS FIGHTING YOU
+----------------------------------
+Netlify Drop (drag/upload) sites sometimes handle Next.js badly - the
+publish directory and plugin get confused, which is what happened here.
+
+If Step 1 does not work, the more reliable long-term route is to
+connect Netlify to a GitHub repo instead of uploading a folder. That
+avoids all of this. It needs a laptop though. When you have one, tell
+Claude and it will walk you through GitHub - it is a one-time setup
+that ends these problems for good.
+
+
+AFTER IT BUILDS
+---------------
+Login still won't work until the database is set up (env vars +
+migrate + seed). That is the laptop step. Tell Claude when you get there.
