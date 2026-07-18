@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         type: 'PLAYBOOK',
         name,
         content: {
-          milestones: project.milestones.map(m => ({
+          milestones: project.milestones.map((m: any) => ({
             title: m.title, description: m.description, owner: m.owner, order: m.order,
           })),
         },

@@ -44,9 +44,9 @@ export async function breakdown(projectId: string): Promise<PaymentBreakdown | n
     select: { amount: true, type: true },
   })
 
-  const paidTotal = round2(completed.reduce((s, p) => s + Number(p.amount), 0))
+  const paidTotal = round2(completed.reduce((s: number, p: any) => s + Number(p.amount), 0))
   const depositPaid = round2(
-    completed.filter(p => p.type === 'DEPOSIT').reduce((s, p) => s + Number(p.amount), 0)
+    completed.filter((p: any) => p.type === 'DEPOSIT').reduce((s: number, p: any) => s + Number(p.amount), 0)
   )
 
   return {

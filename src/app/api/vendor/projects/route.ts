@@ -45,7 +45,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    const withLinks = projects.map(p => {
+    const withLinks = projects.map((p: any) => {
       const inv = p.invitations[0]
       const { invitations, ...rest } = p
       return {

@@ -56,7 +56,7 @@ export async function GET() {
     ]
 
     const funnelCounts = Object.fromEntries(
-      funnelData.map(f => [f.event, f._count.event])
+      funnelData.map((f: any) => [f.event, f._count.event])
     )
 
     return NextResponse.json({
@@ -71,7 +71,7 @@ export async function GET() {
         count: funnelCounts[s.event] || 0,
       })),
       recentActivities,
-      projectsByStatus: Object.fromEntries(projectsByStatus.map(p => [p.status, p._count.status])),
+      projectsByStatus: Object.fromEntries(projectsByStatus.map((p: any) => [p.status, p._count.status])),
     })
   } catch (error: any) {
     console.error('[ADMIN ANALYTICS ERROR]', error)

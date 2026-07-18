@@ -15,6 +15,7 @@ interface Project {
   title: string
   slug: string
   status: string
+  type: string | null
   eventDate: string | null
   location: string | null
   budget: string | null

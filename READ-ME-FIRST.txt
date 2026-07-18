@@ -1,50 +1,50 @@
-TRUSTOS v13 — NETLIFY SETTINGS FIX
-===================================
+TRUSTOS v14 — TYPE FIX (verified with a REAL type-check)
+=========================================================
 
-GOOD NEWS FIRST
----------------
-The code is FINE now. The last error was NOT about the code - the build
-got all the way through your code and failed on a Netlify SETTING.
-That means the TypeScript fix worked. Real progress.
+WHAT WAS WRONG
+--------------
+The build failed on src/app/(dashboard)/vendor/page.tsx: the code read
+project.type but the Project type didn't list "type". My Stage 5 bug.
 
+For the FIRST time I was able to run the exact type-check Netlify runs.
+It found that error AND 9 other small ones that would have caused more
+failed builds later. All 10 are now fixed. The check now passes with
+ZERO errors.
 
-THE PROBLEM (and why a file alone can't fix it)
------------------------------------------------
-Your site's "Publish directory" was set to the wrong folder inside
-Netlify's own settings screen.
-
-A setting typed into the Netlify website ALWAYS overrides my file.
-So I cannot fix this from the zip alone. You must change ONE setting.
+Only presentation/type annotations changed. No logic, no database,
+no security touched.
 
 
-THE FIX — 2 STEPS, BOTH ON YOUR PHONE
--------------------------------------
+YOU ARE NOW ON GITHUB — DEPLOYING IS EASY NOW
+---------------------------------------------
+Your Netlify site deploys from GitHub automatically. So you do NOT
+upload to Netlify anymore. You update the GitHub folder and it builds
+itself.
 
-STEP 1 — fix the setting (this is the actual fix):
-  Netlify -> your site -> Site configuration -> Build & deploy
-  -> Build settings -> Edit
-  Find "Publish directory".
-  Set it to exactly:   .next
-  Save.
+STEPS (on your laptop):
 
-STEP 2 — deploy this v13 folder:
-  Upload trustos-v13 as usual (app.netlify.com/drop -> browse).
-  OR just press: Deploys -> Trigger deploy -> Deploy site
+1. Open the folder:
+   Documents\GitHub\trustos-pilot
 
+2. Delete everything inside it EXCEPT the hidden ".git" folder.
+   (If you don't see .git, that's fine - Windows hides it. Just don't
+    worry about it; deleting the visible files is enough.)
 
-IF NETLIFY DROP KEEPS FIGHTING YOU
-----------------------------------
-Netlify Drop (drag/upload) sites sometimes handle Next.js badly - the
-publish directory and plugin get confused, which is what happened here.
+3. Unzip trustos-v14 and copy everything from inside it INTO
+   Documents\GitHub\trustos-pilot
 
-If Step 1 does not work, the more reliable long-term route is to
-connect Netlify to a GitHub repo instead of uploading a folder. That
-avoids all of this. It needs a laptop though. When you have one, tell
-Claude and it will walk you through GitHub - it is a one-time setup
-that ends these problems for good.
+4. Open GitHub Desktop. It will show a list of changed files.
+   - Type a short summary like "fix type errors"
+   - Click "Commit to main"
+   - Click "Push origin" (top right)
+
+5. That's it. Netlify sees the push and builds automatically.
+   Wait ~2 minutes, then check the deploy - it should PUBLISH.
 
 
-AFTER IT BUILDS
----------------
-Login still won't work until the database is set up (env vars +
-migrate + seed). That is the laptop step. Tell Claude when you get there.
+AFTER IT PUBLISHES
+------------------
+The site loads but login needs the database set up. Since you're on a
+laptop now, that's the next thing - tell Claude "it published" and it
+will walk you through the database (env vars + migrate + seed), and
+then login works.
