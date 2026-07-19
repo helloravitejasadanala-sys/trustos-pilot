@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2, CheckCircle, Circle, HelpCircle } from 'lucide-react'
+import Link from 'next/link'
+import { Loader2, CheckCircle, Circle, HelpCircle, ArrowLeft } from 'lucide-react'
 
 /**
  * Stage 5 — "Your Journey". Same data flow as Stage 3/4 (every fetch
@@ -65,8 +66,8 @@ export default function ClientJourney({ params }: { params: { token: string } })
   if (state === 'invalid' || !d) return (
     <Centre>
       <div className="text-center max-w-md">
-        <h1 className="text-2xl font-medium text-ink-900">This link isn’t valid</h1>
-        <p className="text-ink-600 mt-3">It may have expired or been replaced. Ask your vendor for a new link.</p>
+        <h1 className="text-2xl font-medium text-forest-950">This link isn’t valid</h1>
+        <p className="text-forest-700 mt-3">It may have expired or been replaced. Ask your vendor for a new link.</p>
       </div>
     </Centre>
   )
@@ -88,37 +89,38 @@ export default function ClientJourney({ params }: { params: { token: string } })
   const currentStep = STEPS.find(s => s.key === current)
 
   return (
-    <div className="min-h-screen bg-sand-50">
+    <div className="min-h-screen bg-paper">
       <div className="max-w-xl mx-auto px-5 py-10 sm:py-14">
+        <Link href="/" aria-label="Back to home" className="inline-flex items-center gap-1 text-sm text-forest-500 hover:text-forest-800 transition mb-6">
+          <ArrowLeft size={15} /> TrustOS
+        </Link>
         {/* Welcome */}
-        <p className="text-sm text-ink-500">{project.vendor.businessName}</p>
-        <h1 className="text-3xl font-medium text-ink-900 mt-1 tracking-tight">
+        <p className="text-sm text-forest-600">{project.vendor.businessName}</p>
+        <h1 className="font-display text-4xl text-forest-950 mt-1 tracking-tight">
           Welcome{project.client?.name ? `, ${project.client.name.split(' ')[0]}` : ''}.
         </h1>
-        <p className="text-ink-600 mt-2 leading-relaxed">
+        <p className="text-forest-700 mt-2 leading-relaxed">
           {project.vendor.businessName} has invited you to your {project.title.replace(/\s*\(demo\)/i, '')}.
         </p>
 
         {/* Progress bar */}
         <div className="mt-6">
-          <div className="flex justify-between text-xs text-ink-400 mb-1.5">
+          <div className="flex justify-between text-xs text-forest-500 mb-1.5">
             <span>Your progress</span>
             <span>{completedCount} of {STEPS.length}</span>
           </div>
           <div className="h-1.5 bg-ink-100 rounded-full overflow-hidden">
-            <div className="h-full bg-sage-500 rounded-full transition-all" style={{ width: `${(completedCount / STEPS.length) * 100}%` }} />
+            <div className="h-full bg-forest-500 rounded-full transition-all" style={{ width: `${(completedCount / STEPS.length) * 100}%` }} />
           </div>
         </div>
 
-        {/* Next action band */}
+        {/* Next step — the client's single clear action, matching the
+            vendor's "Today's Action". One thing, no hunting. */}
         {current !== 'done' && currentStep && (
-          <div className="mt-6 border border-ink-200 rounded-2xl bg-white p-5">
-            <p className="text-xs uppercase tracking-wide text-ink-400">Next step</p>
-            <p className="text-ink-900 font-medium mt-1">{currentStep.label}</p>
-            <div className="flex gap-4 mt-2 text-xs text-ink-500">
-              <span>Who: {currentStep.who}</span>
-              <span>About {currentStep.time}</span>
-            </div>
+          <div className="mt-6 rounded-2xl bg-forest-950 text-paper-50 p-6">
+            <p className="text-xs uppercase tracking-widest text-forest-300">Your next step</p>
+            <p className="font-display text-xl mt-2 leading-snug">{currentStep.label}</p>
+            <p className="text-sm text-forest-200 mt-1">Takes about {currentStep.time}. The step opens just below.</p>
           </div>
         )}
 
@@ -131,12 +133,12 @@ export default function ClientJourney({ params }: { params: { token: string } })
               <li key={s.key} className="flex gap-3 pb-1">
                 <div className="flex flex-col items-center">
                   {isDone
-                    ? <CheckCircle size={20} className="text-sage-600" />
-                    : <Circle size={20} className={isCurrent ? 'text-ink-900' : 'text-ink-300'} />}
+                    ? <CheckCircle size={20} className="text-forest-600" />
+                    : <Circle size={20} className={isCurrent ? 'text-forest-950' : 'text-forest-300'} />}
                   {i < STEPS.length - 1 && <div className={`w-px flex-1 my-1 ${isDone ? 'bg-sage-300' : 'bg-ink-200'}`} />}
                 </div>
                 <div className={`pb-6 ${isCurrent ? '' : 'opacity-70'}`}>
-                  <p className={isDone ? 'text-ink-400 text-sm' : isCurrent ? 'text-ink-900 font-medium' : 'text-ink-500 text-sm'}>{s.label}</p>
+                  <p className={isDone ? 'text-forest-500 text-sm' : isCurrent ? 'text-forest-950 font-medium' : 'text-forest-600 text-sm'}>{s.label}</p>
                   {isCurrent && (
                     <div className="mt-3">
                       {s.key === 'questionnaire' && <Questionnaire busy={busy} setBusy={setBusy} onDone={refresh} />}
@@ -153,21 +155,21 @@ export default function ClientJourney({ params }: { params: { token: string } })
 
         {/* Payment status summary */}
         {(done.contract || done.payment) && (
-          <div className="mt-4 border border-ink-200 rounded-2xl bg-white p-5 text-sm">
-            <p className="text-xs uppercase tracking-wide text-ink-400 mb-2">Payment</p>
+          <div className="mt-4 border border-forest-200 rounded-2xl bg-white p-5 text-sm">
+            <p className="text-xs uppercase tracking-wide text-forest-500 mb-2">Payment</p>
             <Row k="Deposit" v={payment?.paid ? `£${Number(payment.paid.amount ?? payment.depositPaid).toFixed(2)} received` : (payment ? `£${Number(payment.depositDue).toFixed(2)} due` : '—')} />
           </div>
         )}
 
         {current === 'done' && (
-          <div className="mt-6 border border-sage-200 bg-sage-50 rounded-2xl p-5">
-            <p className="font-medium text-ink-900">You’re all set.</p>
-            <p className="text-sm text-ink-600 mt-1">Everything is confirmed. {project.vendor.businessName} will be in touch about the next steps.</p>
+          <div className="mt-6 border border-forest-200 bg-forest-50 rounded-2xl p-5">
+            <p className="font-medium text-forest-950">You’re all set.</p>
+            <p className="text-sm text-forest-700 mt-1">Everything is confirmed. {project.vendor.businessName} will be in touch about the next steps.</p>
           </div>
         )}
 
         {/* Help */}
-        <p className="mt-8 text-xs text-ink-400 flex items-center gap-1.5">
+        <p className="mt-8 text-xs text-forest-500 flex items-center gap-1.5">
           <HelpCircle size={13} />
           Questions? Contact {project.vendor.businessName}{project.vendor.phone ? ` on ${project.vendor.phone}` : ''}.
         </p>
@@ -207,12 +209,12 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
   async function accept() { setBusy(true); const r = await fetch('/api/client/proposal', { method: 'POST' }); setBusy(false); if (r.ok) onDone() }
   return (
     <Panel>
-      {proposal.description && <p className="text-ink-600 text-sm mb-3">{proposal.description}</p>}
-      <p className="text-2xl font-medium text-ink-900">£{Number(proposal.price).toFixed(2)}</p>
+      {proposal.description && <p className="text-forest-700 text-sm mb-3">{proposal.description}</p>}
+      <p className="text-2xl font-medium text-forest-950">£{Number(proposal.price).toFixed(2)}</p>
       {Array.isArray(proposal.items) && (
         <ul className="mt-3 mb-4 space-y-1.5">
           {proposal.items.map((it: any, i: number) => (
-            <li key={i} className="flex gap-2 text-sm text-ink-700"><CheckCircle size={15} className="text-sage-600 mt-0.5 shrink-0" />{it.name}</li>
+            <li key={i} className="flex gap-2 text-sm text-forest-700"><CheckCircle size={15} className="text-forest-600 mt-0.5 shrink-0" />{it.name}</li>
           ))}
         </ul>
       )}
@@ -235,8 +237,8 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
   }
   return (
     <Panel>
-      <div className="max-h-56 overflow-y-auto border border-ink-100 rounded-xl p-3 text-sm text-ink-700 whitespace-pre-wrap mb-4">{contract.content}</div>
-      <label className="flex items-start gap-2 text-sm text-ink-700 mb-3">
+      <div className="max-h-56 overflow-y-auto border border-forest-100 rounded-xl p-3 text-sm text-forest-700 whitespace-pre-wrap mb-4">{contract.content}</div>
+      <label className="flex items-start gap-2 text-sm text-forest-700 mb-3">
         <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1" />
         <span>By typing my name and confirming, I agree to the terms of this agreement.</span>
       </label>
@@ -250,22 +252,22 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
   async function pay() { setBusy(true); const r = await fetch('/api/client/payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'DEPOSIT' }) }); setBusy(false); if (r.ok) onDone(); else onDone() }
   return (
     <Panel>
-      <p className="text-2xl font-medium text-ink-900">£{Number(payment.depositDue).toFixed(2)}</p>
-      <p className="text-xs text-ink-400 mt-1 mb-4">Your deposit secures the booking.</p>
+      <p className="text-2xl font-medium text-forest-950">£{Number(payment.depositDue).toFixed(2)}</p>
+      <p className="text-xs text-forest-500 mt-1 mb-4">Your deposit secures the booking.</p>
       <Primary onClick={pay} busy={busy}>Pay deposit</Primary>
     </Panel>
   )
 }
 
-const inputCls = 'w-full border border-ink-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10 focus:border-ink-300'
-const Centre = ({ children }: any) => <div className="min-h-screen bg-sand-50 flex items-center justify-center px-6">{children}</div>
-const Panel = ({ children }: any) => <div className="border border-ink-200 rounded-xl bg-white p-4">{children}</div>
-const Field = ({ label, children }: any) => <div className="mb-4"><label className="block text-sm text-ink-700 mb-1.5">{label}</label>{children}</div>
-const Row = ({ k, v }: any) => <div className="flex justify-between py-1"><span className="text-ink-500">{k}</span><span className="text-ink-900">{v}</span></div>
+const inputCls = 'w-full border border-forest-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10 focus:border-forest-300'
+const Centre = ({ children }: any) => <div className="min-h-screen bg-paper flex items-center justify-center px-6">{children}</div>
+const Panel = ({ children }: any) => <div className="border border-forest-200 rounded-xl bg-white p-4">{children}</div>
+const Field = ({ label, children }: any) => <div className="mb-4"><label className="block text-sm text-forest-700 mb-1.5">{label}</label>{children}</div>
+const Row = ({ k, v }: any) => <div className="flex justify-between py-1"><span className="text-forest-600">{k}</span><span className="text-forest-950">{v}</span></div>
 function Primary({ onClick, busy, disabled, children }: any) {
   return (
     <button onClick={onClick} disabled={busy || disabled}
-      className="w-full bg-ink-900 text-white text-sm font-medium rounded-xl py-3 disabled:opacity-40 flex items-center justify-center gap-2 hover:bg-ink-800 transition">
+      className="w-full bg-forest-900 text-paper-50 text-sm font-medium rounded-full py-3 disabled:opacity-40 flex items-center justify-center gap-2 hover:bg-forest-800 transition">
       {busy && <Loader2 size={15} className="animate-spin" />}{children}
     </button>
   )

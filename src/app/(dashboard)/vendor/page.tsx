@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { inferCategory } from '@/lib/vendor-categories'
 import { StatusChip } from '@/components/ui'
+import { getNextAction } from '@/lib/journey'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -65,6 +66,27 @@ export default function VendorDashboard() {
   const upcoming = projects.filter(p => p.eventDate && new Date(p.eventDate) > today && !['COMPLETED', 'CANCELLED'].includes(p.status))
     .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime())
   const needsAction = projects.filter(p => ['LEAD', 'QUESTIONNAIRE_COMPLETED', 'PROPOSAL_ACCEPTED'].includes(p.status))
+
+  // Today's Action — the ONE thing the vendor should do next. We pick the
+  // project where the vendor is the responsible party, using the natural
+  // order of the pipeline so the most-advanced waiting project surfaces.
+  const VENDOR_PRIORITY = ['QUESTIONNAIRE_COMPLETED', 'LEAD', 'DEPOSIT_PAID', 'FULLY_PAID', 'COMPLETED']
+  const vendorActionable = projects
+    .map(p => ({ p, na: getNextAction(p.status) }))
+    .filter(x => x.na.responsible === 'Vendor')
+    .sort((a, b) => {
+      const ai = VENDOR_PRIORITY.indexOf(a.p.status); const bi = VENDOR_PRIORITY.indexOf(b.p.status)
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+    })
+  const todaysAction = vendorActionable[0] ?? null
+  // A friendly, specific instruction per status.
+  const ACTION_VERB: Record<string, string> = {
+    LEAD: 'Send the secure invitation',
+    QUESTIONNAIRE_COMPLETED: 'Prepare and send the proposal',
+    DEPOSIT_PAID: 'Start delivery and update milestones',
+    FULLY_PAID: 'Complete the delivery',
+    COMPLETED: 'Request a review',
+  }
   const pendingPayments = projects.filter(p => ['CONTRACT_SIGNED', 'DEPOSIT_PAID'].includes(p.status))
 
   if (loading) {
@@ -95,6 +117,30 @@ export default function VendorDashboard() {
       </header>
 
       <main className="max-w-xl mx-auto px-5 py-5 space-y-5 pb-24">
+        {/* Today's Action — the one thing to do next */}
+        {todaysAction ? (
+          <a href={`/vendor/projects/${todaysAction.p.slug}`}
+             className="block rounded-2xl bg-forest-950 text-paper-50 p-6 hover:bg-forest-900 transition">
+            <p className="text-xs uppercase tracking-widest text-forest-300">Today's action</p>
+            <p className="font-display text-xl mt-2 leading-snug">
+              {todaysAction.p.client?.name
+                ? `${todaysAction.p.client.name} is waiting on you.`
+                : 'One project needs your next step.'}
+            </p>
+            <p className="text-sm text-forest-200 mt-1">
+              {todaysAction.p.title} — {ACTION_VERB[todaysAction.p.status] ?? todaysAction.na.nextAction}
+            </p>
+            <span className="inline-flex items-center gap-2 mt-4 bg-paper-50 text-forest-950 text-sm font-medium rounded-full px-4 py-2">
+              {ACTION_VERB[todaysAction.p.status] ?? 'Open project'} →
+            </span>
+          </a>
+        ) : projects.length > 0 ? (
+          <div className="rounded-2xl border border-forest-200 bg-white p-6 text-center">
+            <p className="font-display text-lg text-forest-900">You're all caught up.</p>
+            <p className="text-sm text-forest-500 mt-1">Every project is waiting on a client, not on you.</p>
+          </div>
+        ) : null}
+
         {/* Today's work */}
         {todaysWork.length > 0 && (
           <section>

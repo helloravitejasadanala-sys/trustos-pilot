@@ -1,69 +1,47 @@
-TRUSTOS — secure-demo-v1
-=========================
+TRUSTOS — REDESIGN + "TODAY'S ACTION"
+======================================
 
-This branch adds the executable /demo and removes every credential from
-the codebase. No secret values appear anywhere in these files.
+TWO THINGS IN THIS UPDATE (design + one feature; no DB changes)
+---------------------------------------------------------------
 
+1. VISUAL REDESIGN
+   - Warm "paper" canvas + a single deep "forest" green accent.
+   - Fraunces editorial serif for headlines, Inter for body.
+   - Redesigned landing page (required headline/subheading kept).
+   - /demo and client journey restyled to match.
+   - "TrustOS" home link added to the client journey (fixes the
+     "no back button" issue).
 
-IMPORTANT — ROTATE YOUR SECRETS
--------------------------------
-Any AUTH_SECRET value shared earlier in chat must be considered
-compromised. Before deploying:
+2. "TODAY'S ACTION" — the differentiator
+   - Vendor dashboard now opens with ONE card: the single most
+     important thing to do next, e.g.
+        "Sarah Test is waiting on you."
+        One-Year Motherhood Journey — Prepare and send the proposal
+        [ Prepare and send the proposal -> ]
+   - It picks the project where the VENDOR is the responsible party,
+     in pipeline order. If everything is waiting on clients, it says
+     "You're all caught up."
+   - The client journey's "Your next step" is now the matching hero:
+     one clear action with an estimated time. No hunting through tabs.
 
-1. Generate a NEW AUTH_SECRET. On a Mac/Linux terminal:
-      openssl rand -base64 32
-   On Windows PowerShell:
-      [Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Max 256}))
-
-2. If your Neon DATABASE_URL was ever pasted anywhere, reset the
-   password in the Neon console (Roles -> reset password) and use the
-   new connection string.
-
-3. Put the NEW values only in Netlify -> Site configuration ->
-   Environment variables. Never in a file, never in chat.
-
-
-ENVIRONMENT VARIABLES
----------------------
-See .env.example for the full list with EMPTY placeholders.
-Required in Netlify:  DATABASE_URL, AUTH_SECRET, APP_URL
-Optional (card payments): STRIPE_SECRET_KEY,
-   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET
-Seed-only (terminal, not Netlify): SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD,
-   SEED_VENDOR_EMAIL, SEED_VENDOR_PASSWORD
+   This is powered by the journey engine (src/lib/journey.ts) that was
+   already there and tested — so the "next action" is always derived
+   from real project state, never guessed.
 
 
-DEPLOY (GitHub Desktop)
------------------------
-1. GitHub Desktop -> Branch -> New branch -> "secure-demo-v1"
-2. Show in Explorer. Delete everything EXCEPT the hidden ".git" folder.
+DEPLOY (GitHub — just push)
+---------------------------
+1. GitHub Desktop -> your deploy branch.
+2. Show in Explorer -> delete everything EXCEPT the hidden ".git".
 3. Copy everything from inside this folder into the repo folder.
-4. Commit, then Push. Netlify builds a preview for the branch.
+4. Commit -> Push. Netlify rebuilds (~2 min).
+
+No database changes. No new env vars. No re-seed.
 
 
-DATABASE SETUP (once, on your laptop)
--------------------------------------
-Set the env vars in your terminal, then:
-   npm install
-   npx prisma migrate deploy
-   npm run db:seed
-(The seed is idempotent — safe to run more than once.)
-
-
-/demo
------
-Two allowlisted fake projects: Mini Momentz motherhood, Agara Live
-stream. Buttons: Open as Vendor / Open as Client / Reset Demo.
-Server resolves fixed demo identifiers from an allowlist; the endpoints
-never accept an arbitrary projectId or role from the browser.
-
-
-WHAT IS AND ISN'T BUILT
------------------------
-Live + tested: questionnaire, proposal, contract (with signature
-evidence), payment (server-computed; Stripe paid only via webhook;
-manual is a separate vendor-only endpoint labelled "not independently
-verified"), milestones, approvals, completion, review, gallery/recording
-link.
-Not built: mood board, preparation/outfit guides, and dedicated
-internet/equipment/stream-test screens (these exist as milestones).
+STILL OPEN (unchanged — honest list)
+------------------------------------
+- Agara Live streaming steps are milestones, not bespoke screens.
+- The deposit step needs Stripe keys to actually take a card.
+- Mood board / prep guide / welcome kit are not built.
+These are the real next pieces of work, not part of this update.

@@ -9,7 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        display: ['var(--font-fraunces)', 'Fraunces', 'Georgia', 'serif'],
       },
       colors: {
         // Neutral scale — Notion/Linear inspired
@@ -28,6 +29,17 @@ const config: Config = {
         clay: {
           50: '#faf6f3', 100: '#f0e6dd', 200: '#e2cfc0', 300: '#d4b8a3',
           400: '#c49a7a', 500: '#b57d5a', 600: '#9a6545', 700: '#7d5039',
+        },
+        // Forest — the single accent. Deep, trustworthy green (growth,
+        // not terracotta). Used sparingly for primary actions + marks.
+        forest: {
+          50: '#f0f5f2', 100: '#dbe8e0', 200: '#b9d3c4', 300: '#8db8a1',
+          400: '#5e9578', 500: '#3d7659', 600: '#2c5d45', 700: '#244b38',
+          800: '#1e3c2e', 900: '#1a3227', 950: '#0d1c16',
+        },
+        // Paper — warm off-white canvas, calmer than pure sand.
+        paper: {
+          DEFAULT: '#f6f3ec', 50: '#faf8f3', 100: '#f6f3ec', 200: '#ece7db',
         },
         // Sand — backgrounds
         sand: {
