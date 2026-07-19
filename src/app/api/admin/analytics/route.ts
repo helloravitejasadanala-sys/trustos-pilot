@@ -23,9 +23,9 @@ export async function GET() {
         _sum: { amount: true },
       }),
       prisma.activityLog.groupBy({
-        by: ['event'],
-        _count: { event: true },
-        orderBy: { _count: { event: 'desc' } },
+        by: ['action'],
+        _count: { action: true },
+        orderBy: { _count: { action: 'desc' } },
         take: 20,
       }),
       prisma.activityLog.findMany({
@@ -56,7 +56,7 @@ export async function GET() {
     ]
 
     const funnelCounts = Object.fromEntries(
-      funnelData.map((f: any) => [f.event, f._count.event])
+      funnelData.map((f: any) => [f.action, f._count.action])
     )
 
     return NextResponse.json({
