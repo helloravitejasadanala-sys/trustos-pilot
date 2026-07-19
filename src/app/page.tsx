@@ -27,9 +27,12 @@ export default function Landing() {
         <p className="mt-5 text-lg text-ink-600 max-w-xl leading-relaxed">
           Send one secure link for requirements, agreements, payments, milestones and delivery.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/login" className="inline-flex items-center justify-center px-5 py-3 bg-ink-900 text-white text-sm font-medium rounded-xl hover:bg-ink-800 transition">
             Sign in to your workspace
+          </Link>
+          <Link href="/demo" className="inline-flex items-center justify-center px-5 py-3 border border-ink-300 text-ink-800 text-sm font-medium rounded-xl hover:bg-ink-50 transition">
+            View sample journey
           </Link>
         </div>
       </section>

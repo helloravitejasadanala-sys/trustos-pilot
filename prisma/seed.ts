@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -239,13 +240,22 @@ This is placeholder wording for the pilot and has not been reviewed by a solicit
   // Helper: a bookable project with proposal + contract + invitation + milestones
   async function bookableProject(opts: {
     vendorId: string; slug: string; title: string; type: string
-    proposalTitle: string; price: number; milestones: string[]
+    proposalTitle: string; price: number; deposit: number; milestones: string[]
+    clientName: string; clientEmail: string; demoToken: string; proposalDesc: string
   }) {
+    // Demo client user (so the workspace shows a real client name)
+    const client = await db.user.upsert({
+      where: { email: opts.clientEmail },
+      update: { name: opts.clientName },
+      // Clients never log in with a password (they use invitation tokens).
+      // Store a random un-usable hash so there is no credential here at all.
+      create: { email: opts.clientEmail, password: await bcrypt.hash(randomBytes(24).toString('hex'), 10), name: opts.clientName, role: 'CLIENT' },
+    })
     const project = await db.project.upsert({
       where: { slug: opts.slug },
-      update: {},
+      update: { clientId: client.id },
       create: {
-        vendorId: opts.vendorId, title: opts.title, slug: opts.slug,
+        vendorId: opts.vendorId, clientId: client.id, title: opts.title, slug: opts.slug,
         type: opts.type as any, status: 'PROPOSAL_SENT',
         eventDate: new Date(Date.now() + 30 * 86400000), location: 'UK',
       },
@@ -255,8 +265,8 @@ This is placeholder wording for the pilot and has not been reviewed by a solicit
       update: {},
       create: {
         projectId: project.id, title: opts.proposalTitle,
-        description: 'Prepared for the pilot test flow.',
-        price: opts.price, depositPercent: 50,
+        description: opts.proposalDesc,
+        price: opts.price, depositAmount: opts.deposit,
         items: [{ name: 'Included item A' }, { name: 'Included item B' }],
         expiryDate: new Date(Date.now() + 14 * 86400000),
       },
@@ -276,31 +286,38 @@ This is placeholder wording for the pilot and has not been reviewed by a solicit
         create: { projectId: project.id, title: opts.milestones[i], order: i },
       })
     }
-    // one active invitation
-    const existing = await db.invitation.findFirst({ where: { projectId: project.id, revokedAt: null } })
-    if (!existing) {
-      const { randomBytes } = await import('crypto')
-      await db.invitation.create({
-        data: {
-          vendorId: opts.vendorId, projectId: project.id,
-          token: randomBytes(32).toString('base64url'),
-          expiresAt: new Date(Date.now() + 30 * 86400000),
-        },
-      })
-    }
+    // Deterministic invitation token so the /demo page can always open
+    // the client view. Upsert keeps it stable across re-seeds.
+    await db.invitation.upsert({
+      where: { token: opts.demoToken },
+      update: { expiresAt: new Date(Date.now() + 3650 * 86400000), revokedAt: null },
+      create: {
+        vendorId: opts.vendorId, projectId: project.id,
+        token: opts.demoToken,
+        expiresAt: new Date(Date.now() + 3650 * 86400000),
+      },
+    })
     return project
   }
 
   await bookableProject({
     vendorId: vendorProfile.id, slug: 'mm-motherhood-demo',
-    title: 'Motherhood Journey (demo)', type: 'MATERNITY',
-    proposalTitle: 'One-Year Motherhood Journey', price: 899,
+    title: 'One-Year Motherhood Journey', type: 'MATERNITY',
+    proposalTitle: 'One-Year Motherhood Journey',
+    proposalDesc: 'A year of sessions capturing your journey into motherhood — maternity, newborn, six months and first birthday, with a final printed collection.',
+    price: 2400, deposit: 400,
+    clientName: 'Sarah Test', clientEmail: 'sarah.test@minimomentz.demo',
+    demoToken: 'demo-minimomentz-motherhood-0000000000000000000000',
     milestones: ['Consultation', 'Maternity session', 'Newborn session', 'Six-month session', 'First birthday', 'Final collection'],
   })
   await bookableProject({
     vendorId: agara.id, slug: 'agara-stream-demo',
-    title: 'Wedding Live Stream (demo)', type: 'EVENT',
-    proposalTitle: 'Two-Camera Live Stream', price: 650,
+    title: 'Wedding Live Stream', type: 'EVENT',
+    proposalTitle: 'Two-Camera Wedding Live Stream',
+    proposalDesc: 'A professional two-camera live stream of your wedding, with an internet check, a stream test beforehand, and a recording delivered afterwards.',
+    price: 900, deposit: 200,
+    clientName: 'James Test', clientEmail: 'james.test@agaralive.demo',
+    demoToken: 'demo-agaralive-wedding-000000000000000000000000000',
     milestones: ['Booking', 'Requirements', 'Internet check', 'Stream test', 'Live event', 'Recording delivery', 'Completion'],
   })
   console.log('  2 bookable demo projects (Mini Momentz + Agara Live)')

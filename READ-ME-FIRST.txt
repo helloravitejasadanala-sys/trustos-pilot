@@ -1,50 +1,69 @@
-TRUSTOS v14 — TYPE FIX (verified with a REAL type-check)
-=========================================================
+TRUSTOS — secure-demo-v1
+=========================
 
-WHAT WAS WRONG
---------------
-The build failed on src/app/(dashboard)/vendor/page.tsx: the code read
-project.type but the Project type didn't list "type". My Stage 5 bug.
-
-For the FIRST time I was able to run the exact type-check Netlify runs.
-It found that error AND 9 other small ones that would have caused more
-failed builds later. All 10 are now fixed. The check now passes with
-ZERO errors.
-
-Only presentation/type annotations changed. No logic, no database,
-no security touched.
+This branch adds the executable /demo and removes every credential from
+the codebase. No secret values appear anywhere in these files.
 
 
-YOU ARE NOW ON GITHUB — DEPLOYING IS EASY NOW
----------------------------------------------
-Your Netlify site deploys from GitHub automatically. So you do NOT
-upload to Netlify anymore. You update the GitHub folder and it builds
-itself.
+IMPORTANT — ROTATE YOUR SECRETS
+-------------------------------
+Any AUTH_SECRET value shared earlier in chat must be considered
+compromised. Before deploying:
 
-STEPS (on your laptop):
+1. Generate a NEW AUTH_SECRET. On a Mac/Linux terminal:
+      openssl rand -base64 32
+   On Windows PowerShell:
+      [Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Max 256}))
 
-1. Open the folder:
-   Documents\GitHub\trustos-pilot
+2. If your Neon DATABASE_URL was ever pasted anywhere, reset the
+   password in the Neon console (Roles -> reset password) and use the
+   new connection string.
 
-2. Delete everything inside it EXCEPT the hidden ".git" folder.
-   (If you don't see .git, that's fine - Windows hides it. Just don't
-    worry about it; deleting the visible files is enough.)
-
-3. Unzip trustos-v14 and copy everything from inside it INTO
-   Documents\GitHub\trustos-pilot
-
-4. Open GitHub Desktop. It will show a list of changed files.
-   - Type a short summary like "fix type errors"
-   - Click "Commit to main"
-   - Click "Push origin" (top right)
-
-5. That's it. Netlify sees the push and builds automatically.
-   Wait ~2 minutes, then check the deploy - it should PUBLISH.
+3. Put the NEW values only in Netlify -> Site configuration ->
+   Environment variables. Never in a file, never in chat.
 
 
-AFTER IT PUBLISHES
-------------------
-The site loads but login needs the database set up. Since you're on a
-laptop now, that's the next thing - tell Claude "it published" and it
-will walk you through the database (env vars + migrate + seed), and
-then login works.
+ENVIRONMENT VARIABLES
+---------------------
+See .env.example for the full list with EMPTY placeholders.
+Required in Netlify:  DATABASE_URL, AUTH_SECRET, APP_URL
+Optional (card payments): STRIPE_SECRET_KEY,
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET
+Seed-only (terminal, not Netlify): SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD,
+   SEED_VENDOR_EMAIL, SEED_VENDOR_PASSWORD
+
+
+DEPLOY (GitHub Desktop)
+-----------------------
+1. GitHub Desktop -> Branch -> New branch -> "secure-demo-v1"
+2. Show in Explorer. Delete everything EXCEPT the hidden ".git" folder.
+3. Copy everything from inside this folder into the repo folder.
+4. Commit, then Push. Netlify builds a preview for the branch.
+
+
+DATABASE SETUP (once, on your laptop)
+-------------------------------------
+Set the env vars in your terminal, then:
+   npm install
+   npx prisma migrate deploy
+   npm run db:seed
+(The seed is idempotent — safe to run more than once.)
+
+
+/demo
+-----
+Two allowlisted fake projects: Mini Momentz motherhood, Agara Live
+stream. Buttons: Open as Vendor / Open as Client / Reset Demo.
+Server resolves fixed demo identifiers from an allowlist; the endpoints
+never accept an arbitrary projectId or role from the browser.
+
+
+WHAT IS AND ISN'T BUILT
+-----------------------
+Live + tested: questionnaire, proposal, contract (with signature
+evidence), payment (server-computed; Stripe paid only via webhook;
+manual is a separate vendor-only endpoint labelled "not independently
+verified"), milestones, approvals, completion, review, gallery/recording
+link.
+Not built: mood board, preparation/outfit guides, and dedicated
+internet/equipment/stream-test screens (these exist as milestones).
