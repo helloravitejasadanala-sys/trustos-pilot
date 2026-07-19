@@ -38,8 +38,8 @@ const steps = [
 
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-paper text-ink-900">
-      {/* ===== NOISE TEXTURE OVERLAY ===== */}
+    <main className="relative min-h-screen overflow-hidden bg-paper text-ink-900">
+      {/* ===== NOISE TEXTURE OVERLAY (stolen from ve.ai) ===== */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.025]"
         style={{
@@ -49,7 +49,7 @@ export default function LandingPage() {
         }}
       />
 
-      {/* ===== WARM AMBIENT ORBS ===== */}
+      {/* ===== WARM AMBIENT ORBS (bokeh feel — replaces ve.ai star field) ===== */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div
           className="absolute -left-[15%] -top-[10%] h-[60vh] w-[60vh] rounded-full opacity-[0.08] blur-[100px]"
@@ -270,6 +270,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }
