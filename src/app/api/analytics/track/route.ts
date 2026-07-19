@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     const log = await prisma.activityLog.create({
       data: {
         action: data.event,
+        event: data.event,
         projectId: data.projectId,
         userId: data.userId,
         metadata: data.metadata || {},
