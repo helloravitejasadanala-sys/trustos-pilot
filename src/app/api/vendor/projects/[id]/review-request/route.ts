@@ -10,15 +10,13 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    await prisma.contract.upsert({
-      where: { projectId: project.id },
-      update: { sentAt: new Date() },
-      create: { projectId: project.id, sentAt: new Date(), content: '' }
-    })
-
-    await prisma.project.update({
-      where: { id: project.id },
-      data: { status: 'CONTRACT_SENT' }
+    await prisma.message.create({
+      data: {
+        projectId: project.id,
+        senderId: user.id,
+        content: 'Your vendor has requested a review. Please share your experience.',
+        type: 'REVIEW_REQUEST'
+      }
     })
 
     return NextResponse.json({ ok: true })

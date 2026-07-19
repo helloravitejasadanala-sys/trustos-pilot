@@ -10,16 +10,24 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    await prisma.contract.upsert({
-      where: { projectId: project.id },
-      update: { sentAt: new Date() },
-      create: { projectId: project.id, sentAt: new Date(), content: '' }
+    const existing = await prisma.questionnaire.findFirst({
+      where: { projectId: project.id }
     })
 
-    await prisma.project.update({
-      where: { id: project.id },
-      data: { status: 'CONTRACT_SENT' }
-    })
+    if (existing) {
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { status: 'QUESTIONNAIRE_SENT' }
+      })
+    } else {
+      await prisma.questionnaire.create({
+        data: { projectId: project.id, startedAt: new Date() }
+      })
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { status: 'QUESTIONNAIRE_SENT' }
+      })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
