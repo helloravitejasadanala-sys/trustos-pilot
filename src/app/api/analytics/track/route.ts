@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
         action: data.event,
         event: data.event,
         projectId: data.projectId,
-        userId: data.userId,
+        userId: data.userId || 'system',
         metadata: data.metadata || {},
       },
     })
