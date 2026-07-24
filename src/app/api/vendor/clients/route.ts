@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import bcrypt from 'bcryptjs'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { isTestClient } from '@/lib/vendor-phase1'
+import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -14,8 +14,13 @@ export async function GET() {
     const vendor = await prisma.vendorProfile.findUnique({ where: { userId: user.id } })
     if (!vendor) return NextResponse.json({ error: 'Vendor profile not found' }, { status: 404 })
 
+    const showDemo = isDemoVendorEmail(user.email)
     const projects = await prisma.project.findMany({
-      where: { vendorId: vendor.id, clientId: { not: null } },
+      where: {
+        vendorId: vendor.id,
+        clientId: { not: null },
+        ...(showDemo ? {} : { slug: { notIn: ALL_DEMO_PROJECT_SLUGS } }),
+      },
       include: {
         client: { select: { id: true, name: true, email: true, phone: true, avatar: true, createdAt: true } },
       },
@@ -56,6 +61,18 @@ export async function POST(req: NextRequest) {
     await requireAuth(['VENDOR'])
     const body = createSchema.parse(await req.json())
     const email = body.email.toLowerCase()
+
+    // Guard: never downgrade an existing vendor/admin into a client.
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, role: true },
+    })
+    if (existingUser && existingUser.role !== 'CLIENT') {
+      return NextResponse.json(
+        { error: 'That email already belongs to another account. Use a different email for the client.' },
+        { status: 409 }
+      )
+    }
 
     const client = await prisma.user.upsert({
       where: { email },

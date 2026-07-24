@@ -56,6 +56,19 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
+    // Latest inbound (client) message per project, so Today can show an
+    // unread indicator without a schema change. The vendor's own last-seen
+    // time is tracked client-side (per device) and compared against this.
+    const projectIds = projects.map((p: any) => p.id)
+    const lastClientMsg = projectIds.length
+      ? await prisma.message.groupBy({
+          by: ['projectId'],
+          where: { projectId: { in: projectIds }, type: 'client' },
+          _max: { createdAt: true },
+        })
+      : []
+    const lastMsgMap = new Map(lastClientMsg.map((m: any) => [m.projectId, m._max.createdAt]))
+
     const withLinks = await Promise.all(projects.map(async (p: any) => {
       let inv = p.invitations[0]
       if (!inv) {
@@ -65,6 +78,7 @@ export async function GET() {
       return {
         ...rest,
         invitation: formatInvitationLink(inv),
+        lastClientMessageAt: lastMsgMap.get(p.id) ?? null,
       }
     }))
 
@@ -110,6 +124,20 @@ export async function POST(req: NextRequest) {
     const clientEmail = data.clientEmail ? data.clientEmail.toLowerCase() : null
     let clientId: string | undefined
     if (clientEmail) {
+      // Never turn an existing vendor/admin into a client. If the email
+      // belongs to another (non-client) account, refuse rather than
+      // silently downgrading their role — that corrupted the vendor's own
+      // workspace ("Welcome Chaitanya Anil").
+      const existingUser = await prisma.user.findUnique({
+        where: { email: clientEmail },
+        select: { id: true, role: true },
+      })
+      if (existingUser && existingUser.role !== 'CLIENT') {
+        return NextResponse.json(
+          { error: 'That email already belongs to another account. Use a different email for the client.' },
+          { status: 409 }
+        )
+      }
       const client = await prisma.user.upsert({
         where: { email: clientEmail },
         update: {

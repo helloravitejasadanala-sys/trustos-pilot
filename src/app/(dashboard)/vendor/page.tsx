@@ -5,9 +5,11 @@ import Link from 'next/link'
 import { Plus, Calendar, Clock, ArrowRight, Activity } from 'lucide-react'
 import { getNextAction } from '@/lib/journey'
 import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
+import { hasUnread } from '@/lib/unread'
 import { parseJsonResponse } from '@/lib/safe-json'
 import NewProjectModal from '@/components/vendor/NewProjectModal'
 import { CardSkeleton } from '@/components/ui'
+import { MessageSquare } from 'lucide-react'
 
 const VENDOR_PRIORITY = ['QUESTIONNAIRE_COMPLETED', 'LEAD', 'DEPOSIT_PAID', 'FULLY_PAID', 'COMPLETED']
 const ACTION_VERB: Record<string, string> = {
@@ -71,6 +73,10 @@ export default function TodayPage() {
       .slice(0, 5)
   }, [projects])
 
+  // Unread = a client message newer than the last time this device opened
+  // that project's conversation. Cleared when the vendor opens Messages.
+  const unreadProjects = projects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
+
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-4">
@@ -116,6 +122,24 @@ export default function TodayPage() {
           <Plus size={16} className="mr-1.5" />New project
         </button>
       </div>
+
+      {/* Unread client messages */}
+      {unreadProjects.length > 0 && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="flex items-center gap-2 text-[13px] font-semibold text-amber-900">
+            <MessageSquare size={15} />
+            {unreadProjects.length} new client {unreadProjects.length === 1 ? 'message' : 'messages'}
+          </p>
+          <div className="mt-2 space-y-1">
+            {unreadProjects.map(p => (
+              <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[13px] hover:bg-amber-100/60">
+                <span className="truncate font-medium text-amber-950">{p.title}</span>
+                <span className="shrink-0 text-amber-700">{p.client?.name || 'Client'} · Open →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Operational action panel */}
       {todaysAction ? (

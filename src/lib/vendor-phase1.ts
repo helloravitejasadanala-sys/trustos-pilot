@@ -12,6 +12,7 @@ export type VendorProject = {
   client: { id?: string; name: string | null; email?: string | null } | null
   invitation?: { url: string; expiresAt: string; openedAt: string | null; email: string | null; expired: boolean } | null
   updatedAt?: string
+  lastClientMessageAt?: string | null
 }
 
 export const ARCHIVED_PREFIX = '[archived]'

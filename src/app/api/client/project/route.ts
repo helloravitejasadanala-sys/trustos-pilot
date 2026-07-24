@@ -43,6 +43,9 @@ export async function GET() {
           orderBy: { createdAt: 'desc' },
           select: { id: true, name: true, url: true, type: true, createdAt: true },
         },
+        // Existence of an approval tells the portal whether the client has
+        // already approved delivery (so the button flips to a confirmed state).
+        approvals: { select: { id: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
       },
     })
 

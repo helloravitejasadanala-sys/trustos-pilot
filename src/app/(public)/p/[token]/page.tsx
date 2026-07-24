@@ -189,7 +189,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
         {/* Files — shared galleries and deliverables */}
         {Array.isArray(project.files) && project.files.some((f: any) => f.type === 'gallery') && (
           <div className="mt-4 border border-forest-200 rounded-2xl bg-white p-5">
-            <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Your files</p>
+            <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Your gallery</p>
             <ul className="space-y-2">
               {project.files.filter((f: any) => f.type === 'gallery').map((f: any) => (
                 <li key={f.id}>
@@ -199,6 +199,12 @@ export default function ClientJourney({ params }: { params: { token: string } })
                 </li>
               ))}
             </ul>
+            <DeliveryApproval
+              approved={Array.isArray(project.approvals) && project.approvals.length > 0}
+              busy={busy}
+              setBusy={setBusy}
+              onDone={refresh}
+            />
           </div>
         )}
 
@@ -433,6 +439,42 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
         </>
       )}
     </Panel>
+  )
+}
+
+function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
+  const [error, setError] = useState('')
+  if (approved) {
+    return (
+      <div className="mt-4 border-t border-forest-100 pt-4">
+        <p className="inline-flex items-center gap-1.5 text-sm font-medium text-forest-800">
+          <CheckCircle size={16} className="text-forest-600" /> You’ve approved the delivery. Thank you!
+        </p>
+      </div>
+    )
+  }
+  async function approve() {
+    if (busy) return
+    setError('')
+    setBusy(true)
+    try {
+      const r = await fetch('/api/client/complete', { method: 'POST' })
+      if (r.ok) { onDone() } else {
+        const b = await r.json().catch(() => ({}))
+        setError(b.error || 'We could not record that just now. Please try again.')
+      }
+    } catch {
+      setError('Connection issue — please check your network and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="mt-4 border-t border-forest-100 pt-4">
+      <p className="text-sm text-forest-600 mb-3">Happy with everything? Let your vendor know your gallery is approved.</p>
+      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+      <Primary onClick={approve} busy={busy}>Approve delivery</Primary>
+    </div>
   )
 }
 

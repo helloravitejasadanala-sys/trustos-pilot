@@ -2,14 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, FolderKanban, Users, Settings, Palette } from 'lucide-react'
+import { CalendarDays, FolderKanban, Users, Settings } from 'lucide-react'
 import { ReactNode } from 'react'
 
+// Phase 1 primary navigation only. Templates and Analytics are
+// intentionally hidden from both desktop and mobile nav (their routes
+// still exist); they are out of scope for the MiniMomentz pilot.
 const NAV = [
   { href: '/vendor', label: 'Today', icon: CalendarDays, exact: true },
   { href: '/vendor/projects', label: 'Projects', icon: FolderKanban },
   { href: '/vendor/clients', label: 'Clients', icon: Users },
-  { href: '/vendor/templates', label: 'Templates', icon: Palette },
   { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ] as const
 
@@ -70,7 +72,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
           {/* Mobile bottom nav */}
           {!inWorkspace && (
             <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t border-forest-100 bg-white/95 backdrop-blur px-2 py-2">
-              <div className="grid grid-cols-5 gap-1">
+              <div className="grid grid-cols-4 gap-1">
                 {NAV.map(item => {
                   const active = isActive(pathname, item.href, 'exact' in item ? item.exact : undefined)
                   const Icon = item.icon

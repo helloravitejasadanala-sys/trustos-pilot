@@ -35,13 +35,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'URL must start with http:// or https://' }, { status: 400 })
     }
 
+    const type = String(b?.type ?? 'link')
+    // A project has exactly one mood-board link — replace rather than
+    // accumulate duplicates every time the vendor edits it.
+    if (type === 'moodboard') {
+      await prisma.file.deleteMany({ where: { projectId: project.id, type: 'moodboard' } })
+    }
+
     const file = await prisma.file.create({
       data: {
         projectId: project.id,
         name: name.slice(0, 200),
         url: url.slice(0, 2000),
         size: 0,
-        type: String(b?.type ?? 'link'),
+        type,
         uploadedBy: user.id,
       },
     })

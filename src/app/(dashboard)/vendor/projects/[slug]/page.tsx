@@ -10,7 +10,9 @@ import {
 } from 'lucide-react'
 import BackLink from '@/components/vendor/BackLink'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
+import ShareLink from '@/components/vendor/ShareLink'
 import { StatusChip } from '@/components/ui'
+import { markSeen } from '@/lib/unread'
 import { getNextAction } from '@/lib/journey'
 import {
   ARCHIVED_PREFIX, SIMPLE_JOURNEY, isTestProject, journeyProgress,
@@ -38,7 +40,14 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const [quote, setQuote] = useState({ method: 'manual', title: '', price: '', deposit: '', description: '' })
   const [stripeConfigured, setStripeConfigured] = useState(false)
   const [draft, setDraft] = useState('')
+  // Preparation is edited as controlled state and saved with one button,
+  // so values reliably persist and reload (no blur races / defaultValue drift).
+  const [prep, setPrep] = useState({ eventDate: '', location: '', notes: '', moodboard: '' })
+  const [gallery, setGallery] = useState({ name: 'Photo gallery', url: '' })
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Read the datetime-local's live DOM value at save time as a fallback:
+  // some date pickers set the value without firing React onChange.
+  const prepDateRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const [detail, clientRes] = await Promise.all([
@@ -59,13 +68,22 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       deposit: p.proposal ? String(p.proposal.depositAmount ?? p.proposal.deposit ?? '') : q.deposit,
       description: p.proposal?.description || q.description,
     }))
+    setPrep({
+      eventDate: p.eventDate ? new Date(p.eventDate).toISOString().slice(0, 16) : '',
+      location: p.location || '',
+      notes: (p.notes || '').replace(ARCHIVED_PREFIX, '').trim(),
+      moodboard: (p.files || []).find((f: any) => f.type === 'moodboard')?.url || '',
+    })
     setState('ready')
   }
 
   useEffect(() => { load() }, [params.slug])
   useEffect(() => {
-    if (tab === 'Messages') messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [tab, project?.messages?.length])
+    if (tab === 'Messages') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      if (project?.id) markSeen(project.id)
+    }
+  }, [tab, project?.id, project?.messages?.length])
 
   async function run(label: string, fn: () => unknown) {
     if (busy) return // guards against double-clicks firing the same action twice
@@ -131,12 +149,30 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     })
   }
 
-  async function addGalleryLink() {
-    const name = prompt('Gallery name', 'Photo gallery')
-    const url = prompt('Gallery URL (https://...)')
-    if (!name || !url) return
+  async function savePrep() {
+    const rawDate = prepDateRef.current?.value || prep.eventDate
+    const parsedDate = rawDate ? new Date(rawDate) : null
+    await patchProject({
+      eventDate: parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : null,
+      location: prep.location.trim() || null,
+      notes: prep.notes.trim() || null,
+    })
+    const currentMoodboard = (project.files || []).find((f: any) => f.type === 'moodboard')?.url || ''
+    const nextMoodboard = prep.moodboard.trim()
+    if (nextMoodboard && nextMoodboard !== currentMoodboard) {
+      await post('link', { name: 'Mood board', url: nextMoodboard, type: 'moodboard' })
+      await load()
+    }
+    toast.success('Preparation saved')
+  }
+
+  async function addGallery() {
+    const name = gallery.name.trim() || 'Photo gallery'
+    const url = gallery.url.trim()
+    if (!/^https?:\/\//i.test(url)) return toast.error('Enter a link starting with http:// or https://')
     await post('link', { name, url, type: 'gallery' })
-    toast.success('Gallery link added')
+    setGallery({ name: 'Photo gallery', url: '' })
+    toast.success('Delivery link added')
     await load()
   }
 
@@ -291,14 +327,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
           {/* Client + Project Details summary */}
           <div className="card p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-forest-950">Client & details</h2>
-              {project.invitation?.url && (
-                <button className="text-sm text-forest-600 hover:text-forest-900 inline-flex items-center gap-1.5" onClick={copyLink}>
-                  {copied ? <Check size={14} /> : <Copy size={14} />}Copy link
-                </button>
-              )}
-            </div>
+            <h2 className="text-lg font-semibold text-forest-950">Client &amp; details</h2>
             <div className="mt-3 space-y-1 text-sm text-forest-700">
               <p className="inline-flex items-center gap-2"><User size={14} />{project.client?.name || 'No client attached'}</p>
               {project.client?.email && <p className="inline-flex items-center gap-2"><Mail size={14} />{project.client.email}</p>}
@@ -308,14 +337,24 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               )}
             </div>
 
+            {project.client && project.invitation?.url && (
+              <div className="mt-4 border-t border-forest-100 pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-forest-500 mb-2">Secure client link</p>
+                <ShareLink url={project.invitation.url} businessName={project.vendor?.businessName} clientName={project.client?.name} />
+              </div>
+            )}
+
             <div className="mt-4 border-t border-forest-100 pt-4">
               {detailsDone ? (
                 <div>
                   <button onClick={() => setDetailsOpen(o => !o)} className="flex w-full items-center justify-between text-left">
                     <span className="inline-flex items-center gap-2 text-forest-900 font-medium">
-                      <CheckCircle size={18} className="text-forest-600" />Project details completed
+                      <CheckCircle size={18} className="text-forest-600" />Event Details completed
                     </span>
-                    {detailsOpen ? <ChevronDown size={18} className="text-forest-400" /> : <ChevronRight size={18} className="text-forest-400" />}
+                    <span className="inline-flex items-center gap-1 text-[13px] text-forest-500">
+                      {detailsOpen ? 'Hide' : 'View details'}
+                      {detailsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </span>
                   </button>
                   {detailsOpen && (
                     <dl className="mt-3 space-y-2 text-sm">
@@ -461,45 +500,70 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         <div className="card p-5 space-y-4">
           <div>
             <label className="label">Date & time</label>
-            <input type="datetime-local" defaultValue={project.eventDate?.slice(0, 16)} onBlur={e => run('prep', async () => { await patchProject({ eventDate: e.target.value ? new Date(e.target.value).toISOString() : null }); toast.success('Saved') })} />
+            <input ref={prepDateRef} type="datetime-local" value={prep.eventDate} onChange={e => setPrep(p => ({ ...p, eventDate: e.target.value }))} />
           </div>
           <div>
             <label className="label">Location</label>
-            <input defaultValue={project.location || ''} onBlur={e => run('prep', async () => { await patchProject({ location: e.target.value || null }); toast.success('Saved') })} />
+            <input value={prep.location} onChange={e => setPrep(p => ({ ...p, location: e.target.value }))} placeholder="Venue or address" />
           </div>
           <div>
             <label className="label">Mood-board link</label>
-            <input placeholder="https://..." defaultValue={(project.files || []).find((f: any) => f.type === 'moodboard')?.url || ''}
-              onBlur={async e => {
-                if (!e.target.value.trim()) return
-                await run('moodboard', async () => {
-                  await post('link', { name: 'Mood board', url: e.target.value.trim(), type: 'moodboard' })
-                  toast.success('Mood-board link saved'); await load()
-                })
-              }} />
+            <input placeholder="https://..." value={prep.moodboard} onChange={e => setPrep(p => ({ ...p, moodboard: e.target.value }))} />
           </div>
           <div>
             <label className="label">Notes</label>
-            <textarea defaultValue={(project.notes || '').replace(ARCHIVED_PREFIX, '').trim()} rows={4}
-              onBlur={e => run('prep', async () => { await patchProject({ notes: e.target.value || null }); toast.success('Saved') })} />
+            <textarea value={prep.notes} onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))} rows={4} placeholder="Shoot notes, timings, anything to remember" />
           </div>
+          <button className="btn-primary" disabled={busy === 'prep'} onClick={() => run('prep', savePrep)}>
+            {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : 'Save preparation'}
+          </button>
         </div>
       )}
 
       {/* DELIVERY */}
       {tab === 'Delivery' && (
-        <div className="card p-5 space-y-4">
-          <button className="btn-primary" disabled={!!busy} onClick={() => run('complete', completeDelivery)}>Mark service complete</button>
-          <button className="btn-secondary" onClick={() => run('gallery', addGalleryLink)}><LinkIcon size={16} className="mr-2" />Add external gallery link</button>
-          <button className="btn-secondary" disabled={!!busy} onClick={() => run('review', requestReview)}>Record approval / request review</button>
-          <button className="btn-secondary" onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Project archived')))}>Archive project</button>
-          {(project.files || []).length > 0 && (
-            <ul className="space-y-2 mt-4">
-              {(project.files || []).map((f: any) => (
-                <li key={f.id}><a href={f.url} target="_blank" rel="noreferrer" className="text-forest-800 underline">{f.name}</a></li>
-              ))}
-            </ul>
+        <div className="card p-5 space-y-5">
+          {project.status !== 'COMPLETED' && (
+            <div>
+              <button className="btn-primary" disabled={!!busy} onClick={() => run('complete', completeDelivery)}>Mark service complete</button>
+              <p className="mt-1.5 text-[13px] text-forest-500">Do this once the shoot or service has taken place.</p>
+            </div>
           )}
+
+          <div className="border-t border-forest-100 pt-5">
+            <h2 className="text-lg font-semibold text-forest-950">Delivery / gallery link</h2>
+            <p className="text-[13px] text-forest-500 mb-3">Paste the external gallery or download link. Your client sees it on their secure page.</p>
+            <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+              <input value={gallery.name} onChange={e => setGallery(g => ({ ...g, name: e.target.value }))} placeholder="Label (e.g. Photo gallery)" />
+              <input value={gallery.url} onChange={e => setGallery(g => ({ ...g, url: e.target.value }))} placeholder="https://..." inputMode="url" />
+              <button className="btn-primary shrink-0" disabled={busy === 'gallery' || !gallery.url.trim()} onClick={() => run('gallery', addGallery)}>
+                {busy === 'gallery' ? <Loader2 size={16} className="animate-spin" /> : <><LinkIcon size={16} className="mr-2" />Add link</>}
+              </button>
+            </div>
+            {(project.files || []).filter((f: any) => f.type === 'gallery').length > 0 && (
+              <ul className="space-y-2 mt-4">
+                {(project.files || []).filter((f: any) => f.type === 'gallery').map((f: any) => (
+                  <li key={f.id} className="flex items-center gap-2 text-sm">
+                    <LinkIcon size={14} className="text-forest-400 shrink-0" />
+                    <a href={f.url} target="_blank" rel="noreferrer" className="text-forest-800 underline underline-offset-2 truncate">{f.name}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="border-t border-forest-100 pt-5">
+            {(project.approvals || []).length > 0 ? (
+              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-forest-800">
+                <CheckCircle size={16} className="text-forest-600" /> Client approved delivery
+              </p>
+            ) : (
+              <p className="text-[13px] text-forest-500">Once your client opens their gallery, they can approve delivery from their secure page.</p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button className="btn-secondary" onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Project archived')))}>Archive project</button>
+            </div>
+          </div>
         </div>
       )}
 
