@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { ArrowRight, Loader2, Mail, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { parseJsonResponse } from '@/lib/safe-json'
 
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -20,11 +22,11 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, remember }),
       })
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Sign in failed')
+      const { ok, data } = await parseJsonResponse<{ user?: any; error?: string }>(res)
+      if (!ok) throw new Error(data.error || 'Sign in failed')
 
       toast.success(`Welcome, ${data.user.name}`)
 
@@ -133,6 +135,23 @@ export default function LoginPage() {
                   className="w-full pl-10 bg-white/80 border-ink-200/50 focus:border-forest-300 focus:ring-0"
                 />
               </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm text-ink-500 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={e => setRemember(e.target.checked)}
+                    className="h-4 w-4 rounded border-ink-300 text-forest-700 focus:ring-0"
+                    style={{ minHeight: 'auto' }}
+                  />
+                  Remember me
+                </label>
+                <Link href="/forgot-password" className="text-sm font-medium text-forest-700 hover:text-forest-900">
+                  Forgot password?
+                </Link>
+              </div>
+
               <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 bg-forest-800 hover:bg-forest-900">
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <>
                   Sign in <ArrowRight size={14} className="ml-2" />
@@ -140,10 +159,12 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-8 space-y-3 text-center">
-              <Link href="/request-demo" className="block text-sm text-ink-400 hover:text-forest-700 transition">
-                Request demo access
-              </Link>
+            <p className="mt-6 text-center text-sm text-ink-400">
+              New to TrustOS?{' '}
+              <Link href="/signup" className="font-medium text-forest-700 hover:text-forest-900">Create your workspace</Link>
+            </p>
+
+            <div className="mt-6 space-y-3 text-center border-t border-ink-200/40 pt-6">
               <p className="text-xs text-ink-300">
                 Client with a project invitation?<br />
                 Open the secure link from your vendor

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
 import { Loader2, ArrowRight, Eye, UserCircle, RotateCcw } from 'lucide-react'
+import { parseJsonResponse } from '@/lib/safe-json'
 
 /**
  * /demo — the executable sample journeys.
@@ -56,9 +57,9 @@ export default function DemoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not open demo')
-      router.push(data.redirect || '/vendor')
+      const parsed = await parseJsonResponse<{ error?: string; redirect?: string }>(res)
+      if (!parsed.ok) throw new Error(parsed.data.error || 'Could not open demo')
+      router.push(parsed.data.redirect || '/vendor')
     } catch (err: any) {
       toast.error(err.message)
     } finally {
@@ -74,9 +75,9 @@ export default function DemoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not open demo')
-      router.push(data.redirect || '/')
+      const parsed = await parseJsonResponse<{ error?: string; redirect?: string }>(res)
+      if (!parsed.ok) throw new Error(parsed.data.error || 'Could not open demo')
+      router.push(parsed.data.redirect || '/')
     } catch (err: any) {
       toast.error(err.message)
     } finally {
@@ -92,9 +93,9 @@ export default function DemoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not reset')
-      toast.success(data.message || 'Reset')
+      const parsed = await parseJsonResponse<{ error?: string; message?: string }>(res)
+      if (!parsed.ok) throw new Error(parsed.data.error || 'Could not reset')
+      toast.success(parsed.data.message || 'Reset')
     } catch (err: any) {
       toast.error(err.message)
     } finally {

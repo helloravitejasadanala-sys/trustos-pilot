@@ -85,9 +85,15 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/login"
-              className="rounded-xl bg-forest-800 px-4 py-2 text-sm font-medium text-paper-50 shadow-soft transition-all hover:bg-forest-900 hover:shadow-elevated"
+              className="text-sm font-medium text-ink-500 transition-colors hover:text-forest-700"
             >
               Sign in
+            </Link>
+            <Link
+              href="/signup"
+              className="rounded-xl bg-forest-800 px-4 py-2 text-sm font-medium text-paper-50 shadow-soft transition-all hover:bg-forest-900 hover:shadow-elevated"
+            >
+              Get started
             </Link>
           </nav>
         </div>
@@ -124,10 +130,10 @@ export default function LandingPage() {
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/login"
+              href="/signup"
               className="group inline-flex items-center gap-2 rounded-xl bg-forest-800 px-7 py-3.5 text-sm font-semibold text-paper-50 shadow-elevated transition-all hover:bg-forest-900 hover:shadow-float"
             >
-              Sign in to your workspace
+              Create your workspace
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link

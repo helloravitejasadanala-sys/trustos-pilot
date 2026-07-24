@@ -5,10 +5,12 @@ import { trackEvent } from '@/lib/analytics'
 
 export const dynamic = 'force-dynamic'
 
-async function ownedProject(slug: string, userId: string) {
+async function ownedProject(idOrSlug: string, userId: string) {
   const vendor = await prisma.vendorProfile.findUnique({ where: { userId } })
   if (!vendor) throw Object.assign(new Error('No vendor'), { status: 404 })
-  const project = await prisma.project.findFirst({ where: { slug, vendorId: vendor.id } })
+  const project = await prisma.project.findFirst({
+    where: { vendorId: vendor.id, OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+  })
   if (!project) throw Object.assign(new Error('Not found'), { status: 404 })
   return project
 }

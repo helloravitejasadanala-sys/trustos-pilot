@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const project = await prisma.project.findFirst({
       where: { slug: params.id, vendorId: vendor.id },
       include: {
-        client: { select: { name: true, email: true } },
+        client: { select: { id: true, name: true, email: true, phone: true } },
         questionnaire: true,
         proposal: true,
         contract: {
@@ -49,16 +50,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    const inv = project.invitations[0]
-    const appUrl = (process.env.APP_URL || '').replace(/\/$/, '')
+    let inv = project.invitations[0]
+    if (!inv) {
+      inv = await ensureActiveInvitation(vendor.id, project.id, { email: project.client?.email ?? null })
+    }
     const { invitations, ...rest } = project
 
     return NextResponse.json({
       project: {
         ...rest,
-        invitation: inv
-          ? { url: `${appUrl}/p/${inv.token}`, expiresAt: inv.expiresAt, openedAt: inv.openedAt, email: inv.email }
-          : null,
+        invitation: formatInvitationLink(inv),
       },
     })
   } catch (err: any) {

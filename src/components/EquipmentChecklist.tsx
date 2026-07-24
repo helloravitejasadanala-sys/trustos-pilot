@@ -103,7 +103,7 @@ export default function EquipmentChecklist({ projectId, projectType }: { project
     if (next.has(name)) next.delete(name)
     else next.add(name)
     setChecked(next)
-    localStorage.setItem(`checklist-${projectId}`, JSON.stringify([...next]))
+    localStorage.setItem(`checklist-${projectId}`, JSON.stringify(Array.from(next)))
   }
 
   const allChecked = template.items.every(i => checked.has(i.name))

@@ -7,12 +7,13 @@ import { z } from 'zod'
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  remember: z.boolean().optional(),
 })
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { email, password } = loginSchema.parse(body)
+    const { email, password, remember } = loginSchema.parse(body)
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
-    await setSession(user.id, user.role)
+    await setSession(user.id, user.role, remember ?? true)
 
     return NextResponse.json({
       user: {

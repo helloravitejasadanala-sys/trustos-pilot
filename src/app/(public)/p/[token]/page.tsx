@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Loader2, CheckCircle, Circle, HelpCircle, ArrowLeft } from 'lucide-react'
+import { parseJsonResponse } from '@/lib/safe-json'
+import { BASE_DETAIL_FIELDS, detailQuestionsFor, sectionLabelFor, type DetailField } from '@/lib/project-types'
 
 /**
  * Stage 5 — "Your Journey". Same data flow as Stage 3/4 (every fetch
@@ -15,7 +17,7 @@ import { Loader2, CheckCircle, Circle, HelpCircle, ArrowLeft } from 'lucide-reac
 type Data = { project: any; questionnaire: any; proposal: any; contract: any; payment: any }
 
 const STEPS = [
-  { key: 'questionnaire', label: 'Complete your questionnaire', time: '5 minutes', who: 'You' },
+  { key: 'questionnaire', label: 'Confirm your project details', time: '3 minutes', who: 'You' },
   { key: 'proposal', label: 'Review and accept your proposal', time: '3 minutes', who: 'You' },
   { key: 'contract', label: 'Review and sign your agreement', time: '5 minutes', who: 'You' },
   { key: 'payment', label: 'Pay your deposit', time: '2 minutes', who: 'You' },
@@ -28,19 +30,19 @@ export default function ClientJourney({ params }: { params: { token: string } })
 
   async function refresh() {
     const [project, questionnaire, proposal, contract, payment] = await Promise.all([
-      fetch('/api/client/project').then(r => r.ok ? r.json() : null),
-      fetch('/api/client/questionnaire').then(r => r.ok ? r.json() : null),
-      fetch('/api/client/proposal').then(r => r.ok ? r.json() : null),
-      fetch('/api/client/contract').then(r => r.ok ? r.json() : null),
-      fetch('/api/client/payment').then(r => r.ok ? r.json() : null),
+      fetch('/api/client/project').then(r => parseJsonResponse(r)),
+      fetch('/api/client/questionnaire').then(r => parseJsonResponse(r)),
+      fetch('/api/client/proposal').then(r => parseJsonResponse(r)),
+      fetch('/api/client/contract').then(r => parseJsonResponse(r)),
+      fetch('/api/client/payment').then(r => parseJsonResponse(r)),
     ])
-    if (!project) { setState('invalid'); return }
+    if (!project.ok) { setState('invalid'); return }
     setD({
-      project: project.project,
-      questionnaire: questionnaire?.questionnaire ?? null,
-      proposal: proposal?.proposal ?? null,
-      contract: contract?.contract ?? null,
-      payment: payment?.payment ?? null,
+      project: (project.data as any).project,
+      questionnaire: questionnaire.ok ? (questionnaire.data as any).questionnaire ?? null : null,
+      proposal: proposal.ok ? (proposal.data as any).proposal ?? null : null,
+      contract: contract.ok ? (contract.data as any).contract ?? null : null,
+      payment: payment.ok ? (payment.data as any).payment ?? null : null,
     })
     setState('ready')
   }
@@ -48,7 +50,8 @@ export default function ClientJourney({ params }: { params: { token: string } })
   useEffect(() => {
     (async () => {
       const res = await fetch(`/api/client/invite/${params.token}`, { method: 'POST' })
-      if (!res.ok) { setState('invalid'); return }
+      const parsed = await parseJsonResponse(res)
+      if (!parsed.ok) { setState('invalid'); return }
       await refresh()
     })()
   }, [params.token])
@@ -141,7 +144,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
                   <p className={isDone ? 'text-forest-500 text-sm' : isCurrent ? 'text-forest-950 font-medium' : 'text-forest-600 text-sm'}>{s.label}</p>
                   {isCurrent && (
                     <div className="mt-3">
-                      {s.key === 'questionnaire' && <Questionnaire busy={busy} setBusy={setBusy} onDone={refresh} />}
+                      {s.key === 'questionnaire' && <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />}
                       {s.key === 'proposal' && <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />}
                       {s.key === 'contract' && <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />}
                       {s.key === 'payment' && <PaymentStep payment={payment} busy={busy} setBusy={setBusy} onDone={refresh} />}
@@ -168,6 +171,25 @@ export default function ClientJourney({ params }: { params: { token: string } })
           </div>
         )}
 
+        {/* Files — shared galleries and deliverables */}
+        {Array.isArray(project.files) && project.files.some((f: any) => f.type === 'gallery') && (
+          <div className="mt-4 border border-forest-200 rounded-2xl bg-white p-5">
+            <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Your files</p>
+            <ul className="space-y-2">
+              {project.files.filter((f: any) => f.type === 'gallery').map((f: any) => (
+                <li key={f.id}>
+                  <a href={f.url} target="_blank" rel="noreferrer" className="text-sm text-forest-800 underline underline-offset-2 hover:text-forest-950">
+                    {f.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Messages */}
+        <ClientMessages vendorName={project.vendor.businessName} />
+
         {/* Help */}
         <p className="mt-8 text-xs text-forest-500 flex items-center gap-1.5">
           <HelpCircle size={13} />
@@ -180,33 +202,90 @@ export default function ClientJourney({ params }: { params: { token: string } })
 
 // ---- steps (logic unchanged from Stage 3/4) -------------------------
 
-function Questionnaire({ busy, setBusy, onDone }: any) {
-  const [style, setStyle] = useState('')
-  const [notes, setNotes] = useState('')
+function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
+  const essentials = BASE_DETAIL_FIELDS
+  const typeFields = detailQuestionsFor(project?.type ?? 'OTHER')
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const seed: Record<string, string> = { ...(existing || {}) }
+    // Pre-fill the basics the vendor already knows so the client only confirms.
+    if (!seed.date && project?.eventDate) seed.date = new Date(project.eventDate).toISOString().slice(0, 10)
+    if (!seed.venue && project?.location) seed.venue = project.location
+    return seed
+  })
+
+  function set(key: string, value: string) {
+    setValues(v => ({ ...v, [key]: value }))
+  }
+
+  function renderField(f: DetailField) {
+    return (
+      <Field key={f.key} label={f.label}>
+        {f.type === 'textarea' ? (
+          <textarea value={values[f.key] ?? ''} onChange={e => set(f.key, e.target.value)} className={inputCls} rows={3} placeholder={f.placeholder} />
+        ) : f.type === 'select' ? (
+          <select value={values[f.key] ?? ''} onChange={e => set(f.key, e.target.value)} className={inputCls}>
+            <option value="">Select…</option>
+            {(f.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input
+            type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}
+            inputMode={f.key === 'phone' ? 'tel' : f.type === 'number' ? 'numeric' : undefined}
+            min={f.type === 'number' ? 0 : undefined}
+            value={values[f.key] ?? ''}
+            onChange={e => set(f.key, e.target.value)}
+            className={inputCls}
+            placeholder={f.placeholder}
+          />
+        )}
+      </Field>
+    )
+  }
+
   async function submit() {
     setBusy(true)
     const res = await fetch('/api/client/questionnaire', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: { style_preference: style, notes }, complete: true }),
+      body: JSON.stringify({ answers: values, complete: true }),
     })
     setBusy(false)
     if (res.ok) onDone()
   }
+
   return (
     <Panel>
-      <Field label="Which style do you prefer?">
-        <input value={style} onChange={e => setStyle(e.target.value)} className={inputCls} placeholder="e.g. warm and natural" />
-      </Field>
-      <Field label="Anything else we should know?">
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} className={inputCls} rows={3} />
-      </Field>
-      <Primary onClick={submit} busy={busy}>Submit</Primary>
+      <p className="text-sm text-forest-600 mb-4">
+        Just a quick confirmation so your vendor can prepare everything for the day.
+      </p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-forest-400 mb-3">The essentials</p>
+      {essentials.map(renderField)}
+      {typeFields.length > 0 && (
+        <>
+          <p className="text-xs font-semibold uppercase tracking-wide text-forest-400 mb-3 mt-5">{sectionLabelFor(project?.type ?? 'OTHER')}</p>
+          {typeFields.map(renderField)}
+        </>
+      )}
+      <Primary onClick={submit} busy={busy}>Confirm details</Primary>
     </Panel>
   )
 }
 
 function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
-  async function accept() { setBusy(true); const r = await fetch('/api/client/proposal', { method: 'POST' }); setBusy(false); if (r.ok) onDone() }
+  const [error, setError] = useState('')
+  async function accept() {
+    if (busy) return
+    setError('')
+    setBusy(true)
+    try {
+      const r = await fetch('/api/client/proposal', { method: 'POST' })
+      if (r.ok) onDone()
+      else setError('We could not accept that just now. Please try again.')
+    } catch {
+      setError('Connection issue — please check your network and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <Panel>
       {proposal.description && <p className="text-forest-700 text-sm mb-3">{proposal.description}</p>}
@@ -218,6 +297,7 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
           ))}
         </ul>
       )}
+      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
       <Primary onClick={accept} busy={busy}>Accept proposal</Primary>
     </Panel>
   )
@@ -226,14 +306,23 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
 function ContractStep({ contract, busy, setBusy, onDone }: any) {
   const [name, setName] = useState('')
   const [consent, setConsent] = useState(false)
+  const [error, setError] = useState('')
   async function sign() {
+    if (busy) return
+    setError('')
     setBusy(true)
-    const r = await fetch('/api/client/contract', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ signedBy: name, consent }),
-    })
-    setBusy(false)
-    if (r.ok) onDone()
+    try {
+      const r = await fetch('/api/client/contract', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signedBy: name, consent }),
+      })
+      if (r.ok) onDone()
+      else setError('We could not save your signature just now. Please try again.')
+    } catch {
+      setError('Connection issue — please check your network and try again.')
+    } finally {
+      setBusy(false)
+    }
   }
   return (
     <Panel>
@@ -243,19 +332,105 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
         <span>By typing my name and confirming, I agree to the terms of this agreement.</span>
       </label>
       <input value={name} onChange={e => setName(e.target.value)} className={inputCls + ' mb-4'} placeholder="Type your full name" />
+      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
       <Primary onClick={sign} busy={busy} disabled={!consent || name.trim().length < 2}>Sign agreement</Primary>
     </Panel>
   )
 }
 
 function PaymentStep({ payment, busy, setBusy, onDone }: any) {
-  async function pay() { setBusy(true); const r = await fetch('/api/client/payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'DEPOSIT' }) }); setBusy(false); if (r.ok) onDone(); else onDone() }
+  const [error, setError] = useState('')
+  async function pay() {
+    if (busy) return
+    setError('')
+    setBusy(true)
+    try {
+      const r = await fetch('/api/client/payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'DEPOSIT' }) })
+      if (r.ok) { onDone() } else {
+        const body = await r.json().catch(() => ({}))
+        setError(body.error || 'We could not process that just now. Please try again.')
+      }
+    } catch {
+      setError('Connection issue — please check your network and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <Panel>
       <p className="text-2xl font-medium text-forest-950">£{Number(payment.depositDue).toFixed(2)}</p>
       <p className="text-xs text-forest-500 mt-1 mb-4">Your deposit secures the booking.</p>
+      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
       <Primary onClick={pay} busy={busy}>Pay deposit</Primary>
     </Panel>
+  )
+}
+
+function ClientMessages({ vendorName }: { vendorName: string }) {
+  const [messages, setMessages] = useState<any[]>([])
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  async function loadMessages() {
+    const res = await fetch('/api/client/messages')
+    const parsed = await parseJsonResponse<{ messages?: any[] }>(res)
+    if (parsed.ok) setMessages((parsed.data as any).messages || [])
+    setLoaded(true)
+  }
+
+  useEffect(() => { loadMessages() }, [])
+
+  async function send() {
+    const content = draft.trim()
+    if (!content || sending) return
+    setSending(true)
+    setDraft('')
+    const res = await fetch('/api/client/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    })
+    const parsed = await parseJsonResponse<{ error?: string }>(res)
+    setSending(false)
+    if (parsed.ok) loadMessages()
+  }
+
+  if (!loaded) return null
+
+  return (
+    <div className="mt-8 border border-forest-200 rounded-2xl bg-white p-5">
+      <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Messages with {vendorName}</p>
+      <div className="space-y-2.5 max-h-64 overflow-y-auto">
+        {messages.length === 0 ? (
+          <p className="text-sm text-forest-500">No messages yet. Send a note if you have any questions.</p>
+        ) : messages.map(m => {
+          const mine = m.type === 'client' || m.sender?.role === 'CLIENT'
+          return (
+            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-forest-950 text-paper-50' : 'bg-forest-50 text-forest-900'}`}>
+                <p className="whitespace-pre-wrap">{m.content}</p>
+                <p className={`mt-1 text-[11px] ${mine ? 'text-forest-300' : 'text-forest-400'}`}>
+                  {mine ? 'You' : (m.sender?.name || vendorName)} · {new Date(m.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
+          placeholder="Write a message…"
+          className={inputCls}
+        />
+        <button onClick={send} disabled={!draft.trim() || sending}
+          className="shrink-0 bg-forest-900 text-paper-50 rounded-xl px-4 disabled:opacity-40 hover:bg-forest-800 transition">
+          {sending ? <Loader2 size={15} className="animate-spin" /> : 'Send'}
+        </button>
+      </div>
+    </div>
   )
 }
 

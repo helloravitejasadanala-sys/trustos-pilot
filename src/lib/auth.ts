@@ -103,14 +103,16 @@ export async function requireAuth(roles?: string[]) {
   return user
 }
 
-export async function setSession(userId: string, role: string) {
+export async function setSession(userId: string, role: string, remember: boolean = true) {
   const token = await createToken({ sub: userId, role })
   const cookieStore = cookies()
   cookieStore.set('trustos_session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
+    // Remember Me: persist for 7 days. Otherwise a session cookie that
+    // clears when the browser closes.
+    ...(remember ? { maxAge: 60 * 60 * 24 * 7 } : {}),
     path: '/',
   })
 }

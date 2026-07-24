@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
+import bcrypt from 'bcryptjs'
 import { generateInvitationToken } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +14,7 @@ const INVITATION_TTL_DAYS = 30
 
 /** Absolute base URL used to build invitation links. */
 function appUrl() {
-  return (process.env.APP_URL || '').replace(/\/$/, '')
+  return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
 }
 
 export async function GET() {
@@ -27,7 +30,7 @@ export async function GET() {
     const projects = await prisma.project.findMany({
       where: { vendorId: vendor.id },
       include: {
-        client: { select: { name: true, email: true } },
+        client: { select: { id: true, name: true, email: true } },
         questionnaire: true,
         proposal: true,
         contract: true,
@@ -45,22 +48,17 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    const withLinks = projects.map((p: any) => {
-      const inv = p.invitations[0]
+    const withLinks = await Promise.all(projects.map(async (p: any) => {
+      let inv = p.invitations[0]
+      if (!inv) {
+        inv = await ensureActiveInvitation(vendor.id, p.id, { email: p.client?.email ?? null })
+      }
       const { invitations, ...rest } = p
       return {
         ...rest,
-        invitation: inv
-          ? {
-              url: `${appUrl()}/p/${inv.token}`,
-              expiresAt: inv.expiresAt,
-              openedAt: inv.openedAt,
-              email: inv.email,
-              expired: inv.expiresAt.getTime() <= Date.now(),
-            }
-          : null,
+        invitation: formatInvitationLink(inv),
       }
-    })
+    }))
 
     return NextResponse.json({ projects: withLinks })
   } catch (error: any) {
@@ -79,7 +77,9 @@ const createProjectSchema = z.object({
   location: z.string().optional(),
   budget: z.number().optional(),
   notes: z.string().optional(),
-  clientEmail: z.string().email().optional(),
+  clientName: z.string().trim().optional(),
+  clientEmail: z.string().trim().email().optional().or(z.literal('')),
+  clientPhone: z.string().trim().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -97,9 +97,34 @@ export async function POST(req: NextRequest) {
 
     const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36)
 
+    // Create / attach the client up front so the vendor never has to
+    // think about "existing vs new client" — it's just a name + email.
+    const clientEmail = data.clientEmail ? data.clientEmail.toLowerCase() : null
+    let clientId: string | undefined
+    if (clientEmail) {
+      const client = await prisma.user.upsert({
+        where: { email: clientEmail },
+        update: {
+          ...(data.clientName ? { name: data.clientName } : {}),
+          ...(data.clientPhone ? { phone: data.clientPhone } : {}),
+          role: 'CLIENT',
+        },
+        create: {
+          email: clientEmail,
+          name: data.clientName || clientEmail.split('@')[0],
+          phone: data.clientPhone || null,
+          role: 'CLIENT',
+          password: await bcrypt.hash(randomBytes(24).toString('hex'), 10),
+        },
+        select: { id: true },
+      })
+      clientId = client.id
+    }
+
     const project = await prisma.project.create({
       data: {
         vendorId: vendor.id,
+        clientId,
         title: data.title,
         slug,
         type: data.type as any,
@@ -118,7 +143,7 @@ export async function POST(req: NextRequest) {
       data: {
         vendorId: vendor.id,
         projectId: project.id,
-        email: data.clientEmail || null,
+        email: clientEmail,
         token: generateInvitationToken(),
         expiresAt: new Date(Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000),
       },

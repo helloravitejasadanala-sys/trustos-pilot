@@ -12,38 +12,43 @@ export const dynamic = 'force-dynamic'
  * afterwards reads the session cookie instead.
  */
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { token: string } }
 ) {
-  const check = await validateInvitationToken(params.token)
+  try {
+    const check = await validateInvitationToken(params.token)
 
-  if (!check.ok) {
-    // One message for every failure. Distinguishing "expired" from
-    // "not found" would confirm to a stranger which tokens are real.
+    if (!check.ok) {
+      return NextResponse.json(
+        { error: 'This invitation link is not valid. Please ask your vendor for a new one.' },
+        { status: 404 }
+      )
+    }
+
+    const invitation = await prisma.invitation.findUnique({
+      where: { id: check.invitationId },
+      select: { openedAt: true },
+    })
+
+    if (!invitation?.openedAt) {
+      await prisma.invitation.update({
+        where: { id: check.invitationId },
+        data: { openedAt: new Date(), status: 'OPENED' },
+      })
+      await trackEvent('invitation_opened', {
+        projectId: check.projectId,
+        metadata: { invitationId: check.invitationId },
+      })
+    }
+
+    await createClientSession(check.invitationId, check.projectId)
+
+    return NextResponse.json({ ok: true })
+  } catch (error: any) {
+    console.error('Client invite error:', error)
     return NextResponse.json(
-      { error: 'This invitation link is not valid. Please ask your vendor for a new one.' },
-      { status: 404 }
+      { error: error.message || 'Could not open invitation. Please try again.' },
+      { status: 500 }
     )
   }
-
-  // Record the first open only, so the timestamp means "first viewed".
-  const invitation = await prisma.invitation.findUnique({
-    where: { id: check.invitationId },
-    select: { openedAt: true },
-  })
-
-  if (!invitation?.openedAt) {
-    await prisma.invitation.update({
-      where: { id: check.invitationId },
-      data: { openedAt: new Date(), status: 'OPENED' },
-    })
-    await trackEvent('invitation_opened', {
-      projectId: check.projectId,
-      metadata: { invitationId: check.invitationId },
-    })
-  }
-
-  await createClientSession(check.invitationId, check.projectId)
-
-  return NextResponse.json({ ok: true })
 }

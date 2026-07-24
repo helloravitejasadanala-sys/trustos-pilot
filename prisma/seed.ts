@@ -182,6 +182,22 @@ This is placeholder wording for the pilot and has not been reviewed by a solicit
     },
   })
 
+  await db.invitation.upsert({
+    where: { token: 'demo-first-birthday-seed-token-000000000000000000' },
+    update: {
+      expiresAt: new Date(Date.now() + 3650 * 86400000),
+      revokedAt: null,
+      projectId: project.id,
+      vendorId: vendorProfile.id,
+    },
+    create: {
+      vendorId: vendorProfile.id,
+      projectId: project.id,
+      token: 'demo-first-birthday-seed-token-000000000000000000',
+      expiresAt: new Date(Date.now() + 3650 * 86400000),
+    },
+  })
+
   // --- Milestones ------------------------------------------------
   // Unique on (projectId, title).
   const now = Date.now()

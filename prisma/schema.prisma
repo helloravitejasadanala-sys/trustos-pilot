@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -14,6 +15,7 @@ model User {
   name      String
   role      Role     @default(CLIENT)
   avatar    String?
+  phone     String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -78,6 +80,7 @@ model Project {
   eventDate   DateTime?     @map("event_date")
   location    String?
   budget      Decimal?      @db.Decimal(10, 2)
+  paymentMethod String?     @map("payment_method")
   notes       String?
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -94,6 +97,7 @@ model Project {
   approvals        Approval[]
   revisionRequests RevisionRequest[]
   review           Review?
+  learnings        Learning[]
 
   @@map("projects")
 }
@@ -130,6 +134,13 @@ enum ProjectType {
   WEDDING
   PORTRAIT
   OTHER
+  MOTHERHOOD_JOURNEY
+  FAMILY_SESSION
+  VIDEOGRAPHY
+  LIVE_STREAM
+  DECOR
+  MAKEUP
+  EVENT_PLANNING
 }
 
 model Questionnaire {
@@ -162,6 +173,7 @@ model Proposal {
   items       Json
   depositPercent Int?    @map("deposit_percent")
   depositAmount  Decimal? @db.Decimal(10, 2) @map("deposit_amount")
+  deposit        Decimal? @db.Decimal(10, 2)
   expiryDate  DateTime? @map("expiry_date")
   acceptedAt  DateTime? @map("accepted_at")
   declinedAt  DateTime? @map("declined_at")
@@ -183,6 +195,7 @@ model Contract {
   contentHash     String?   @map("content_hash")
   acceptanceText  String?   @db.Text @map("acceptance_text")
   clientSessionId String?   @map("client_session_id")
+  sentAt          DateTime? @map("sent_at")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("contracts")
@@ -328,6 +341,7 @@ model Message {
   senderId  String   @map("sender_id")
   sender    User     @relation(fields: [senderId], references: [id])
   content   String
+  type      String?
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([projectId])
@@ -340,9 +354,10 @@ model File {
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name      String
   url       String
-  type      String   // e.g. "image", "document", "video"
-  size      Int?
-  createdAt DateTime @default(now()) @map("created_at")
+  type       String   // e.g. "image", "document", "video"
+  size       Int?
+  uploadedBy String   @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([projectId])
   @@map("files")
@@ -350,14 +365,14 @@ model File {
 
 model ActivityLog {
   id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id])
   projectId String?  @map("project_id")
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  action    String
-  event     String?   // alias for action, for analytics tracking
+  action    String?
+  event     String
   details   Json?
-  metadata  Json?     // extra data for analytics tracking
+  metadata  Json?
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId])
@@ -369,16 +384,38 @@ model Invitation {
   id        String   @id @default(uuid())
   vendorId  String   @map("vendor_id")
   vendor    VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  projectId String?  @map("project_id")
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  email     String
+  projectId String   @map("project_id")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  email     String?
   token     String   @unique
   role      Role     @default(CLIENT)
   status    String   @default("PENDING") // PENDING, OPENED, ACCEPTED, EXPIRED
   openedAt  DateTime? @map("opened_at")
+  revokedAt DateTime? @map("revoked_at")
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([vendorId, email])
   @@map("invitations")
+}
+
+model Learning {
+  id            String   @id @default(uuid())
+  projectId     String   @map("project_id")
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  vendorId      String   @map("vendor_id")
+  wentWell      String   @map("went_well") @db.Text
+  problems      String   @db.Text
+  solution      String   @db.Text
+  missing       String   @db.Text
+  venueAccurate String   @map("venue_accurate") @db.Text
+  advice        String   @db.Text
+  setupTime     String   @map("setup_time")
+  clientJourney String   @map("client_journey") @db.Text
+  rating        Int?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@index([vendorId])
+  @@map("learnings")
 }

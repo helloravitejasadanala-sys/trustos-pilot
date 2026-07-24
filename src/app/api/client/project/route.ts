@@ -39,6 +39,10 @@ export async function GET() {
           orderBy: { dueDate: 'asc' },
           select: { title: true, dueDate: true, completedAt: true },
         },
+        files: {
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, name: true, url: true, type: true, createdAt: true },
+        },
       },
     })
 
