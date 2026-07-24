@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { breakdown, amountForType } from '@/lib/payments'
+import { isStripeConfigured, normalizePaymentMethod } from '@/lib/stripe-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,12 +14,28 @@ function stripe() {
   return new Stripe(key, { apiVersion: '2024-04-10' as any })
 }
 
-// What is owed. Read-only.
+// What is owed, and HOW it is paid. Read-only. The client learns the
+// payment mode (manual / stripe / free) and whether Stripe is available,
+// so the portal can show the right panel — never a broken card button.
 export async function GET() {
   try {
     const { projectId } = await requireClientSession()
     const b = await breakdown(projectId)
-    return NextResponse.json({ payment: b })
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { paymentMethod: true },
+    })
+    const method = normalizePaymentMethod(project?.paymentMethod)
+    // Has the client already told the vendor they've paid (manual)?
+    const declared = await prisma.payment.findFirst({
+      where: { projectId, status: 'PENDING' },
+      select: { id: true },
+    })
+    return NextResponse.json({
+      payment: b
+        ? { ...b, method, stripeConfigured: isStripeConfigured(), declared: !!declared }
+        : null,
+    })
   } catch (err: any) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: err.status ?? 500 })
   }
@@ -46,6 +63,24 @@ export async function POST(req: NextRequest) {
     const contract = await prisma.contract.findUnique({ where: { projectId } })
     if (!contract?.signedAt) {
       return NextResponse.json({ error: 'Sign the contract first' }, { status: 409 })
+    }
+
+    // --- MANUAL mode ------------------------------------------------
+    // The client tells the vendor they've paid (bank transfer / cash).
+    // This does NOT advance the project — it records a PENDING payment
+    // for the vendor to confirm. Idempotent: only one pending row.
+    if (body?.mode === 'manual') {
+      const amount = await amountForType(projectId, type)
+      const existing = await prisma.payment.findFirst({
+        where: { projectId, type, status: 'PENDING' },
+      })
+      if (!existing) {
+        await prisma.payment.create({
+          data: { projectId, type, amount, status: 'PENDING', method: 'manual' },
+        })
+        await trackEvent('client_declared_payment', { projectId, metadata: { type, amount } })
+      }
+      return NextResponse.json({ ok: true, declared: true })
     }
 
     // Server computes the amount. Throws 409 if not payable.

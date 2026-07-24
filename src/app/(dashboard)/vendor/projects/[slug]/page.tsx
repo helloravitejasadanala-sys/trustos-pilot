@@ -17,6 +17,7 @@ import {
 } from '@/lib/vendor-phase1'
 import { projectTypeLabel, allDetailFields } from '@/lib/project-types'
 import { humanizeActivityEvent } from '@/lib/activity-labels'
+import { normalizePaymentMethod } from '@/lib/stripe-config'
 import { parseJsonResponse } from '@/lib/safe-json'
 
 const TABS = ['Overview', 'Money', 'Preparation', 'Delivery', 'Messages', 'History'] as const
@@ -34,7 +35,8 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const [menuOpen, setMenuOpen] = useState(false)
   const [clientModal, setClientModal] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [quote, setQuote] = useState({ method: 'cash', title: '', price: '', deposit: '', description: '' })
+  const [quote, setQuote] = useState({ method: 'manual', title: '', price: '', deposit: '', description: '' })
+  const [stripeConfigured, setStripeConfigured] = useState(false)
   const [draft, setDraft] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -43,14 +45,15 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       fetch(`/api/vendor/projects/${params.slug}/detail`),
       fetch('/api/vendor/clients'),
     ])
-    const detailJson = await parseJsonResponse<{ project?: any; error?: string }>(detail)
+    const detailJson = await parseJsonResponse<{ project?: any; stripeConfigured?: boolean; error?: string }>(detail)
     if (!detailJson.ok || !detailJson.data.project) { setState('error'); return }
     const p = detailJson.data.project
     setProject(p)
+    setStripeConfigured(!!detailJson.data.stripeConfigured)
     const clientJson = await parseJsonResponse<{ clients?: any[] }>(clientRes)
     if (clientJson.ok) setClients(clientJson.data.clients || [])
     setQuote(q => ({
-      method: p.paymentMethod || q.method || 'cash',
+      method: normalizePaymentMethod(p.paymentMethod || q.method),
       title: p.proposal?.title || q.title || `${projectTypeLabel(p.type)} package`,
       price: p.proposal ? String(p.proposal.price ?? '') : q.price,
       deposit: p.proposal ? String(p.proposal.depositAmount ?? p.proposal.deposit ?? '') : q.deposit,
@@ -159,7 +162,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
   const na = getNextAction(project.status)
   const progress = journeyProgress(project)
-  const method = project.paymentMethod || quote.method || 'cash'
+  const method = normalizePaymentMethod(project.paymentMethod || quote.method)
   const deposit = (project.payments || []).find((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
   const test = isTestProject(project)
   const detailsDone = !!project.questionnaire?.completedAt
@@ -173,8 +176,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       case 'PROPOSAL_ACCEPTED': return { label: 'Send agreement', action: sendContract }
       case 'CONTRACT_SIGNED':
         if (method === 'free') return { label: 'Confirm free collaboration', action: completeFree }
-        if (method === 'cash') return { label: 'Mark deposit received', action: () => recordPayment('DEPOSIT') }
-        return { label: 'Mark deposit received (manual)', action: () => recordPayment('DEPOSIT') }
+        return { label: 'Mark deposit received', action: () => recordPayment('DEPOSIT') }
       case 'DEPOSIT_PAID': return { label: 'Mark service complete', action: completeDelivery }
       case 'FULLY_PAID': return { label: 'Add delivery', action: () => setTab('Delivery') }
       case 'COMPLETED': return { label: 'Request a review', action: requestReview }
@@ -362,8 +364,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
             <h2 className="text-lg font-semibold text-forest-950">Payment method</h2>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
-                { v: 'cash', label: 'Cash', hint: 'You mark payments received' },
-                { v: 'stripe', label: 'Stripe', hint: 'Client pays online' },
+                { v: 'manual', label: 'Manual', hint: 'Bank transfer or cash — you confirm receipt' },
+                // Stripe only appears when a real Stripe key is configured,
+                // so a placeholder can never reach the client.
+                ...(stripeConfigured ? [{ v: 'stripe', label: 'Stripe', hint: 'Client pays securely online' }] : []),
                 { v: 'free', label: 'Free collaboration', hint: 'No charge' },
               ].map(m => (
                 <button key={m.v} onClick={() => setQuote(q => ({ ...q, method: m.v }))}
@@ -419,6 +423,11 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <p className="text-base text-forest-800 mt-2">Your client pays online through their secure link. You can also mark a payment received manually below.</p>
               ) : (
                 <p className="text-base text-forest-800 mt-2">Record payments as you receive them.</p>
+              )}
+              {(project.payments || []).some((p: any) => p.status === 'PENDING') && (
+                <p className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900">
+                  Your client reported a payment. Confirm once it has cleared.
+                </p>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
                 {project.status === 'CONTRACT_SIGNED' && method === 'free' && (

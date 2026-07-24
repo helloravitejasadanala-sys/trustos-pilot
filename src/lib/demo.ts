@@ -27,3 +27,16 @@ export function isDemoKey(k: string): k is DemoKey {
 // Every demo vendor email, for a belt-and-braces membership check.
 export const DEMO_VENDOR_EMAILS = Object.values(DEMO).map(d => d.vendorEmail)
 export const DEMO_PROJECT_SLUGS = Object.values(DEMO).map(d => d.projectSlug)
+
+/**
+ * Every seeded demo project slug, including the standalone first-birthday
+ * sample that isn't part of the passwordless /demo door. Section C — these
+ * are explicitly excluded from real vendor workspace queries so a real
+ * pilot user never sees a sample project.
+ */
+export const ALL_DEMO_PROJECT_SLUGS = [...DEMO_PROJECT_SLUGS, 'demo-first-birthday']
+
+/** Is this signed-in email one of the seeded demo workspaces? */
+export function isDemoVendorEmail(email: string | null | undefined): boolean {
+  return !!email && DEMO_VENDOR_EMAILS.includes(email.toLowerCase() as any)
+}

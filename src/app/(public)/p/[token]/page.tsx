@@ -80,7 +80,9 @@ export default function ClientJourney({ params }: { params: { token: string } })
     questionnaire: !!questionnaire?.completedAt,
     proposal: !!proposal?.acceptedAt,
     contract: !!contract?.signedAt,
-    payment: !!payment?.paid,
+    // Paid when the balance is settled, a deposit has cleared, or there is
+    // nothing to pay (free collaboration → total 0 → fullyPaid).
+    payment: !!payment && (payment.fullyPaid || Number(payment.depositPaid) > 0),
   }
   let current: typeof STEPS[number]['key'] | 'done' = 'done'
   if (!done.questionnaire) current = 'questionnaire'
@@ -157,10 +159,23 @@ export default function ClientJourney({ params }: { params: { token: string } })
         </ol>
 
         {/* Payment status summary */}
-        {(done.contract || done.payment) && (
+        {payment && (done.contract || done.payment) && (
           <div className="mt-4 border border-forest-200 rounded-2xl bg-white p-5 text-sm">
             <p className="text-xs uppercase tracking-wide text-forest-500 mb-2">Payment</p>
-            <Row k="Deposit" v={payment?.paid ? `£${Number(payment.paid.amount ?? payment.depositPaid).toFixed(2)} received` : (payment ? `£${Number(payment.depositDue).toFixed(2)} due` : '—')} />
+            {Number(payment.total) === 0 ? (
+              <Row k="Amount" v="No payment required" />
+            ) : (
+              <Row
+                k="Deposit"
+                v={
+                  Number(payment.depositPaid) > 0 || payment.fullyPaid
+                    ? `£${Number(payment.depositPaid || payment.depositDue).toFixed(2)} received`
+                    : payment.declared
+                      ? `£${Number(payment.depositDue).toFixed(2)} — awaiting confirmation`
+                      : `£${Number(payment.depositDue).toFixed(2)} due`
+                }
+              />
+            )}
           </div>
         )}
 
@@ -340,7 +355,35 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
 
 function PaymentStep({ payment, busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
-  async function pay() {
+  const method: 'manual' | 'stripe' | 'free' = payment?.method ?? 'manual'
+  const total = Number(payment?.total ?? 0)
+  const deposit = Number(payment?.depositDue ?? 0)
+  // Stripe is only ever offered when a real Stripe configuration exists.
+  const canPayOnline = method === 'stripe' && payment?.stripeConfigured
+
+  // Free collaboration — nothing owed.
+  if (total === 0) {
+    return (
+      <Panel>
+        <p className="text-lg font-medium text-forest-950">No payment required</p>
+        <p className="text-sm text-forest-600 mt-1">This project is a free collaboration — there’s nothing to pay.</p>
+      </Panel>
+    )
+  }
+
+  // Client has already reported a manual payment — waiting on the vendor.
+  if (payment?.declared) {
+    return (
+      <Panel>
+        <p className="text-lg font-medium text-forest-950">Thanks — payment reported</p>
+        <p className="text-sm text-forest-600 mt-1">
+          We’ve let your vendor know. They’ll confirm once the £{deposit.toFixed(2)} deposit has cleared.
+        </p>
+      </Panel>
+    )
+  }
+
+  async function payOnline() {
     if (busy) return
     setError('')
     setBusy(true)
@@ -356,12 +399,39 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
       setBusy(false)
     }
   }
+
+  async function declareManual() {
+    if (busy) return
+    setError('')
+    setBusy(true)
+    try {
+      const r = await fetch('/api/client/payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'DEPOSIT', mode: 'manual' }) })
+      if (r.ok) { onDone() } else {
+        const body = await r.json().catch(() => ({}))
+        setError(body.error || 'We could not record that just now. Please try again.')
+      }
+    } catch {
+      setError('Connection issue — please check your network and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <Panel>
-      <p className="text-2xl font-medium text-forest-950">£{Number(payment.depositDue).toFixed(2)}</p>
+      <p className="text-2xl font-medium text-forest-950">£{deposit.toFixed(2)}</p>
       <p className="text-xs text-forest-500 mt-1 mb-4">Your deposit secures the booking.</p>
       {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
-      <Primary onClick={pay} busy={busy}>Pay deposit</Primary>
+      {canPayOnline ? (
+        <Primary onClick={payOnline} busy={busy}>Pay securely online</Primary>
+      ) : (
+        <>
+          <p className="text-sm text-forest-600 mb-3">
+            Your vendor will confirm your payment once it’s received. Pay by the method you’ve agreed with them, then let them know below.
+          </p>
+          <Primary onClick={declareManual} busy={busy}>I’ve made the payment</Primary>
+        </>
+      )}
     </Panel>
   )
 }

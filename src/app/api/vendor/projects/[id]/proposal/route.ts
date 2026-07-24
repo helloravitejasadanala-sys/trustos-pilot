@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { trackEvent } from '@/lib/analytics'
+import { isStripeConfigured, normalizePaymentMethod } from '@/lib/stripe-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,8 +28,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const project = await ownedProject(params.id, user.id)
     const b = await req.json()
 
-    const method: string = ['cash', 'stripe', 'free'].includes(b.method) ? b.method : 'cash'
+    // Section L — exactly three modes: MANUAL, STRIPE, FREE_COLLABORATION.
+    // Legacy 'cash' collapses to 'manual'. Stripe can only be selected when
+    // a valid Stripe configuration is present, so a placeholder key can
+    // never reach the client.
+    const method = normalizePaymentMethod(b.method)
     const free = method === 'free'
+
+    if (method === 'stripe' && !isStripeConfigured()) {
+      return NextResponse.json(
+        { error: 'Card payments aren’t set up yet. Choose Manual or Free collaboration.' },
+        { status: 400 }
+      )
+    }
 
     if (!b.title || !String(b.title).trim()) {
       return NextResponse.json({ error: 'Add a title for the quote' }, { status: 400 })

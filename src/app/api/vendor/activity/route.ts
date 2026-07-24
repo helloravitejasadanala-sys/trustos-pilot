@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { humanizeActivityEvent } from '@/lib/activity-labels'
+import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,8 +17,14 @@ export async function GET() {
     const vendor = await prisma.vendorProfile.findUnique({ where: { userId: user.id } })
     if (!vendor) return NextResponse.json({ activity: [] })
 
+    const showDemo = isDemoVendorEmail(user.email)
     const activity = await prisma.activityLog.findMany({
-      where: { project: { vendorId: vendor.id } },
+      where: {
+        project: {
+          vendorId: vendor.id,
+          ...(showDemo ? {} : { slug: { notIn: ALL_DEMO_PROJECT_SLUGS } }),
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 8,
       select: {

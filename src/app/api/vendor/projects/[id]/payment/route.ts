@@ -32,17 +32,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const amount = type === 'DEPOSIT' ? deposit : Math.max(0, price - deposit)
+    const resolvedMethod = method || project.paymentMethod || 'manual'
 
-    await prisma.payment.create({
-      data: {
-        projectId: project.id,
-        type,
-        amount,
-        status: 'COMPLETED',
-        method: method || project.paymentMethod || 'cash',
-        paidAt: new Date(),
-      }
+    // If the client already declared a manual payment (PENDING), confirm
+    // that same row rather than creating a duplicate — so the breakdown
+    // never double-counts and the audit trail stays clean.
+    const pending = await prisma.payment.findFirst({
+      where: { projectId: project.id, type, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
     })
+    if (pending) {
+      await prisma.payment.update({
+        where: { id: pending.id },
+        data: { status: 'COMPLETED', method: resolvedMethod, amount, paidAt: new Date() },
+      })
+    } else {
+      await prisma.payment.create({
+        data: {
+          projectId: project.id,
+          type,
+          amount,
+          status: 'COMPLETED',
+          method: resolvedMethod,
+          paidAt: new Date(),
+        }
+      })
+    }
 
     const newStatus = type === 'DEPOSIT' ? 'DEPOSIT_PAID' : 'FULLY_PAID'
     await prisma.project.update({

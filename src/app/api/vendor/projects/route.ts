@@ -6,6 +6,7 @@ import { trackEvent } from '@/lib/analytics'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
+import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -27,8 +28,15 @@ export async function GET() {
       return NextResponse.json({ error: 'Vendor profile not found' }, { status: 404 })
     }
 
+    // Section C — a real workspace never shows seeded sample projects.
+    // Demo projects remain visible only inside the seeded demo workspaces
+    // (used by the passwordless /demo door).
+    const showDemo = isDemoVendorEmail(user.email)
     const projects = await prisma.project.findMany({
-      where: { vendorId: vendor.id },
+      where: {
+        vendorId: vendor.id,
+        ...(showDemo ? {} : { slug: { notIn: ALL_DEMO_PROJECT_SLUGS } }),
+      },
       include: {
         client: { select: { id: true, name: true, email: true } },
         questionnaire: true,

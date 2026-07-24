@@ -23,14 +23,16 @@ type ActivityItem = { id: string; event: string; createdAt: string; project: { t
 export default function TodayPage() {
   const [projects, setProjects] = useState<VendorProject[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [business, setBusiness] = useState('')
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
 
   async function load() {
     try {
-      const [res, actRes] = await Promise.all([
+      const [res, actRes, meRes] = await Promise.all([
         fetch('/api/vendor/projects'),
         fetch('/api/vendor/activity'),
+        fetch('/api/auth/me'),
       ])
       const { ok, data } = await parseJsonResponse<{ projects?: VendorProject[]; error?: string }>(res)
       if (!ok) {
@@ -40,6 +42,8 @@ export default function TodayPage() {
       setProjects((data.projects || []).filter((p: VendorProject) => !isArchivedProject(p)))
       const act = await parseJsonResponse<{ activity?: ActivityItem[] }>(actRes)
       if (act.ok) setActivity(act.data.activity || [])
+      const me = await parseJsonResponse<{ user?: { vendorProfile?: { businessName?: string } } }>(meRes)
+      if (me.ok) setBusiness(me.data.user?.vendorProfile?.businessName || '')
     } finally {
       setLoading(false)
     }
@@ -71,6 +75,31 @@ export default function TodayPage() {
     return (
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-4">
         <CardSkeleton /><CardSkeleton />
+      </div>
+    )
+  }
+
+  // First run — an empty real workspace greets the owner and points at the
+  // single next action, rather than showing five empty lists (Section C/D).
+  if (projects.length === 0) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-6">
+        <div className="flex items-center justify-between gap-4 border-b border-forest-100 pb-4 mb-8">
+          <div>
+            <h1 className="font-display text-xl text-forest-950">Today</h1>
+            <p className="text-[13px] text-forest-500">Your clear next steps</p>
+          </div>
+        </div>
+        <div className="mx-auto max-w-lg rounded-xl border border-forest-200 bg-white px-6 py-10 text-center">
+          <h2 className="font-display text-2xl text-forest-950">Welcome{business ? ` to ${business}` : ''}.</h2>
+          <p className="mt-2 text-[14px] text-forest-600">
+            This is your workspace. Create your first project to invite a client and start the journey.
+          </p>
+          <button onClick={() => setShowCreate(true)} className="btn-primary mt-5">
+            <Plus size={16} className="mr-1.5" />Create your first project
+          </button>
+        </div>
+        {showCreate && <NewProjectModal onClose={() => setShowCreate(false)} onCreated={load} />}
       </div>
     )
   }
