@@ -12,7 +12,7 @@ function trim(v: unknown, max = 500) {
  * Public venue research intake.
  * Supports:
  * - Classic admin archive form (name/address/city/country + contributor)
- * - Fast “experience” survey (under a minute — venue + challenge + rating + return)
+ * - Fast experience survey (under a minute — venue + role + issues + optional tip)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -35,30 +35,30 @@ export async function POST(req: NextRequest) {
         : {}
 
     if (isExperience) {
-      const challenge = trim(body.challenge ?? answers.primary_challenge, 200)
-      const wouldReturn = trim(body.wouldReturn ?? answers.would_work_again, 40)
-      const advice = trim(body.advice ?? answers.advice_for_next_professional, 250)
-      const ratingRaw = body.rating ?? answers.experience_rating
-      const rating = typeof ratingRaw === 'number' ? ratingRaw : Number(ratingRaw)
+      const role = trim(body.role ?? answers.contributor_role, 40)
+      const advice = trim(body.advice ?? answers.advice_for_next_professional, 200)
+      const issuesRaw = body.issues ?? answers.issues ?? answers.primary_challenge
+      const issues = Array.isArray(issuesRaw)
+        ? issuesRaw.map(v => trim(v, 80)).filter(Boolean).slice(0, 3)
+        : trim(issuesRaw, 200)
+          ? [trim(issuesRaw, 200)]
+          : []
 
       if (!venueName || venueName.length < 2) {
         return NextResponse.json({ error: 'Add a venue name to continue.' }, { status: 400 })
       }
-      if (!challenge) {
-        return NextResponse.json({ error: 'Pick what made the day harder.' }, { status: 400 })
+      if (!role) {
+        return NextResponse.json({ error: 'Pick your role on the day.' }, { status: 400 })
       }
-      if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-        return NextResponse.json({ error: 'Choose how the day felt overall.' }, { status: 400 })
-      }
-      if (!wouldReturn) {
-        return NextResponse.json({ error: 'Tell us if you would go back.' }, { status: 400 })
+      if (issues.length === 0) {
+        return NextResponse.json({ error: 'Pick at least one real issue.' }, { status: 400 })
       }
 
       answers.form = 'venue_experience'
-      answers.survey_version = '1.1.0'
-      answers.primary_challenge = challenge
-      answers.experience_rating = rating
-      answers.would_work_again = wouldReturn
+      answers.survey_version = '2.0.0'
+      answers.contributor_role = role
+      answers.issues = issues
+      answers.primary_challenge = issues[0]
       if (advice) answers.advice_for_next_professional = advice
 
       // DB columns stay required — experience reports fill safe defaults.

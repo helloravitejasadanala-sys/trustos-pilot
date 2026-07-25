@@ -105,15 +105,14 @@ function AdminVenuesInner() {
                   <div className="font-semibold text-ink-900">{v.venueName}</div>
                   {v.source === 'venue_experience' ? (
                     <div className="mt-1 space-y-0.5 text-[13px] text-ink-600">
-                      {v.answers?.primary_challenge != null && (
-                        <div>Hardest: {String(v.answers.primary_challenge)}</div>
+                      {v.answers?.contributor_role != null && (
+                        <div>Role: {String(v.answers.contributor_role)}</div>
                       )}
-                      {v.answers?.experience_rating != null && (
-                        <div>Overall: {String(v.answers.experience_rating)}/5</div>
-                      )}
-                      {v.answers?.would_work_again != null && (
-                        <div>Go back: {String(v.answers.would_work_again)}</div>
-                      )}
+                      {Array.isArray(v.answers?.issues) ? (
+                        <div>Issues: {(v.answers.issues as unknown[]).map(String).join(', ')}</div>
+                      ) : v.answers?.primary_challenge != null ? (
+                        <div>Issue: {String(v.answers.primary_challenge)}</div>
+                      ) : null}
                       {v.answers?.advice_for_next_professional != null && (
                         <div className="italic text-ink-500">
                           “{String(v.answers.advice_for_next_professional)}”
