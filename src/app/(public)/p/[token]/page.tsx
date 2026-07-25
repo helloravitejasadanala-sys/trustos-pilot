@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle, HelpCircle } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { BASE_DETAIL_FIELDS, detailQuestionsFor, projectTypeLabel, sectionLabelFor, type DetailField } from '@/lib/project-types'
 import { ClientPortalLayout } from '@/components/layout'
+import { useMessagePoll } from '@/hooks/useMessagePoll'
 
 /**
  * Client portal — secure link journey.
@@ -659,6 +661,23 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
   }
 
   useEffect(() => { loadMessages() }, [])
+
+  useMessagePoll({
+    enabled: loaded,
+    fetchMessages: async () => {
+      const res = await fetch('/api/client/messages')
+      const parsed = await parseJsonResponse<{ messages?: any[] }>(res)
+      if (!parsed.ok) return null
+      return (parsed.data as any).messages || []
+    },
+    onMessages: setMessages,
+    isInbound: m => m.type === 'vendor' || m.sender?.role === 'VENDOR',
+    onInbound: inbound => {
+      const last = inbound[inbound.length - 1]
+      const preview = (last.content || '').trim().slice(0, 80)
+      toast(`${vendorName}${preview ? `: ${preview}` : ' sent a message'}`, { id: 'client-msg-poll' })
+    },
+  })
 
   async function send() {
     const content = draft.trim()

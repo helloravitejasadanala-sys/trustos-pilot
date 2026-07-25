@@ -21,6 +21,7 @@ import { projectTypeLabel, allDetailFields } from '@/lib/project-types'
 import { humanizeActivityEvent } from '@/lib/activity-labels'
 import { normalizePaymentMethod } from '@/lib/stripe-config'
 import { parseJsonResponse } from '@/lib/safe-json'
+import { useMessagePoll } from '@/hooks/useMessagePoll'
 
 const TABS = ['Overview', 'Money', 'Preparation', 'Delivery', 'Messages', 'History'] as const
 type Tab = typeof TABS[number]
@@ -102,6 +103,31 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       if (project?.id) markSeen(project.id)
     }
   }, [tab, project?.id, project?.messages?.length])
+
+  const projectId = project?.id as string | undefined
+  const clientLabel = project?.client?.name || 'your client'
+
+  useMessagePoll({
+    enabled: state === 'ready' && tab === 'Messages' && !!projectId,
+    fetchMessages: async () => {
+      if (!projectId) return null
+      const res = await fetch(`/api/vendor/projects/${projectId}/messages`)
+      const parsed = await parseJsonResponse<{ messages?: any[] }>(res)
+      if (!parsed.ok) return null
+      return (parsed.data as any).messages || []
+    },
+    onMessages: messages => {
+      setProject((prev: any) => (prev ? { ...prev, messages } : prev))
+    },
+    isInbound: m => m.type === 'client' || m.sender?.role === 'CLIENT',
+    onInbound: inbound => {
+      const last = inbound[inbound.length - 1]
+      const from = last.sender?.name || clientLabel
+      const preview = (last.content || '').trim().slice(0, 80)
+      toast(`New message from ${from}${preview ? `: ${preview}` : ''}`, { id: 'vendor-msg-poll' })
+      if (projectId) markSeen(projectId)
+    },
+  })
 
   async function run(label: string, fn: () => unknown) {
     if (busy) return // guards against double-clicks firing the same action twice
@@ -1041,7 +1067,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         </div>
       )}
 
-      {/* MESSAGES — presentation only; live updates stay parked */}
+      {/* MESSAGES — polled while this tab is open */}
       {tab === 'Messages' && (
         <div>
           <div style={{ font: 'var(--t-h2)', marginBottom: 12 }}>
