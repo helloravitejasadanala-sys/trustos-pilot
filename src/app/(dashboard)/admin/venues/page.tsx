@@ -103,11 +103,33 @@ function AdminVenuesInner() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-semibold text-ink-900">{v.venueName}</div>
-                  <div className="mt-0.5 text-[13px] text-ink-500">
-                    {v.address} · {v.city}, {v.country}
-                  </div>
+                  {v.source === 'venue_experience' ? (
+                    <div className="mt-1 space-y-0.5 text-[13px] text-ink-600">
+                      {v.answers?.primary_challenge != null && (
+                        <div>Hardest: {String(v.answers.primary_challenge)}</div>
+                      )}
+                      {v.answers?.experience_rating != null && (
+                        <div>Overall: {String(v.answers.experience_rating)}/5</div>
+                      )}
+                      {v.answers?.would_work_again != null && (
+                        <div>Go back: {String(v.answers.would_work_again)}</div>
+                      )}
+                      {v.answers?.advice_for_next_professional != null && (
+                        <div className="italic text-ink-500">
+                          “{String(v.answers.advice_for_next_professional)}”
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-0.5 text-[13px] text-ink-500">
+                      {v.address} · {v.city}, {v.country}
+                    </div>
+                  )}
                   <div className="mt-1 text-[12px] text-ink-400">
-                    {v.contributorName} · {v.contributorEmail} · {v.source}
+                    {v.source === 'venue_experience'
+                      ? 'Anonymous experience'
+                      : `${v.contributorName} · ${v.contributorEmail}`}
+                    {' · '}{v.source}
                     {v.workspace ? ` · ${v.workspace.businessName}` : ''}
                   </div>
                   <div className="mt-1 text-[11px] tabular-nums text-ink-400">

@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Venue Experience Research</title>
+<meta name="description" content="Anonymous, under a minute. Real experiences from people who work at event venues.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F4F4F1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────────────────────────────────────────
+   Tokens
+   ───────────────────────────────────────────── */
+:root{
+  --bg:#F4F4F1;
+  --surface:#FFFFFF;
+  --ink:#1C1C1A;
+  --muted:#75756E;
+  --faint:#A3A39B;
+  --line:#E4E4DE;
+  --line-strong:#D6D6CE;
+  --accent:#2F5D53;
+  --accent-tint:#EBF1EF;
+  --alert:#9C4A3C;
+
+  --r-card:22px;
+  --r-control:14px;
+  --tap:56px;
+
+  --font-display:"Newsreader",Georgia,serif;
+  --font-ui:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*,*::before,*::after{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-ui);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+button,input,textarea{font:inherit;color:inherit;}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px;}
+
+.visually-hidden{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+  overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;
+}
+
+svg{display:block;}
+
+/* ─────────────────────────────────────────────
+   Shell
+   ───────────────────────────────────────────── */
+.shell{
+  max-width:34rem;
+  margin:0 auto;
+  padding:40px 20px calc(128px + env(safe-area-inset-bottom));
+}
+
+/* ─────────────────────────────────────────────
+   Masthead — collapses to a ribbon after step 1
+   ───────────────────────────────────────────── */
+.masthead{margin-bottom:26px;}
+
+.masthead__title{
+  margin:0;
+  font-family:var(--font-display);
+  font-weight:400;
+  font-size:clamp(29px,7.6vw,36px);
+  line-height:1.14;
+  letter-spacing:-.015em;
+  transition:font-size 300ms var(--ease);
+}
+
+.masthead__intro{
+  overflow:hidden;
+  max-height:220px;
+  opacity:1;
+  transition:max-height 340ms var(--ease),opacity 220ms var(--ease),margin 340ms var(--ease);
+  margin-top:12px;
+}
+
+.masthead__lede{
+  margin:0 0 12px;
+  max-width:30ch;
+  color:var(--muted);
+  font-size:15.5px;
+  line-height:1.6;
+}
+
+.masthead__meta{
+  margin:0;
+  color:var(--faint);
+  font-size:13px;
+  letter-spacing:.01em;
+}
+
+.masthead.is-compact .masthead__title{font-size:16px;letter-spacing:0;}
+.masthead.is-compact .masthead__intro{max-height:0;opacity:0;margin-top:0;}
+
+/* ─────────────────────────────────────────────
+   Progress
+   ───────────────────────────────────────────── */
+.progress{margin-bottom:20px;}
+
+.progress__rail{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;}
+
+.progress__seg{
+  height:3px;
+  border-radius:999px;
+  background:var(--line-strong);
+  transition:background 300ms var(--ease);
+}
+.progress__seg.is-past{background:var(--accent);}
+.progress__seg.is-now{background:#9FB8B0;}
+
+.progress__note{
+  margin:11px 0 0;
+  font-size:12.5px;
+  color:var(--faint);
+}
+
+/* ─────────────────────────────────────────────
+   Card
+   ───────────────────────────────────────────── */
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  padding:26px 22px 28px;
+  box-shadow:0 1px 2px rgba(28,28,26,.04),0 12px 32px -24px rgba(28,28,26,.26);
+}
+.card[hidden]{display:none;}
+
+.card__set{margin:0;padding:0;border:0;}
+
+.card__legend{
+  padding:0;
+  margin:0;
+  font-family:var(--font-display);
+  font-weight:500;
+  font-size:24px;
+  line-height:1.26;
+  letter-spacing:-.012em;
+}
+
+.card__help{margin:8px 0 0;color:var(--muted);font-size:13.5px;}
+
+.card__body{margin-top:22px;}
+
+/* Venue thread chip */
+.thread{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:14px;
+  padding:6px 12px 6px 9px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--bg);
+  color:var(--muted);
+  font-size:12.5px;
+  font-weight:500;
+  cursor:pointer;
+  max-width:100%;
+  transition:border-color 140ms var(--ease);
+}
+.thread:hover{border-color:var(--line-strong);}
+.thread span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.thread svg{flex:0 0 auto;color:var(--accent);}
+
+/* Transitions */
+.card.anim-in-fwd{animation:inFwd 280ms var(--ease) both;}
+.card.anim-in-back{animation:inBack 280ms var(--ease) both;}
+.card.anim-out-fwd{animation:outFwd 180ms var(--ease) both;}
+.card.anim-out-back{animation:outBack 180ms var(--ease) both;}
+
+@keyframes inFwd{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+@keyframes inBack{from{opacity:0;transform:translateY(-14px);}to{opacity:1;transform:none;}}
+@keyframes outFwd{from{opacity:1;}to{opacity:0;transform:translateY(-10px);}}
+@keyframes outBack{from{opacity:1;}to{opacity:0;transform:translateY(10px);}}
+
+/* ─────────────────────────────────────────────
+   Fields
+   ───────────────────────────────────────────── */
+.field{position:relative;}
+
+.input,.textarea{
+  width:100%;
+  min-height:var(--tap);
+  padding:16px;
+  background:var(--bg);
+  border:1px solid var(--line-strong);
+  border-radius:var(--r-control);
+  font-size:16px;
+  transition:border-color 160ms var(--ease),background 160ms var(--ease),box-shadow 160ms var(--ease);
+}
+.input::placeholder,.textarea::placeholder{color:var(--faint);}
+.input:focus,.textarea:focus{
+  outline:none;
+  background:var(--surface);
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-tint);
+}
+.textarea{min-height:132px;resize:vertical;line-height:1.55;}
+
+.assurance{
+  display:flex;
+  gap:8px;
+  margin:14px 0 0;
+  color:var(--faint);
+  font-size:12.5px;
+  line-height:1.5;
+}
+.assurance svg{flex:0 0 auto;margin-top:2px;}
+
+.suggestions{
+  position:absolute;z-index:5;
+  top:calc(100% + 6px);left:0;right:0;
+  margin:0;padding:6px;
+  list-style:none;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-control);
+  box-shadow:0 16px 36px -20px rgba(28,28,26,.42);
+  max-height:238px;overflow-y:auto;
+}
+.suggestions[hidden]{display:none;}
+.suggestions li{padding:13px 12px;border-radius:10px;font-size:15px;cursor:pointer;}
+.suggestions li[aria-selected="true"]{background:var(--accent-tint);}
+
+.counter{
+  display:block;margin-top:10px;text-align:right;
+  font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--faint);
+  opacity:0;transition:opacity 200ms var(--ease);
+}
+.counter.is-visible{opacity:1;}
+.counter.is-limit{color:var(--alert);}
+
+/* ─────────────────────────────────────────────
+   Options
+   ───────────────────────────────────────────── */
+.options{display:grid;gap:8px;}
+.options--grid{grid-template-columns:1fr 1fr;}
+
+.option{
+  display:flex;align-items:center;gap:10px;
+  min-height:var(--tap);
+  padding:12px 13px;
+  border:1px solid var(--line-strong);
+  border-radius:var(--r-control);
+  cursor:pointer;
+  font-size:14.5px;
+  line-height:1.25;
+  transition:border-color 140ms var(--ease),background 140ms var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.option input{position:absolute;opacity:0;pointer-events:none;}
+.option svg{flex:0 0 auto;color:var(--faint);transition:color 140ms var(--ease);}
+.option:hover{background:var(--bg);}
+.option:has(input:checked){border-color:var(--accent);background:var(--accent-tint);}
+.option:has(input:checked) svg{color:var(--accent);}
+.option:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:3px;}
+
+.options--plain .option{gap:12px;font-size:15.5px;padding:14px 16px;}
+.options--plain .dot{
+  width:20px;height:20px;flex:0 0 auto;
+  border:1.5px solid var(--line-strong);border-radius:50%;
+  transition:border-color 140ms var(--ease),box-shadow 140ms var(--ease);
+}
+.options--plain .option:has(input:checked) .dot{
+  border-color:var(--accent);box-shadow:inset 0 0 0 5px var(--accent);
+}
+
+/* ─────────────────────────────────────────────
+   Rating
+   ───────────────────────────────────────────── */
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+
+.scale__item{
+  display:grid;place-items:center;
+  min-height:64px;
+  border:1px solid var(--line-strong);
+  border-radius:var(--r-control);
+  cursor:pointer;
+  transition:border-color 140ms var(--ease),background 140ms var(--ease),transform 160ms var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.scale__item input{position:absolute;opacity:0;pointer-events:none;}
+.scale__face{font-size:27px;line-height:1;transition:transform 160ms var(--ease);}
+.scale__item:active{transform:scale(.96);}
+.scale__item:has(input:checked){border-color:var(--accent);background:var(--accent-tint);}
+.scale__item:has(input:checked) .scale__face{transform:scale(1.14);}
+.scale__item:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:3px;}
+
+.scale__caption{
+  margin:16px 0 0;
+  min-height:20px;
+  text-align:center;
+  font-size:13.5px;
+  color:var(--muted);
+  transition:opacity 200ms var(--ease);
+}
+
+/* ─────────────────────────────────────────────
+   Errors
+   ───────────────────────────────────────────── */
+.error{margin:14px 0 0;font-size:13.5px;font-weight:500;color:var(--alert);}
+.error[hidden]{display:none;}
+
+/* ─────────────────────────────────────────────
+   Nav
+   ───────────────────────────────────────────── */
+.nav{
+  position:fixed;left:0;right:0;bottom:0;
+  padding:14px 20px calc(16px + env(safe-area-inset-bottom));
+  background:rgba(244,244,241,.88);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+}
+.nav[hidden]{display:none;}
+.nav__inner{display:flex;gap:10px;max-width:34rem;margin:0 auto;}
+
+.btn{
+  min-height:var(--tap);
+  padding:0 22px;
+  border-radius:var(--r-control);
+  border:1px solid transparent;
+  font-size:16px;font-weight:600;
+  cursor:pointer;
+  transition:background 140ms var(--ease),opacity 140ms var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.btn--primary{flex:1;background:var(--accent);color:#fff;}
+.btn--primary:hover{background:#274C44;}
+.btn--quiet{background:transparent;border-color:var(--line-strong);color:var(--muted);padding:0 18px;}
+.btn--quiet:hover{background:var(--surface);}
+.btn--ghost{background:transparent;color:var(--muted);font-weight:500;font-size:15px;}
+.btn--ghost:hover{color:var(--ink);}
+.btn[hidden]{display:none;}
+.btn:disabled{opacity:.55;cursor:default;}
+
+/* ─────────────────────────────────────────────
+   Completion
+   ───────────────────────────────────────────── */
+.done[hidden]{display:none;}
+
+.done{
+  text-align:center;
+  animation:inFwd 320ms var(--ease) both;
+}
+
+.done__mark{
+  width:56px;height:56px;
+  margin:8px auto 22px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  background:var(--accent-tint);
+  color:var(--accent);
+}
+.done__mark path{
+  stroke-dasharray:26;
+  stroke-dashoffset:26;
+  animation:draw 520ms var(--ease) 160ms forwards;
+}
+@keyframes draw{to{stroke-dashoffset:0;}}
+
+.done__title{
+  margin:0 0 10px;
+  font-family:var(--font-display);
+  font-weight:400;
+  font-size:28px;
+}
+
+.done__body{
+  margin:0 auto;
+  max-width:31ch;
+  color:var(--muted);
+  font-size:15px;
+  line-height:1.6;
+}
+
+.receipt{
+  margin:28px 0 0;
+  padding:20px 20px 18px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  text-align:left;
+  animation:inFwd 380ms var(--ease) 220ms both;
+}
+
+.receipt__label{
+  margin:0 0 14px;
+  font-size:11px;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);
+}
+
+.receipt__row{
+  display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  padding:9px 0;
+  border-top:1px solid var(--line);
+  font-size:14.5px;
+}
+.receipt__row:first-of-type{border-top:0;padding-top:0;}
+.receipt__row dt{color:var(--muted);flex:0 0 auto;font-size:13.5px;}
+.receipt__row dd{margin:0;text-align:right;font-weight:500;}
+
+.receipt__quote{
+  margin:14px 0 0;
+  padding-top:14px;
+  border-top:1px solid var(--line);
+  font-family:var(--font-display);
+  font-size:16.5px;
+  line-height:1.5;
+  color:var(--ink);
+}
+.receipt__quote[hidden]{display:none;}
+
+.done__again{margin-top:22px;}
+
+/* ─────────────────────────────────────────────
+   Preferences
+   ───────────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-delay:0ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+  .done__mark path{stroke-dashoffset:0;}
+}
+
+@media (min-width:600px){
+  .shell{padding-top:60px;}
+  .card{padding:32px 30px 34px;}
+}
+</style>
+</head>
+
+<body>
+<main class="shell">
+
+  <header class="masthead" id="masthead">
+    <h1 class="masthead__title">Venue Experience Research</h1>
+    <div class="masthead__intro" id="intro">
+      <p class="masthead__lede">
+        We're collecting real experiences from people who work at event venues, so the
+        next person walks in knowing what you had to find out the hard way.
+      </p>
+      <p class="masthead__meta">Anonymous · about 45 seconds · no sign-in</p>
+    </div>
+  </header>
+
+  <div class="progress" id="progress">
+    <div class="progress__rail" aria-hidden="true">
+      <div class="progress__seg"></div><div class="progress__seg"></div><div class="progress__seg"></div>
+      <div class="progress__seg"></div><div class="progress__seg"></div>
+    </div>
+    <p class="progress__note" id="progressNote" aria-live="polite">Five quick questions</p>
+  </div>
+
+  <form id="survey" novalidate autocomplete="off">
+
+    <!-- 1 — Venue -->
+    <section class="card" data-step="1" aria-labelledby="q1-legend">
+      <fieldset class="card__set">
+        <legend class="card__legend" id="q1-legend">Where were you working?</legend>
+        <p class="card__help">Any venue — big room or back room.</p>
+
+        <div class="card__body">
+          <div class="field">
+            <input class="input" id="venue" name="venue" type="text"
+              role="combobox" aria-expanded="false" aria-controls="venue-list"
+              aria-autocomplete="list" aria-describedby="q1-error"
+              placeholder="Venue name" enterkeyhint="next">
+            <ul class="suggestions" id="venue-list" role="listbox" aria-label="Venue suggestions" hidden></ul>
+          </div>
+
+          <p class="assurance">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            No name, no email, nothing that points back to you. Only the venue is recorded.
+          </p>
+
+          <p class="error" id="q1-error" role="alert" hidden></p>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- 2 — Challenge -->
+    <section class="card" data-step="2" aria-labelledby="q2-legend" hidden>
+      <fieldset class="card__set">
+        <button type="button" class="thread" data-thread hidden></button>
+        <legend class="card__legend" id="q2-legend">What made it harder than it needed to be?</legend>
+
+        <div class="card__body">
+          <div class="options options--grid" id="challengeOptions"></div>
+          <p class="error" id="q2-error" role="alert" hidden></p>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- 3 — Rating -->
+    <section class="card" data-step="3" aria-labelledby="q3-legend" hidden>
+      <fieldset class="card__set">
+        <button type="button" class="thread" data-thread hidden></button>
+        <legend class="card__legend" id="q3-legend">How did the day feel overall?</legend>
+
+        <div class="card__body">
+          <div class="scale" id="ratingScale"></div>
+          <p class="scale__caption" id="ratingCaption" aria-live="polite"></p>
+          <p class="error" id="q3-error" role="alert" hidden></p>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- 4 — Advice -->
+    <section class="card" data-step="4" aria-labelledby="q4-legend" hidden>
+      <fieldset class="card__set">
+        <button type="button" class="thread" data-thread hidden></button>
+        <legend class="card__legend" id="q4-legend">What should the next person know?</legend>
+        <p class="card__help">One line. The thing you wish someone had told you.</p>
+
+        <div class="card__body">
+          <textarea class="textarea" id="advice" name="advice" maxlength="250"
+            placeholder="Load in from the rear gate — the main door has a step and no ramp."
+            aria-describedby="adviceCount"></textarea>
+          <span class="counter" id="adviceCount" aria-live="polite"></span>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- 5 — Return -->
+    <section class="card" data-step="5" aria-labelledby="q5-legend" hidden>
+      <fieldset class="card__set">
+        <button type="button" class="thread" data-thread hidden></button>
+        <legend class="card__legend" id="q5-legend">Would you go back?</legend>
+
+        <div class="card__body">
+          <div class="options options--plain" id="returnOptions"></div>
+          <p class="error" id="q5-error" role="alert" hidden></p>
+        </div>
+      </fieldset>
+    </section>
+
+    <nav class="nav" id="nav" aria-label="Survey navigation">
+      <div class="nav__inner">
+        <button type="button" class="btn btn--quiet" id="backBtn" hidden>Back</button>
+        <button type="submit" class="btn btn--primary" id="nextBtn">Continue</button>
+      </div>
+    </nav>
+  </form>
+
+  <!-- Completion -->
+  <section class="done" id="done" tabindex="-1" hidden>
+    <div class="done__mark" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    </div>
+    <h2 class="done__title">Thank you.</h2>
+    <p class="done__body">
+      Your experience has been recorded. Every response helps build a better
+      understanding of real event operations.
+    </p>
+
+    <div class="receipt">
+      <p class="receipt__label">What you left behind</p>
+      <dl>
+        <div class="receipt__row"><dt>Venue</dt><dd id="rVenue"></dd></div>
+        <div class="receipt__row"><dt>Hardest part</dt><dd id="rChallenge"></dd></div>
+        <div class="receipt__row"><dt>Overall</dt><dd id="rRating"></dd></div>
+        <div class="receipt__row"><dt>Back again</dt><dd id="rReturn"></dd></div>
+      </dl>
+      <p class="receipt__quote" id="rAdvice" hidden></p>
+    </div>
+
+    <div class="done__again">
+      <button type="button" class="btn btn--ghost" id="againBtn">Add another venue</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+"use strict";
+
+/* ═══════════════════════════════════════════════
+   1. CONTENT
+   ═══════════════════════════════════════════════ */
+
+const ICONS = {
+  parking:'<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M9.5 16.5v-9h3a2.7 2.7 0 0 1 0 5.4h-3"/>',
+  loadin: '<path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5z"/><path d="M3 8.5 12 13l9-4.5M12 13v7"/>',
+  power:  '<path d="M13 2.5 4.5 13.5H11l-.8 8 9.3-11H13z"/>',
+  signal: '<path d="M3 9.5a14 14 0 0 1 18 0"/><path d="M6.4 13a9 9 0 0 1 11.2 0"/><path d="M9.8 16.4a4 4 0 0 1 4.4 0"/><circle cx="12" cy="19.6" r=".9" fill="currentColor" stroke="none"/>',
+  team:   '<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9.5 4h5v3h-5z"/><path d="M9 12h6M9 16h4"/>',
+  light:  '<path d="M9.6 20h4.8"/><path d="M12 3a6 6 0 0 1 3.5 10.9c-.6.4-.9 1-.9 1.6v.5H9.4v-.5c0-.6-.3-1.2-.9-1.6A6 6 0 0 1 12 3z"/>',
+  timing: '<circle cx="12" cy="12" r="9"/><path d="M12 6.8v5.5l3.5 2"/>',
+  guests: '<circle cx="8.5" cy="8.5" r="2.9"/><circle cx="16.5" cy="9.5" r="2.4"/><path d="M3 19.5a5.5 5.5 0 0 1 11 0"/><path d="M15 14.6a5 5 0 0 1 6 4.9"/>',
+  access: '<rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  other:  '<circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none"/>'
+};
+
+/* `value` is stored, `label` is displayed. Short labels, full data. */
+const CHALLENGES = [
+  { value:"Parking",                  label:"Parking",    icon:"parking" },
+  { value:"Loading equipment",        label:"Load-in",    icon:"loadin"  },
+  { value:"Power supply",             label:"Power",      icon:"power"   },
+  { value:"Internet / mobile signal", label:"Signal",     icon:"signal"  },
+  { value:"Venue coordination",       label:"Venue team", icon:"team"    },
+  { value:"Lighting",                 label:"Lighting",   icon:"light"   },
+  { value:"Timing",                   label:"Timing",     icon:"timing"  },
+  { value:"Guest management",         label:"Guests",     icon:"guests"  },
+  { value:"Access restrictions",      label:"Access",     icon:"access"  },
+  { value:"Other",                    label:"Something else", icon:"other" }
+];
+
+const RATINGS = [
+  { value:1, face:"\u{1F61E}", label:"Rough",   caption:"That sounds like a rough one." },
+  { value:2, face:"\u{1F610}", label:"Hard work", caption:"Hard work, then." },
+  { value:3, face:"\u{1F642}", label:"Fine",    caption:"Fine — nothing dramatic." },
+  { value:4, face:"\u{1F60A}", label:"Good",    caption:"Good to hear." },
+  { value:5, face:"\u{1F929}", label:"Great",   caption:"Sounds like a great one." }
+];
+
+const RETURN_CHOICES = ["Definitely", "Maybe", "No"];
+
+const PROGRESS_NOTES = {
+  1:"Five quick questions",
+  2:"Four to go",
+  3:"Halfway",
+  4:"Nearly there",
+  5:"Last one"
+};
+
+const VENUE_INDEX = [
+  "Barbican Centre, London","Birmingham Town Hall","Bhavan Centre, London",
+  "Coventry Cathedral","De Montfort Hall, Leicester","Edgbaston Park Hotel, Birmingham",
+  "Gaydon Motor Museum, Warwick","Kenilworth Castle","Manchester Central",
+  "Ricoh Arena, Coventry","Royal Armouries, Leeds","Symphony Hall, Birmingham",
+  "The Belfry, Sutton Coldfield","The Grand Connaught Rooms, London",
+  "Warwick Arts Centre","Warwick Castle"
+];
+
+const TOTAL_STEPS = 5;
+const ADVICE_LIMIT = 250;
+const COUNTER_THRESHOLD = 40;
+
+/* ═══════════════════════════════════════════════
+   2. DATA LAYER — no DOM access below this line
+   ═══════════════════════════════════════════════ */
+
+const response = {
+  venue:"",
+  challenge:"",
+  rating:null,
+  advice:"",
+  wouldReturn:""
+};
+
+function resetResponse(){
+  response.venue = "";
+  response.challenge = "";
+  response.rating = null;
+  response.advice = "";
+  response.wouldReturn = "";
+}
+
+const RULES = {
+  1:{ test:r => r.venue.trim().length >= 2,       message:"Add a venue name and we'll carry on." },
+  2:{ test:r => Boolean(r.challenge),             message:"Pick the one that cost you the most time." },
+  3:{ test:r => r.rating !== null,                message:"Tap a face to continue." },
+  4:{ test:r => r.advice.length <= ADVICE_LIMIT,  message:"Trim this to 250 characters." },
+  5:{ test:r => Boolean(r.wouldReturn),           message:"One last tap and you're done." }
+};
+
+/** @returns {{valid:boolean, message:string}} */
+function validateStep(step, data = response){
+  const rule = RULES[step];
+  if (!rule) return { valid:true, message:"" };
+  const valid = rule.test(data);
+  return { valid, message: valid ? "" : rule.message };
+}
+
+/** @returns {{valid:boolean, errors:Array<{step:number, message:string}>}} */
+function validateForm(data = response){
+  const errors = [];
+  for (const step of Object.keys(RULES).map(Number)){
+    const result = validateStep(step, data);
+    if (!result.valid) errors.push({ step, message:result.message });
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+/** Snake_case keys map directly onto a table row. */
+function formatResponse(data = response, meta = {}){
+  return {
+    venue_name: data.venue.trim(),
+    primary_challenge: data.challenge,
+    experience_rating: data.rating,
+    advice_for_next_professional: data.advice.trim() || null,
+    would_work_again: data.wouldReturn,
+    submitted_at: new Date().toISOString(),
+    locale: navigator.language || null,
+    survey_version: "1.1.0",
+    ...meta
+  };
+}
+
+/**
+ * Transport adapter. Replace the body of `save` when the backend lands:
+ *
+ *   const { error } = await supabase.from("venue_feedback").insert(payload);
+ *   if (error) throw new Error(error.message);
+ *
+ * Nothing else in this file changes.
+ */
+const responseStore = {
+  async save(payload){
+    await new Promise(r => setTimeout(r, 420));
+    console.info("Response ready for API:", payload);
+    return { ok:true, id:null };
+  }
+};
+
+/** Never throws — always resolves a result. */
+async function submitFeedback(data = response){
+  const check = validateForm(data);
+  if (!check.valid) return { ok:false, errors:check.errors };
+
+  const payload = formatResponse(data);
+  try {
+    await responseStore.save(payload);
+    return { ok:true, payload };
+  } catch {
+    return { ok:false, message:"That didn't send. Check your connection and try again." };
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   3. UI LAYER
+   ═══════════════════════════════════════════════ */
+
+const form         = document.getElementById("survey");
+const cards        = Array.from(document.querySelectorAll("[data-step]"));
+const segments     = Array.from(document.querySelectorAll(".progress__seg"));
+const progress     = document.getElementById("progress");
+const progressNote = document.getElementById("progressNote");
+const masthead     = document.getElementById("masthead");
+const nav          = document.getElementById("nav");
+const backBtn      = document.getElementById("backBtn");
+const nextBtn      = document.getElementById("nextBtn");
+const doneCard     = document.getElementById("done");
+const againBtn     = document.getElementById("againBtn");
+const venueInput   = document.getElementById("venue");
+const venueList    = document.getElementById("venue-list");
+const adviceInput  = document.getElementById("advice");
+const adviceCount  = document.getElementById("adviceCount");
+const ratingCaption= document.getElementById("ratingCaption");
+const threads      = Array.from(document.querySelectorAll("[data-thread]"));
+
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+let currentStep = 1;
+let isMoving = false;
+let activeSuggestion = -1;
+let visibleSuggestions = [];
+
+const icon = (key, size = 19) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[key]}</svg>`;
+
+const escapeHtml = str => str.replace(/[&<>"']/g, c =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+/* ── Build controls ────────────────────────────── */
+
+document.getElementById("challengeOptions").innerHTML = CHALLENGES.map(c => `
+  <label class="option">
+    <input type="radio" name="challenge" value="${c.value}">
+    ${icon(c.icon)}
+    <span>${c.label}</span>
+  </label>`).join("");
+
+document.getElementById("returnOptions").innerHTML = RETURN_CHOICES.map(v => `
+  <label class="option">
+    <input type="radio" name="wouldReturn" value="${v}">
+    <span class="dot" aria-hidden="true"></span>
+    <span>${v}</span>
+  </label>`).join("");
+
+document.getElementById("ratingScale").innerHTML = RATINGS.map(r => `
+  <label class="scale__item">
+    <input type="radio" name="rating" value="${r.value}" aria-label="${r.value} of 5 — ${r.label}">
+    <span class="scale__face" aria-hidden="true">${r.face}</span>
+  </label>`).join("");
+
+/* ── Step transitions ──────────────────────────── */
+
+function paintChrome(step){
+  segments.forEach((seg, i) => {
+    seg.classList.toggle("is-past", i < step - 1);
+    seg.classList.toggle("is-now", i === step - 1);
+  });
+  progressNote.textContent = PROGRESS_NOTES[step];
+  masthead.classList.toggle("is-compact", step > 1);
+  backBtn.hidden = step === 1;
+  paintPrimary();
+  threads.forEach(t => {
+    const has = Boolean(response.venue.trim());
+    t.hidden = !has;
+    if (has) t.innerHTML =
+      `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+       <span>${escapeHtml(response.venue.trim())}</span>`;
+  });
+}
+
+/** Primary button speaks to the state of the current step. */
+function paintPrimary(){
+  if (currentStep === TOTAL_STEPS) nextBtn.textContent = "Send";
+  else if (currentStep === 4)      nextBtn.textContent = response.advice.trim() ? "Continue" : "Skip";
+  else                             nextBtn.textContent = "Continue";
+}
+
+function focusStep(step){
+  const card = cards[step - 1];
+  if (step === 1 || step === 4) card.querySelector("input, textarea")?.focus({ preventScroll:true });
+}
+
+function showStep(next, direction = "forward"){
+  if (isMoving || next === currentStep) return;
+  const outgoing = cards[currentStep - 1];
+  const incoming = cards[next - 1];
+  const dir = direction === "back" ? "back" : "fwd";
+
+  const reveal = () => {
+    outgoing.hidden = true;
+    outgoing.className = "card";
+    currentStep = next;
+    incoming.hidden = false;
+    paintChrome(next);
+    window.scrollTo({ top:0, behavior:"auto" });
+
+    if (reducedMotion.matches){
+      isMoving = false;
+      focusStep(next);
+      return;
+    }
+    incoming.classList.add(`anim-in-${dir}`);
+    incoming.addEventListener("animationend", () => {
+      incoming.classList.remove(`anim-in-${dir}`);
+      isMoving = false;
+      focusStep(next);
+    }, { once:true });
+  };
+
+  if (reducedMotion.matches) return reveal();
+
+  isMoving = true;
+  outgoing.classList.add(`anim-out-${dir}`);
+  outgoing.addEventListener("animationend", reveal, { once:true });
+}
+
+/* ── Errors ────────────────────────────────────── */
+
+function showError(step, message){
+  const el = document.getElementById(`q${step}-error`);
+  if (!el) return;
+  el.textContent = message;
+  el.hidden = !message;
+}
+const clearError = step => showError(step, "");
+
+/* ── Flow ──────────────────────────────────────── */
+
+function goNext(){
+  const { valid, message } = validateStep(currentStep);
+  if (!valid) return showError(currentStep, message);
+  clearError(currentStep);
+  if (currentStep < TOTAL_STEPS) showStep(currentStep + 1, "forward");
+  else finish();
+}
+
+function goBack(){
+  clearError(currentStep);
+  if (currentStep > 1) showStep(currentStep - 1, "back");
+}
+
+/** A short hold so the selection visibly registers before the screen moves. */
+function advanceAfterChoice(){
+  setTimeout(() => goNext(), reducedMotion.matches ? 0 : 240);
+}
+
+function paintReceipt(){
+  const rating = RATINGS.find(r => r.value === response.rating);
+  document.getElementById("rVenue").textContent     = response.venue.trim();
+  document.getElementById("rChallenge").textContent = CHALLENGES.find(c => c.value === response.challenge)?.label ?? "—";
+  document.getElementById("rRating").textContent    = rating ? `${rating.face} ${rating.label}` : "—";
+  document.getElementById("rReturn").textContent    = response.wouldReturn;
+
+  const quote = document.getElementById("rAdvice");
+  const advice = response.advice.trim();
+  quote.hidden = !advice;
+  quote.textContent = advice ? `“${advice}”` : "";
+}
+
+async function finish(){
+  nextBtn.disabled = true;
+  nextBtn.textContent = "Sending…";
+
+  const result = await submitFeedback();
+
+  if (!result.ok){
+    nextBtn.disabled = false;
+    paintPrimary();
+    if (result.errors?.length){
+      const first = result.errors[0];
+      showStep(first.step, first.step < currentStep ? "back" : "forward");
+      showError(first.step, first.message);
+    } else {
+      showError(currentStep, result.message);
+    }
+    return;
+  }
+
+  paintReceipt();
+  form.hidden = true;
+  nav.hidden = true;
+  progress.hidden = true;
+  doneCard.hidden = false;
+  doneCard.focus();
+}
+
+function restart(){
+  resetResponse();
+  form.reset();
+  cards.forEach((c, i) => { c.hidden = i !== 0; c.className = "card"; });
+  [1,2,3,5].forEach(clearError);
+  ratingCaption.textContent = "";
+  adviceCount.className = "counter";
+  adviceCount.textContent = "";
+  nextBtn.disabled = false;
+  currentStep = 1;
+  doneCard.hidden = true;
+  form.hidden = false;
+  nav.hidden = false;
+  progress.hidden = false;
+  paintChrome(1);
+  window.scrollTo({ top:0, behavior:"auto" });
+  venueInput.focus({ preventScroll:true });
+}
+
+/* ── State binding ─────────────────────────────── */
+
+form.addEventListener("change", e => {
+  const { name, value } = e.target;
+  if (name === "challenge"){
+    response.challenge = value;
+    clearError(2);
+    advanceAfterChoice();
+  }
+  if (name === "rating"){
+    response.rating = Number(value);
+    clearError(3);
+    ratingCaption.textContent = RATINGS.find(r => r.value === response.rating).caption;
+    advanceAfterChoice();
+  }
+  if (name === "wouldReturn"){
+    response.wouldReturn = value;
+    clearError(5);
+  }
+});
+
+adviceInput.addEventListener("input", () => {
+  response.advice = adviceInput.value;
+  const left = ADVICE_LIMIT - adviceInput.value.length;
+  adviceCount.textContent = `${left} left`;
+  adviceCount.classList.toggle("is-visible", left <= COUNTER_THRESHOLD);
+  adviceCount.classList.toggle("is-limit", left === 0);
+  paintPrimary();
+});
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  closeSuggestions();
+  goNext();
+});
+
+backBtn.addEventListener("click", goBack);
+againBtn.addEventListener("click", restart);
+threads.forEach(t => t.addEventListener("click", () => showStep(1, "back")));
+
+/* Number keys pick a rating on the rating step. */
+document.addEventListener("keydown", e => {
+  if (currentStep !== 3 || e.metaKey || e.ctrlKey || e.altKey) return;
+  const n = Number(e.key);
+  if (n >= 1 && n <= 5){
+    const input = document.querySelector(`input[name="rating"][value="${n}"]`);
+    if (input && !input.checked){
+      input.checked = true;
+      input.dispatchEvent(new Event("change", { bubbles:true }));
+    }
+  }
+});
+
+/* ── Venue combobox ────────────────────────────── */
+
+function matchVenues(query){
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  return VENUE_INDEX.filter(v => v.toLowerCase().includes(q)).slice(0, 6);
+}
+
+function renderSuggestions(items){
+  visibleSuggestions = items;
+  activeSuggestion = -1;
+  if (!items.length) return closeSuggestions();
+
+  venueList.innerHTML = items.map((item, i) =>
+    `<li role="option" id="venue-opt-${i}" aria-selected="false">${escapeHtml(item)}</li>`).join("");
+  venueList.hidden = false;
+  venueInput.setAttribute("aria-expanded", "true");
+}
+
+function closeSuggestions(){
+  venueList.hidden = true;
+  venueList.innerHTML = "";
+  venueInput.setAttribute("aria-expanded", "false");
+  venueInput.removeAttribute("aria-activedescendant");
+  activeSuggestion = -1;
+  visibleSuggestions = [];
+}
+
+function highlight(index){
+  const items = Array.from(venueList.children);
+  items.forEach((li, i) => li.setAttribute("aria-selected", String(i === index)));
+  activeSuggestion = index;
+  if (index >= 0){
+    venueInput.setAttribute("aria-activedescendant", `venue-opt-${index}`);
+    items[index].scrollIntoView({ block:"nearest" });
+  }
+}
+
+function chooseVenue(value){
+  venueInput.value = value;
+  response.venue = value;
+  closeSuggestions();
+  clearError(1);
+}
+
+venueInput.addEventListener("input", () => {
+  response.venue = venueInput.value;
+  clearError(1);
+  renderSuggestions(matchVenues(venueInput.value));
+});
+
+venueInput.addEventListener("keydown", e => {
+  const open = !venueList.hidden;
+  if (e.key === "ArrowDown" && open){
+    e.preventDefault(); highlight((activeSuggestion + 1) % visibleSuggestions.length);
+  } else if (e.key === "ArrowUp" && open){
+    e.preventDefault(); highlight((activeSuggestion - 1 + visibleSuggestions.length) % visibleSuggestions.length);
+  } else if (e.key === "Enter" && open && activeSuggestion > -1){
+    e.preventDefault(); chooseVenue(visibleSuggestions[activeSuggestion]);
+  } else if (e.key === "Escape" && open){
+    e.preventDefault(); closeSuggestions();
+  }
+});
+
+venueList.addEventListener("mousedown", e => {
+  const li = e.target.closest("li");
+  if (li){ e.preventDefault(); chooseVenue(li.textContent); }
+});
+
+venueInput.addEventListener("blur", () => setTimeout(closeSuggestions, 120));
+
+/* ── Start ─────────────────────────────────────── */
+
+paintChrome(1);
+</script>
+</body>
+</html>
