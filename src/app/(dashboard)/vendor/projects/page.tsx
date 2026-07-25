@@ -5,6 +5,7 @@ import { Plus, Search } from 'lucide-react'
 import ProjectCard from '@/components/vendor/ProjectCard'
 import NewProjectModal from '@/components/vendor/NewProjectModal'
 import { CardSkeleton, EmptyState } from '@/components/ui'
+import { PageHeader, PageLayout } from '@/components/layout'
 import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
 import { parseJsonResponse } from '@/lib/safe-json'
 
@@ -39,27 +40,59 @@ export default function ProjectsPage() {
   }, [projects, query, tab])
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-6">
-      <div className="flex items-center justify-between gap-4 border-b border-forest-100 pb-4 mb-4">
-        <h1 className="font-display text-xl text-forest-950">Projects</h1>
-        <button onClick={() => setShowCreate(true)} className="btn-primary shrink-0">
-          <Plus size={16} className="mr-1.5" />New project
-        </button>
-      </div>
+    <PageLayout>
+      <PageHeader
+        title="Projects"
+        actions={
+          <button type="button" onClick={() => setShowCreate(true)} className="btn btn-forest shrink-0">
+            <Plus size={16} aria-hidden />New project
+          </button>
+        }
+      />
 
       {/* Toolbar: segmented tabs + search */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-        <div className="inline-flex rounded-lg border border-forest-100 bg-white p-0.5 self-start">
-          {(['active', 'archived'] as const).map(key => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${tab === key ? 'bg-forest-950 text-paper-50' : 'text-forest-600 hover:text-forest-900'}`}>
-              {key === 'active' ? 'Active' : 'Archived'}
-            </button>
-          ))}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div
+          className="inline-flex self-start rounded-[var(--r-md)] border p-0.5"
+          style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}
+          role="tablist"
+          aria-label="Project filter"
+        >
+          {(['active', 'archived'] as const).map(key => {
+            const active = tab === key
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(key)}
+                className="rounded-[var(--r-sm)] px-3 py-1.5 text-[13px] font-semibold transition"
+                style={
+                  active
+                    ? { background: 'var(--nav)', color: 'var(--on-dark)' }
+                    : { background: 'transparent', color: 'var(--muted)' }
+                }
+              >
+                {key === 'active' ? 'Active' : 'Archived'}
+              </button>
+            )
+          })}
         </div>
         <div className="relative flex-1">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-forest-400" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by client, title or location" className="pl-9 !min-h-0 py-2 text-[13px]" />
+          <Search
+            size={15}
+            aria-hidden
+            className="pointer-events-none absolute left-3.5 top-1/2 z-[1] -translate-y-1/2 text-[color:var(--faint)]"
+          />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by client, title or location"
+            aria-label="Search projects"
+            className="w-full border-[color:var(--line)] bg-[color:var(--panel)] text-[13px] text-[color:var(--ink)]"
+            style={{ paddingLeft: 40, minHeight: 40, paddingTop: 8, paddingBottom: 8 }}
+          />
         </div>
       </div>
 
@@ -71,15 +104,24 @@ export default function ProjectsPage() {
           description={tab === 'active'
             ? "Create a project with your client's name and email. We'll open it straight away and keep it here after refresh."
             : 'Projects you archive will appear here — nothing is deleted.'}
-          action={tab === 'active' ? <button className="btn-primary" onClick={() => setShowCreate(true)}>Create a project</button> : undefined}
+          action={tab === 'active' ? (
+            <button type="button" className="btn btn-forest" onClick={() => setShowCreate(true)}>
+              Create a project
+            </button>
+          ) : undefined}
         />
       ) : (
-        <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-hidden">
-          {filtered.map(p => <ProjectCard key={p.id} project={p} onChanged={load} />)}
+        <div
+          className="panel overflow-hidden"
+          style={{ padding: 0 }}
+        >
+          <div className="divide-y" style={{ borderColor: 'var(--line-soft)' }}>
+            {filtered.map(p => <ProjectCard key={p.id} project={p} onChanged={load} />)}
+          </div>
         </div>
       )}
 
       {showCreate && <NewProjectModal onClose={() => setShowCreate(false)} onCreated={load} />}
-    </div>
+    </PageLayout>
   )
 }

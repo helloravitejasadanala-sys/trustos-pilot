@@ -1,0 +1,403 @@
+/* Vendor app chrome — Phase 1 desktop rail + topbar + mobile tab bar */
+
+.vendor-shell {
+  min-height: 100vh;
+  display: flex;
+  background: var(--canvas);
+  color: var(--ink);
+  font: var(--t-body);
+}
+
+.vendor-rail {
+  display: none;
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--nav);
+  color: var(--on-dark);
+  flex-direction: column;
+  padding: 20px 16px;
+}
+
+@media (min-width: 768px) {
+  .vendor-rail { display: flex; }
+}
+
+.vendor-rail__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 22px;
+  color: inherit;
+}
+
+.vendor-rail__brand:hover { opacity: 0.92; }
+
+.vendor-rail__mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--nav-2);
+  color: var(--lime);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+  border: 1px solid var(--nav-line);
+}
+
+.vendor-rail__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+}
+
+.vendor-rail__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  color: var(--on-dark-mut);
+  font: 600 13.5px var(--font-ui);
+  margin-bottom: 3px;
+  min-height: 44px;
+}
+
+.vendor-rail__link:hover { color: var(--on-dark); }
+
+.vendor-rail__link[aria-current="page"] {
+  background: var(--nav-active);
+  color: var(--lime);
+}
+
+.vendor-rail__bdg {
+  margin-left: auto;
+  font: 700 11px var(--font-ui);
+  background: var(--nav-active);
+  color: var(--on-dark-mut);
+  padding: 1px 7px;
+  border-radius: 20px;
+}
+
+.vendor-rail__link[aria-current="page"] .vendor-rail__bdg {
+  background: var(--lime);
+  color: var(--lime-ink);
+}
+
+.vendor-rail__profile {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--nav-line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vendor-rail__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--forest);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.vendor-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  min-height: 100vh;
+}
+
+.vendor-topbar {
+  display: none;
+  height: 60px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+  gap: 16px;
+  padding: 0 26px;
+  background: var(--canvas-2);
+}
+
+@media (min-width: 768px) {
+  .vendor-topbar { display: flex; }
+}
+
+.vendor-topbar__search {
+  flex: 1;
+  max-width: 300px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  font: var(--t-sm);
+  min-height: 44px;
+}
+
+.vendor-topbar__search::placeholder { color: var(--faint); }
+.vendor-topbar__search:focus {
+  outline: none;
+  border-color: var(--forest);
+  box-shadow: 0 0 0 2px rgba(30, 110, 104, 0.15);
+}
+
+.vendor-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 90px;
+}
+
+@media (min-width: 768px) {
+  .vendor-body {
+    padding: 26px;
+  }
+  .vendor-body--workspace {
+    padding-bottom: 26px;
+  }
+}
+
+.vendor-mobile-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0 4px;
+}
+
+@media (min-width: 768px) {
+  .vendor-mobile-head { display: none; }
+}
+
+.vendor-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  height: 68px;
+  background: rgba(13, 27, 23, 0.96);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: start;
+  padding: 10px 12px 0;
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 768px) {
+  .vendor-tabbar { display: none; }
+}
+
+.vendor-tabbar__link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font: 500 10px var(--font-ui);
+  color: var(--on-dark-mut);
+  min-height: 44px;
+  padding-top: 4px;
+}
+
+.vendor-tabbar__link[aria-current="page"] {
+  color: var(--lime);
+  font-weight: 700;
+}
+
+/* Today canvas layout */
+.today-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 900px) {
+  .today-grid {
+    display: grid;
+    grid-template-columns: 1.62fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+}
+
+.today-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.today-date-block {
+  width: 56px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: linear-gradient(150deg, #2a4b3f, #16302a);
+  padding: 9px;
+  border: 1px solid var(--nav-line);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+@media (min-width: 768px) {
+  .today-date-block {
+    width: 96px;
+    border-radius: 11px;
+    padding: 12px;
+  }
+}
+
+.today-service-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-top: 1px solid var(--line-soft);
+  color: inherit;
+}
+
+@media (min-width: 768px) {
+  .today-service-row {
+    gap: 16px;
+    padding: 15px 16px;
+  }
+}
+
+.today-service-row:first-child { border-top: none; }
+.today-service-row:hover { background: var(--canvas-2); }
+
+.today-count-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+}
+
+@media (min-width: 900px) {
+  .today-count-tiles { display: none; }
+}
+
+/* Project workspace — asymmetric Overview grid */
+.ws-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 900px) {
+  .ws-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+}
+
+.ws-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ws-handoff {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--nav-line);
+}
+
+.ws-journey {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.ws-journey__dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 700 10px/1 var(--font-ui);
+  flex-shrink: 0;
+}
+
+.ws-journey__line {
+  flex: 1;
+  min-width: 8px;
+  height: 2px;
+  margin: 0 2px;
+}
+
+.ws-msg-mine {
+  background: var(--forest);
+  color: #fff;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+}
+
+.ws-msg-theirs {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+/* Client portal — light & warm (forest CTA, never lime) */
+.portal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+@media (min-width: 800px) {
+  .portal-body {
+    padding: 28px 40px 40px !important;
+  }
+
+  .portal-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+}
+
+.portal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.portal-status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+}
+
+.portal-quote {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: var(--sand);
+  border-radius: var(--r-lg);
+}

@@ -59,44 +59,111 @@ export default function ProjectCard({
   }
 
   return (
-    <div className="relative flex items-center gap-3 px-4 py-3 hover:bg-forest-50/40 transition-colors">
-      <Link href={`/vendor/projects/${project.slug}`} className="flex-1 min-w-0">
+    <div
+      className="relative flex items-center gap-3 px-4 py-3 transition-colors"
+      style={{ background: 'var(--panel)' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--canvas-2)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'var(--panel)' }}
+    >
+      <Link
+        href={`/vendor/projects/${project.slug}`}
+        className="min-w-0 flex-1"
+        style={{ color: 'var(--ink)' }}
+      >
         <div className="flex items-center gap-2">
-          <h3 className="text-[14px] font-semibold text-forest-950 truncate">{project.title}</h3>
+          <h3 className="truncate text-[14.5px] font-bold" style={{ color: 'var(--ink)' }}>
+            {project.title}
+          </h3>
           <StatusChip status={project.status} />
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-forest-500">
-          <span className="text-forest-600">{project.client?.name || project.invitation?.email || 'No client yet'}</span>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs" style={{ color: 'var(--muted)' }}>
+          <span>{project.client?.name || project.invitation?.email || 'No client yet'}</span>
           {project.eventDate && (
-            <span className="inline-flex items-center gap-1"><Calendar size={12} />{new Date(project.eventDate).toLocaleDateString('en-GB')}</span>
+            <span className="inline-flex items-center gap-1">
+              <Calendar size={12} aria-hidden />
+              {new Date(project.eventDate).toLocaleDateString('en-GB')}
+            </span>
           )}
           {project.location && <span className="truncate">{project.location}</span>}
         </div>
-        <p className="mt-1 text-[11px] text-forest-500">
-          <span className="font-medium text-forest-700">Current:</span> {na.label}
-          <span className="mx-1.5 text-forest-300">·</span>
-          <span className="font-medium text-forest-700">Next:</span> {na.nextAction}
+        <p className="mt-1 text-[11px]" style={{ color: 'var(--muted)' }}>
+          <span className="font-semibold" style={{ color: 'var(--ink)' }}>Current:</span> {na.label}
+          <span className="mx-1.5" style={{ color: 'var(--faint)' }}>·</span>
+          <span className="font-semibold" style={{ color: 'var(--ink)' }}>Next:</span> {na.nextAction}
         </p>
       </Link>
       <div className="relative shrink-0">
         <button
+          type="button"
           onClick={() => setOpen(v => !v)}
           disabled={busy}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-forest-400 hover:bg-forest-100 hover:text-forest-700"
+          className="flex h-10 w-10 items-center justify-center rounded-[var(--r-md)]"
+          style={{ color: 'var(--muted)' }}
           aria-label="Project actions"
         >
           <MoreVertical size={17} />
         </button>
         {open && (
-          <div className="absolute right-0 mt-1 w-44 rounded-xl border border-forest-100 bg-white shadow-elevated z-10 py-1 text-sm">
-            <button className="w-full text-left px-3 py-2 hover:bg-forest-50" onClick={() => {
-              const title = prompt('Project title', project.title)
-              if (title?.trim()) patch({ title: title.trim() })
-            }}>Edit</button>
-            {!archived && <button className="w-full text-left px-3 py-2 hover:bg-forest-50" onClick={() => patch({ archive: true })}>Archive</button>}
-            {archived && <button className="w-full text-left px-3 py-2 hover:bg-forest-50" onClick={() => patch({ unarchive: true })}>Restore</button>}
-            {project.status !== 'CANCELLED' && <button className="w-full text-left px-3 py-2 hover:bg-forest-50" onClick={() => patch({ cancel: true })}>Cancel</button>}
-            {test && <button className="w-full text-left px-3 py-2 text-red-700 hover:bg-red-50" onClick={remove}>Delete test project</button>}
+          <div
+            className="absolute right-0 z-10 mt-1 w-44 py-1 text-sm shadow-[var(--sh)]"
+            style={{
+              borderRadius: 'var(--r-lg)',
+              border: '1px solid var(--line)',
+              background: 'var(--panel)',
+              color: 'var(--ink)',
+            }}
+          >
+            <button
+              type="button"
+              className="w-full px-3 py-2 text-left"
+              style={{ color: 'var(--ink)' }}
+              onClick={() => {
+                const title = prompt('Project title', project.title)
+                if (title?.trim()) patch({ title: title.trim() })
+              }}
+            >
+              Edit
+            </button>
+            {!archived && (
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left"
+                style={{ color: 'var(--ink)' }}
+                onClick={() => patch({ archive: true })}
+              >
+                Archive
+              </button>
+            )}
+            {archived && (
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left"
+                style={{ color: 'var(--ink)' }}
+                onClick={() => patch({ unarchive: true })}
+              >
+                Restore
+              </button>
+            )}
+            {project.status !== 'CANCELLED' && (
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left"
+                style={{ color: 'var(--ink)' }}
+                onClick={() => patch({ cancel: true })}
+              >
+                Cancel
+              </button>
+            )}
+            {test && (
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left"
+                style={{ color: 'var(--coral-deep)' }}
+                onClick={remove}
+              >
+                Delete test project
+              </button>
+            )}
           </div>
         )}
       </div>

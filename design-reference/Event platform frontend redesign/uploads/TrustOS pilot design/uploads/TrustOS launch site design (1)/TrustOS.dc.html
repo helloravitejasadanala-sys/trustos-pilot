@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin:0; font-family:'Inter',-apple-system,sans-serif; -webkit-font-smoothing:antialiased; letter-spacing:-0.011em; }
+  a { text-decoration:none; color:inherit; }
+  a:hover { color:var(--accent); }
+  :root {
+    --disp:'Space Grotesk',sans-serif;
+    --bg:#ffffff; --surface:#f6f6f8; --surface2:#ffffff; --text:#0a0a0b; --text2:#3f3f46;
+    --muted:#71717a; --border:rgba(9,9,11,.09); --border2:rgba(9,9,11,.055);
+    --accent:#4f46e5; --accent2:#7c78f0; --accent-soft:rgba(79,70,229,.09); --on-accent:#fff;
+    --glass:rgba(255,255,255,.72);
+    --shadow-sm:0 1px 2px rgba(9,9,11,.05);
+    --shadow:0 1px 3px rgba(9,9,11,.04), 0 12px 32px -8px rgba(9,9,11,.1);
+    --shadow-lg:0 2px 8px rgba(9,9,11,.06), 0 40px 80px -20px rgba(9,9,11,.2);
+    --ok:#16a34a; --ok-soft:rgba(22,163,74,.12);
+  }
+  [data-theme="dark"] {
+    --bg:#08080a; --surface:#100f13; --surface2:#161519; --text:#f4f4f5; --text2:#c4c4c9;
+    --muted:#8a8992; --border:rgba(255,255,255,.1); --border2:rgba(255,255,255,.05);
+    --accent:#7c78f0; --accent2:#8b87f5; --accent-soft:rgba(124,120,240,.14); --glass:rgba(16,15,19,.66);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow:0 1px 3px rgba(0,0,0,.4), 0 12px 32px -8px rgba(0,0,0,.6);
+    --shadow-lg:0 2px 8px rgba(0,0,0,.5), 0 48px 90px -20px rgba(0,0,0,.75);
+    --ok:#4ade80; --ok-soft:rgba(74,222,128,.14);
+  }
+  h1,h2,h3 { font-family:var(--disp); font-weight:600; margin:0; letter-spacing:-0.03em; }
+  p { text-wrap:pretty; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+  @keyframes tos-fadeUp { from{ opacity:0; transform:translateY(18px);} to{ opacity:1; transform:translateY(0);} }
+  @keyframes tos-pulse { 0%,100%{ opacity:.45;} 50%{ opacity:1;} }
+  @keyframes tos-floaty { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-12px);} }
+  @keyframes tos-floaty2 { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(9px);} }
+  @keyframes tos-glow { 0%,100%{ opacity:.45; transform:translateX(-50%) scale(1);} 50%{ opacity:.8; transform:translateX(-50%) scale(1.12);} }
+  @keyframes tos-sweep { 0%{ transform:translateX(-140%);} 100%{ transform:translateX(1200%);} }
+  @keyframes tos-shine { 0%{ transform:translateX(-120%);} 60%,100%{ transform:translateX(320%);} }
+  .tos-reveal { animation: tos-fadeUp .8s cubic-bezier(.16,.84,.44,1) both; }
+  .tos-reveal:nth-child(2){ animation-delay:.07s;} .tos-reveal:nth-child(3){ animation-delay:.15s;} .tos-reveal:nth-child(4){ animation-delay:.23s;}
+  [data-reveal], [data-stagger] > * { opacity:0; transform:translateY(30px); transition:opacity .9s cubic-bezier(.16,.84,.44,1), transform .9s cubic-bezier(.16,.84,.44,1); }
+  .tos-in { opacity:1 !important; transform:none !important; }
+  .tos-cta { position:relative; overflow:hidden; }
+  .tos-cta::after { content:""; position:absolute; top:0; left:0; width:40%; height:100%; background:linear-gradient(100deg,transparent,rgba(255,255,255,.28),transparent); transform:translateX(-120%); }
+  .tos-cta:hover::after { animation:tos-shine .9s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior:auto; }
+    [data-reveal], [data-stagger] > * { opacity:1 !important; transform:none !important; transition:none !important; }
+    *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; }
+  }
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="background:var(--bg); color:var(--text); min-height:100vh; transition:background .4s ease, color .4s ease; overflow-x:hidden;">
+
+  <nav id="nav" style="position:sticky; top:0; z-index:50; backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px); background:var(--glass); border-bottom:1px solid var(--border2);">
+    <div style="max-width:1200px; margin:0 auto; padding:0 24px; height:66px; display:flex; align-items:center; gap:32px;">
+      <a href="#top" style="display:flex; align-items:center; gap:10px; font-family:var(--disp); font-weight:600; font-size:17px; letter-spacing:-0.03em;">
+        <span style="width:27px; height:27px; border-radius:8px; background:var(--text); color:var(--bg); display:grid; place-items:center; font-size:14px; font-weight:700;">T</span>
+        TrustOS
+      </a>
+      <div style="display:flex; gap:26px; margin-left:6px; font-size:14px; color:var(--text2); font-weight:450;">
+        <a href="#switch" style="white-space:nowrap;">Why switch</a>
+        <a href="#journey" style="white-space:nowrap;">Journey</a>
+        <a href="#action" style="white-space:nowrap;">Next action</a>
+        <a href="#workspace" style="white-space:nowrap;">Workspace</a>
+        <a href="#founding" style="white-space:nowrap;">Founding</a>
+      </div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+        <button onClick="{{ toggleTheme }}" aria-label="Toggle theme" style="width:36px; height:36px; border-radius:9px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; display:grid; place-items:center; transition:.2s;" style-hover="background:var(--surface); color:var(--text);">
+          <span dangerouslySetInnerHTML="{{ themeIcon }}"></span>
+        </button>
+        <a href="#founding" class="tos-cta" style="padding:9px 16px; border-radius:9px; background:var(--text); color:var(--bg); font-size:14px; font-weight:500; box-shadow:var(--shadow-sm); transition:transform .15s ease; white-space:nowrap;" style-hover="transform:translateY(-1px);">Request access</a>
+      </div>
+    </div>
+  </nav>
+
+  <header id="top" style="position:relative; z-index:0; max-width:1080px; margin:0 auto; padding:clamp(76px,11vw,150px) 24px clamp(20px,3vw,32px); text-align:center;">
+    <div aria-hidden="true" style="position:absolute; top:-20px; left:50%; width:min(860px,94%); height:480px; transform:translateX(-50%); background:radial-gradient(circle at 50% 32%, var(--accent-soft), transparent 66%); filter:blur(20px); pointer-events:none; z-index:-1; animation:tos-glow 11s ease-in-out infinite;"></div>
+    <div class="tos-reveal" style="display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:999px; border:1px solid var(--border); background:var(--surface); font-size:13px; font-weight:500; color:var(--text2); margin-bottom:30px;">
+      <span style="width:6px; height:6px; border-radius:50%; background:var(--accent); animation:tos-pulse 2.4s ease infinite;"></span>
+      The operating system for creative projects
+    </div>
+    <h1 class="tos-reveal" style="font-size:clamp(2.7rem,6.6vw,5.2rem); line-height:1.0; margin:0 0 22px; text-wrap:balance;">
+      One workspace<br>for the whole job.
+    </h1>
+    <p class="tos-reveal" style="font-size:clamp(1.1rem,2vw,1.35rem); line-height:1.45; color:var(--muted); max-width:520px; margin:0 auto 34px; font-weight:450;">
+      Every client, payment and next step — from first enquiry to final delivery — in one calm, connected place.
+    </p>
+    <div class="tos-reveal" style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <a href="#founding" class="tos-cta" style="padding:14px 26px; border-radius:12px; background:var(--accent); color:var(--on-accent); font-size:15px; font-weight:550; box-shadow:var(--shadow); transition:transform .15s ease;" style-hover="transform:translateY(-2px);">Request early access</a>
+      <a href="#journey" style="padding:14px 26px; border-radius:12px; background:var(--surface2); color:var(--text); border:1px solid var(--border); font-size:15px; font-weight:500; transition:.2s;" style-hover="background:var(--surface); transform:translateY(-2px);">See how it works</a>
+    </div>
+  </header>
+
+  <div id="hero-stage" onMouseMove="{{ onParallax }}" onMouseLeave="{{ resetParallax }}" style="max-width:1120px; margin:0 auto; padding:clamp(32px,5vw,56px) 24px clamp(60px,8vw,110px); position:relative;">
+    <div style="position:relative; will-change:transform; transform:translate3d(calc(var(--px,0) * 10px), calc(var(--py,0) * 10px), 0); transition:transform .25s cubic-bezier(.2,.8,.3,1);">
+      <div aria-hidden="true" style="position:absolute; z-index:3; top:-22px; left:clamp(-8px,-1vw,-8px); width:min(210px,42vw); padding:14px 16px; border-radius:14px; background:var(--surface2); border:1px solid var(--border); box-shadow:var(--shadow-lg); transform:translate3d(calc(var(--px,0) * -26px), calc(var(--py,0) * -20px), 0); transition:transform .3s cubic-bezier(.2,.8,.3,1); animation:tos-floaty 7s ease-in-out infinite;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <span style="width:26px; height:26px; border-radius:8px; background:var(--ok-soft); color:var(--ok); display:grid; place-items:center;"><span dangerouslySetInnerHTML="{{ checkIcon }}"></span></span>
+          <div>
+            <div style="font-size:12.5px; font-weight:600;">Deposit received</div>
+            <div style="font-size:11px; color:var(--muted);">£1,400 · just now</div>
+          </div>
+        </div>
+      </div>
+      <div aria-hidden="true" style="position:absolute; z-index:3; bottom:-18px; right:0; width:min(230px,44vw); padding:14px 16px; border-radius:14px; background:var(--accent); color:var(--on-accent); box-shadow:var(--shadow-lg); transform:translate3d(calc(var(--px,0) * 30px), calc(var(--py,0) * 22px), 0); transition:transform .3s cubic-bezier(.2,.8,.3,1); animation:tos-floaty2 6s ease-in-out infinite .5s;">
+        <div style="font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; opacity:.85;">Next action</div>
+        <div style="font-size:13.5px; font-weight:600; margin-top:3px; line-height:1.25;">Send Amara their contract</div>
+      </div>
+      <div style="animation:tos-floaty 8s ease-in-out infinite;">
+        <dc-import name="Dashboard" hint-size="100%,540px"></dc-import>
+      </div>
+    </div>
+  </div>
+
+  <section style="max-width:1120px; margin:0 auto; padding:0 24px clamp(48px,7vw,88px);">
+    <div data-reveal style="text-align:center; font-size:12.5px; color:var(--muted); font-weight:500; letter-spacing:.06em; text-transform:uppercase; margin-bottom:22px;">In private pilot with</div>
+    <div data-stagger style="display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;">
+      <sc-for list="{{ pilots }}" as="p" hint-placeholder-count="3">
+        <div style="display:flex; align-items:center; gap:10px; padding:12px 20px; border:1px solid var(--border); border-radius:12px; background:var(--surface); transition:.2s;" style-hover="border-color:var(--accent); transform:translateY(-2px);">
+          <span style="width:22px; height:22px; border-radius:6px; background:{{ p.color }}; color:#fff; display:grid; place-items:center; font-family:var(--disp); font-weight:700; font-size:12px;">{{ p.initial }}</span>
+          <span style="font-family:var(--disp); font-weight:600; font-size:15px; letter-spacing:-0.01em;">{{ p.name }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="switch" style="max-width:1120px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <div data-reveal style="max-width:680px; margin-bottom:52px;">
+      <div style="font-size:13px; font-weight:600; color:var(--accent); margin-bottom:14px;">WHY PEOPLE SWITCH</div>
+      <h2 style="font-size:clamp(2rem,4vw,3rem); line-height:1.06; margin:0 0 16px; text-wrap:balance;">Ten disconnected tools, or one calm line.</h2>
+      <p style="font-size:clamp(1rem,1.6vw,1.15rem); line-height:1.55; color:var(--muted); margin:0; font-weight:450;">The work is the same. The difference is whether every piece of it lives in one place — or scattered across your phone.</p>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; align-items:stretch;">
+      <div data-reveal style="border:1px solid var(--border); border-radius:20px; padding:28px; background:var(--surface); position:relative;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:22px;">
+          <span style="width:9px; height:9px; border-radius:50%; background:#c94949;"></span>
+          <div style="font-size:13px; font-weight:600; color:var(--muted); letter-spacing:.02em;">TODAY · SCATTERED</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:0;">
+          <sc-for list="{{ chaosSteps }}" as="c" hint-placeholder-count="7">
+            <div style="display:flex; flex-direction:column; align-items:flex-start;">
+              <div style="display:inline-flex; align-items:center; gap:10px; padding:9px 14px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); font-size:13.5px; color:var(--text2); transform:translateX({{ c.offset }});">{{ c.label }}</div>
+              <sc-if value="{{ c.arrow }}" hint-placeholder-val="{{ true }}">
+                <span style="color:var(--muted); font-size:12px; padding:3px 0 3px 18px; opacity:.6;">↓</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:20px; font-family:var(--disp); font-weight:600; font-size:15px; color:#c94949;">Messy.</div>
+      </div>
+      <div data-reveal style="border:1px solid var(--accent); border-radius:20px; padding:28px; background:var(--accent-soft); position:relative; overflow:hidden;">
+        <div aria-hidden="true" style="position:absolute; top:0; left:0; right:0; height:2px; overflow:hidden;"><span style="position:absolute; top:0; left:0; height:100%; width:12%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:tos-sweep 5s linear infinite;"></span></div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:22px;">
+          <span style="width:9px; height:9px; border-radius:50%; background:var(--accent);"></span>
+          <div style="font-size:13px; font-weight:600; color:var(--accent); letter-spacing:.02em;">WITH TRUSTOS · CONNECTED</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <sc-for list="{{ orderSteps }}" as="o" hint-placeholder-count="5">
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 15px; border-radius:11px; background:var(--surface2); border:1px solid var(--border); box-shadow:var(--shadow-sm);">
+              <span style="width:24px; height:24px; border-radius:7px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; flex-shrink:0;"><span dangerouslySetInnerHTML="{{ o.icon }}"></span></span>
+              <span style="font-size:14px; font-weight:500;">{{ o.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:20px; font-family:var(--disp); font-weight:600; font-size:15px; color:var(--accent);">Simple.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey" style="max-width:1120px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <div data-reveal style="max-width:680px; margin-bottom:48px;">
+      <div style="font-size:13px; font-weight:600; color:var(--accent); margin-bottom:14px;">THE JOURNEY</div>
+      <h2 style="font-size:clamp(2rem,4vw,3rem); line-height:1.06; margin:0 0 16px; text-wrap:balance;">Every project follows one clear path.</h2>
+      <p style="font-size:clamp(1rem,1.6vw,1.15rem); line-height:1.55; color:var(--muted); margin:0; font-weight:450;">Ten stages, enquiry to archive. Hover any step to see what happens there.</p>
+    </div>
+    <div data-reveal style="border:1px solid var(--border); border-radius:20px; background:var(--surface); padding:clamp(28px,4vw,44px) clamp(16px,3vw,32px);">
+      <div style="position:relative; height:3px; background:var(--border); border-radius:2px; margin:6px 8px 0; overflow:hidden;">
+        <div style="position:absolute; top:0; left:0; height:100%; width:{{ journeyFill }}; background:var(--accent); border-radius:2px; transition:width .5s cubic-bezier(.2,.8,.3,1);"></div>
+        <div style="position:absolute; top:0; left:0; height:100%; width:10%; background:linear-gradient(90deg,transparent,var(--accent2),transparent); animation:tos-sweep 9s linear infinite;"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; gap:6px; margin-top:-9px; flex-wrap:wrap; row-gap:24px;">
+        <sc-for list="{{ stages }}" as="s" hint-placeholder-count="10">
+          <div onMouseEnter="{{ s.onHover }}" onClick="{{ s.onHover }}" style="display:flex; flex-direction:column; align-items:center; gap:11px; flex:1; min-width:60px; cursor:pointer;">
+            <div style="width:{{ s.size }}; height:{{ s.size }}; border-radius:50%; background:{{ s.dot }}; border:2px solid var(--surface); box-shadow:{{ s.ring }}; display:grid; place-items:center; font-size:10px; font-weight:700; color:{{ s.numColor }}; transition:.28s cubic-bezier(.2,.8,.3,1);">{{ s.n }}</div>
+            <div style="font-size:12px; font-weight:{{ s.weight }}; color:{{ s.labelColor }}; text-align:center; white-space:nowrap; transition:.2s;">{{ s.label }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:28px; border-top:1px solid var(--border2); padding-top:24px; display:grid; grid-template-columns:auto 1fr; gap:22px; align-items:center; min-height:96px;">
+        <div style="font-family:var(--disp); font-weight:700; font-size:clamp(2rem,4vw,2.8rem); color:var(--accent); line-height:1;">{{ active.n }}</div>
+        <div>
+          <div style="font-family:var(--disp); font-weight:600; font-size:20px; margin-bottom:6px;">{{ active.label }}</div>
+          <p style="margin:0; font-size:15px; color:var(--muted); line-height:1.5; max-width:60ch;">{{ active.desc }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="action" style="max-width:1120px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <div data-reveal style="max-width:680px; margin-bottom:40px;">
+      <div style="font-size:13px; font-weight:600; color:var(--accent); margin-bottom:14px;">THE SIGNATURE FEATURE</div>
+      <h2 style="font-size:clamp(2rem,4vw,3rem); line-height:1.06; margin:0 0 16px; text-wrap:balance;">Everyone always knows the one thing to do next.</h2>
+      <p style="font-size:clamp(1rem,1.6vw,1.15rem); line-height:1.55; color:var(--muted); margin:0; font-weight:450;">No status meetings. No chasing. TrustOS gives every person on a project a single next action — tailored to their role.</p>
+    </div>
+    <div data-reveal style="display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;">
+      <sc-for list="{{ roleTabs }}" as="tab" hint-placeholder-count="3">
+        <button onClick="{{ tab.onSelect }}" style="{{ tab.style }}">
+          <span style="width:7px; height:7px; border-radius:50%; background:{{ tab.dotColor }}; transition:.2s;"></span>
+          {{ tab.label }}
+        </button>
+      </sc-for>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted);">
+        <span style="width:6px; height:6px; border-radius:50%; background:var(--accent); animation:tos-pulse 2s ease infinite;"></span> Auto-cycling
+      </div>
+    </div>
+    <div data-reveal style="border:1px solid var(--border); border-radius:20px; background:var(--surface); padding:clamp(24px,4vw,40px); display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:32px; align-items:center;">
+      <div style="transition:opacity .35s ease; opacity:{{ actionOpacity }};">
+        <div style="font-size:13px; color:var(--muted); font-weight:500; margin-bottom:8px;">{{ current.role }} · next action</div>
+        <div style="font-family:var(--disp); font-size:clamp(1.5rem,3vw,2.1rem); font-weight:600; line-height:1.1; margin-bottom:14px;">{{ current.title }}</div>
+        <p style="font-size:15px; color:var(--muted); line-height:1.55; margin:0 0 24px;">{{ current.desc }}</p>
+        <div class="tos-cta" style="display:inline-flex; align-items:center; gap:10px; padding:12px 18px; border-radius:11px; background:var(--accent); color:var(--on-accent); font-size:14px; font-weight:550;">
+          {{ current.cta }} <span dangerouslySetInnerHTML="{{ arrowIcon }}"></span>
+        </div>
+      </div>
+      <div style="background:var(--surface2); border:1px solid var(--border); border-radius:16px; padding:20px; box-shadow:var(--shadow); transition:opacity .35s ease; opacity:{{ actionOpacity }};">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <div style="font-size:13px; font-weight:600;">Amara &amp; Daniel · Wedding</div>
+          <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:4px 9px; border-radius:7px;">{{ current.stage }}</span>
+        </div>
+        <sc-for list="{{ current.checklist }}" as="row" hint-placeholder-count="4">
+          <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-top:1px solid var(--border2);">
+            <span dangerouslySetInnerHTML="{{ row.icon }}" style="flex-shrink:0;"></span>
+            <span style="font-size:13.5px; color:{{ row.color }}; font-weight:{{ row.weight }};">{{ row.label }}</span>
+            <span style="margin-left:auto; font-size:12px; color:var(--muted);">{{ row.meta }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section id="today" style="max-width:1120px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <div data-reveal style="max-width:680px; margin-bottom:48px;">
+      <div style="font-size:13px; font-weight:600; color:var(--accent); margin-bottom:14px;">TODAY</div>
+      <h2 style="font-size:clamp(2rem,4vw,3rem); line-height:1.06; margin:0 0 16px; text-wrap:balance;">Open the app and see exactly what today needs.</h2>
+      <p style="font-size:clamp(1rem,1.6vw,1.15rem); line-height:1.55; color:var(--muted); margin:0; font-weight:450;">Across every live project — what's due, what's waiting, and the one clear thing to do first.</p>
+    </div>
+    <div data-reveal><dc-import name="Today" hint-size="100%,420px"></dc-import></div>
+  </section>
+
+  <section id="workspace" style="max-width:1120px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <div data-reveal style="max-width:680px; margin-bottom:48px;">
+      <div style="font-size:13px; font-weight:600; color:var(--accent); margin-bottom:14px;">THE PROJECT WORKSPACE</div>
+      <h2 style="font-size:clamp(2rem,4vw,3rem); line-height:1.06; margin:0 0 16px; text-wrap:balance;">Everything a project needs, in one view.</h2>
+      <p style="font-size:clamp(1rem,1.6vw,1.15rem); line-height:1.55; color:var(--muted); margin:0; font-weight:450;">Timeline, payments, files, messages, preparation and activity — no longer six apps, just six panels of the same workspace.</p>
+    </div>
+    <div data-reveal><dc-import name="Bento" hint-size="100%,640px"></dc-import></div>
+  </section>
+
+  <section id="built" style="max-width:1120px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <div data-reveal style="max-width:680px; margin-bottom:44px;">
+      <div style="font-size:13px; font-weight:600; color:var(--accent); margin-bottom:14px;">BUILT FOR</div>
+      <h2 style="font-size:clamp(2rem,4vw,3rem); line-height:1.06; margin:0; text-wrap:balance;">Made for creative professionals.</h2>
+    </div>
+    <div data-stagger style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px;">
+      <sc-for list="{{ audiences }}" as="a" hint-placeholder-count="8">
+        <div style="border:1px solid var(--border); border-radius:16px; padding:22px; background:var(--surface); display:flex; align-items:center; gap:14px; transition:.2s;" style-hover="background:var(--surface2); border-color:var(--accent); transform:translateY(-3px);">
+          <span dangerouslySetInnerHTML="{{ a.icon }}" style="color:var(--accent); flex-shrink:0;"></span>
+          <span style="font-size:15px; font-weight:500;">{{ a.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="founding" style="max-width:1120px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <div data-reveal style="border:1px solid var(--border); border-radius:26px; background:var(--surface); overflow:hidden; position:relative;">
+      <div aria-hidden="true" style="position:absolute; inset:0; background:radial-gradient(120% 90% at 82% 8%, var(--accent-soft), transparent 55%); pointer-events:none;"></div>
+      <div style="position:relative; padding:clamp(34px,5vw,64px); display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:clamp(32px,5vw,56px); align-items:center;">
+        <div>
+          <div style="display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap;">
+            <span style="font-size:12px; font-weight:600; color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent); padding:5px 12px; border-radius:999px;">Early access</span>
+            <span style="font-size:12px; font-weight:600; color:var(--text2); background:var(--surface2); border:1px solid var(--border); padding:5px 12px; border-radius:999px;">Limited pilot</span>
+          </div>
+          <h2 style="font-size:clamp(2rem,4vw,2.9rem); line-height:1.05; margin:0 0 16px; text-wrap:balance;">The Founding Vendor Program.</h2>
+          <p style="font-size:clamp(1rem,1.6vw,1.15rem); line-height:1.55; color:var(--muted); margin:0 0 28px; font-weight:450;">We're onboarding a small first group of vendors — direct input on the product, hands-on support, and founding pricing locked in for life.</p>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <sc-for list="{{ perks }}" as="p" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:11px; font-size:15px;">
+                <span style="width:22px; height:22px; border-radius:7px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; flex-shrink:0;"><span dangerouslySetInnerHTML="{{ checkIcon }}"></span></span>
+                {{ p }}
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:clamp(24px,3vw,32px); box-shadow:var(--shadow-lg);">
+          <div style="font-family:var(--disp); font-weight:600; font-size:19px; margin-bottom:6px;">Join the waitlist</div>
+          <div style="font-size:14px; color:var(--muted); margin-bottom:20px;">Be first in line for a pilot invite.</div>
+          <form onSubmit="{{ onSubmit }}" style="display:flex; flex-direction:column; gap:10px;">
+            <input value="{{ email }}" onInput="{{ onEmail }}" type="email" placeholder="you@studio.com" style="width:100%; padding:14px 16px; border-radius:11px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:15px; font-family:inherit; outline:none;" style-focus="border-color:var(--accent);">
+            <button type="submit" class="tos-cta" style="width:100%; padding:14px; border-radius:11px; border:none; background:var(--accent); color:var(--on-accent); font-size:15px; font-weight:550; cursor:pointer; font-family:inherit; transition:transform .15s ease;" style-hover="transform:translateY(-2px);">{{ submitLabel }}</button>
+            <a href="mailto:hello@trustos.co?subject=TrustOS%20demo" style="width:100%; text-align:center; padding:14px; border-radius:11px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:15px; font-weight:500;" style-hover="background:var(--surface);">Request a demo</a>
+          </form>
+          <div style="font-size:12.5px; color:var(--muted); margin-top:14px; text-align:center;">{{ formNote }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" style="max-width:760px; margin:0 auto; padding:clamp(60px,8vw,110px) 24px; border-top:1px solid var(--border2);">
+    <h2 data-reveal style="font-size:clamp(2rem,4vw,3rem); line-height:1.06; margin:0 0 40px; text-align:center;">Questions</h2>
+    <div data-stagger style="display:flex; flex-direction:column;">
+      <sc-for list="{{ faqs }}" as="f" hint-placeholder-count="5">
+        <div style="border-top:1px solid var(--border);">
+          <button onClick="{{ f.onToggle }}" style="width:100%; display:flex; align-items:center; gap:16px; padding:22px 4px; background:transparent; border:none; cursor:pointer; text-align:left; font-family:inherit; color:var(--text);">
+            <span style="font-family:var(--disp); font-size:clamp(1rem,1.8vw,1.15rem); font-weight:500; flex:1;">{{ f.q }}</span>
+            <span dangerouslySetInnerHTML="{{ f.icon }}" style="color:var(--muted); flex-shrink:0;"></span>
+          </button>
+          <sc-if value="{{ f.isOpen }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:0; padding:0 40px 24px 4px; font-size:15px; line-height:1.6; color:var(--muted);">{{ f.a }}</p>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid var(--border2); background:var(--surface);">
+    <div style="max-width:1120px; margin:0 auto; padding:clamp(56px,7vw,80px) 24px 40px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:40px;">
+        <div style="min-width:220px;">
+          <a href="#top" style="display:flex; align-items:center; gap:10px; font-family:var(--disp); font-weight:600; font-size:17px; margin-bottom:14px;">
+            <span style="width:27px; height:27px; border-radius:8px; background:var(--text); color:var(--bg); display:grid; place-items:center; font-size:14px; font-weight:700;">T</span>
+            TrustOS
+          </a>
+          <p style="font-size:14px; color:var(--muted); line-height:1.55; margin:0 0 16px; max-width:260px;">One workspace for the whole job. Built in the UK, designed for creative professionals.</p>
+          <button onClick="{{ toggleTheme }}" style="display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:9px; border:1px solid var(--border); background:transparent; color:var(--text2); font-size:13px; cursor:pointer; font-family:inherit;" style-hover="color:var(--text);">
+            <span dangerouslySetInnerHTML="{{ themeIcon }}"></span>{{ themeLabel }}
+          </button>
+        </div>
+        <div>
+          <div style="font-family:var(--disp); font-size:13px; font-weight:600; margin-bottom:16px;">Product</div>
+          <div style="display:flex; flex-direction:column; gap:12px; font-size:14px; color:var(--muted);">
+            <a href="#switch">Why switch</a><a href="#journey">The journey</a><a href="#action">Next action</a><a href="#workspace">Workspace</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--disp); font-size:13px; font-weight:600; margin-bottom:16px;">Company</div>
+          <div style="display:flex; flex-direction:column; gap:12px; font-size:14px; color:var(--muted);">
+            <a href="#founding">Founding vendors</a><a href="#faq">FAQ</a><a href="mailto:hello@trustos.co">Contact</a><a href="#top">Roadmap</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--disp); font-size:13px; font-weight:600; margin-bottom:16px;">Legal</div>
+          <div style="display:flex; flex-direction:column; gap:12px; font-size:14px; color:var(--muted);">
+            <a href="#top">Privacy</a><a href="#top">Terms</a>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:52px; padding-top:24px; border-top:1px solid var(--border2); flex-wrap:wrap; gap:12px; font-size:13px; color:var(--muted);">
+        <div>© 2026 TrustOS. Built in the UK.</div>
+        <div>In private pilot · onboarding founding vendors.</div>
+      </div>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;820px&quot;},&quot;defaultTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = { theme: 'light', openFaq: 0, role: 0, activeStage: 2, email: '', submitted: false, autoRole: true, actionVisible: true };
+
+  componentDidMount() {
+    let t = this.props.defaultTheme;
+    if (!t) { const m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)'); t = (m && m.matches) ? 'dark' : 'light'; }
+    this.setState({ theme: t });
+    requestAnimationFrame(() => this.initReveal());
+    this._reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!this._reduce) this.startCycle();
+  }
+
+  startCycle() {
+    this._cycle = setInterval(() => {
+      if (!this.state.autoRole) return;
+      this.setState({ actionVisible: false });
+      setTimeout(() => this.setState(s => ({ role: (s.role + 1) % 3, actionVisible: true })), 320);
+    }, 4200);
+  }
+
+  initReveal() {
+    const els = Array.from(document.querySelectorAll('[data-reveal],[data-stagger]'));
+    const reveal = (el) => {
+      if (!el || el._revealed) return; el._revealed = true;
+      if (el.hasAttribute('data-stagger')) Array.from(el.children).forEach((c, i) => { c.style.transitionDelay = (i * 65) + 'ms'; c.classList.add('tos-in'); });
+      else el.classList.add('tos-in');
+    };
+    const nav = document.getElementById('nav');
+    const check = () => {
+      const h = window.innerHeight || 800;
+      els.forEach((el) => { const r = el.getBoundingClientRect(); if (r.top < h * 0.9 && r.bottom > 0) reveal(el); });
+      if (nav) { nav.style.transition = 'box-shadow .3s ease'; nav.style.boxShadow = window.scrollY > 8 ? 'var(--shadow-sm)' : 'none'; }
+    };
+    this._onScroll = check;
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check, { passive: true });
+    check();
+    this._safety = setTimeout(() => els.forEach(reveal), 4500);
+  }
+
+  componentWillUnmount() {
+    if (this._onScroll) { window.removeEventListener('scroll', this._onScroll); window.removeEventListener('resize', this._onScroll); }
+    if (this._safety) clearTimeout(this._safety);
+    if (this._cycle) clearInterval(this._cycle);
+  }
+
+  icon(p, s) { return '<svg width="' + (s || 18) + '" height="' + (s || 18) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
+
+  renderVals() {
+    const st = this.state;
+    const dark = st.theme === 'dark';
+    const sun = this.icon('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>');
+    const moon = this.icon('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>');
+    const check = this.icon('<path d="M20 6 9 17l-5-5"/>', 14);
+    const checkBig = this.icon('<path d="M20 6 9 17l-5-5"/>', 15);
+    const dot = '<span style="width:16px;height:16px;border-radius:50%;border:1.8px solid var(--border);display:inline-block;box-sizing:border-box;"></span>';
+    const activeDot = '<span style="width:16px;height:16px;border-radius:50%;background:var(--accent);display:inline-block;"></span>';
+
+    const pilots = [
+      { name: 'MiniMomentz', initial: 'M', color: '#4f46e5' },
+      { name: 'Agara Live', initial: 'A', color: '#1e6e68' },
+      { name: 'Founding Vendor Pilot', initial: 'F', color: '#b45309' },
+    ];
+
+    const chaosLabels = ['WhatsApp', 'Instagram DMs', 'Excel sheet', 'Email threads', 'Google Drive', 'Gallery link', 'Your memory'];
+    const chaosSteps = chaosLabels.map((label, i) => ({
+      label, arrow: i < chaosLabels.length - 1,
+      offset: (i % 3 === 1 ? '14px' : (i % 3 === 2 ? '28px' : '0px')),
+    }));
+
+    const orderIcons = [
+      '<path d="M3 3h18v18H3zM3 9h18M9 21V9"/>',
+      '<path d="M3 12h4l3 8 4-16 3 8h4"/>',
+      '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+      '<circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/>',
+    ];
+    const orderSteps = [
+      { label: 'One workspace' }, { label: 'One timeline' }, { label: 'One client portal' }, { label: 'One source of truth' },
+    ].map((o, i) => ({ label: o.label, icon: { __html: this.icon(orderIcons[i]) } }));
+
+    const stageData = [
+      ['Enquiry', 'A new enquiry lands with everything the client already told you, in one place.'],
+      ['Questionnaire', 'Send the right questions early — every answer stays attached to the project.'],
+      ['Quote', 'Build a proposal from a saved package in minutes, not emails.'],
+      ['Contract', 'Send a contract that\u2019s already filled in — the client signs on their phone.'],
+      ['Payment', 'Take the deposit and watch it recorded against the job automatically.'],
+      ['Preparation', 'Mood boards, checklists and venue notes ready before the day.'],
+      ['Shoot', 'Walk in with the plan, gear list and details already sorted.'],
+      ['Delivery', 'Share final files through your own gallery link, clearly labelled.'],
+      ['Review', 'Ask for approval and sign the job off properly, on the record.'],
+      ['Archive', 'The whole project is kept and searchable, ready for next time.'],
+    ];
+    const ai = st.activeStage;
+    const stages = stageData.map(([label], i) => {
+      const isActive = i === ai;
+      return {
+        label, n: String(i + 1).padStart(2, '0'),
+        onHover: () => this.setState({ activeStage: i }),
+        size: isActive ? '30px' : '22px',
+        dot: i <= ai ? 'var(--accent)' : 'var(--border)',
+        ring: isActive ? '0 0 0 6px var(--accent-soft)' : 'none',
+        numColor: i <= ai ? 'var(--on-accent)' : 'var(--muted)',
+        labelColor: isActive ? 'var(--text)' : (i < ai ? 'var(--text2)' : 'var(--muted)'),
+        weight: isActive ? '600' : '450',
+      };
+    });
+    const active = { n: String(ai + 1).padStart(2, '0'), label: stageData[ai][0], desc: stageData[ai][1] };
+    const journeyFill = ((ai) / (stageData.length - 1) * 100) + '%';
+
+    const roles = [
+      { role: 'Vendor', stage: 'Contract stage', title: 'Send the contract for review.', desc: 'The quote was accepted this morning. TrustOS drafted the contract from your template — review and send in one tap.', cta: 'Review contract', dotColor: '#4f46e5',
+        checklist: [['Questionnaire completed','Done','done'],['Quote accepted','Done','done'],['Send contract','Now','now'],['Collect deposit','Next','todo']] },
+      { role: 'Client', stage: 'Awaiting you', title: 'Review and sign your contract.', desc: 'Everything\u2019s ready. Read your contract, sign digitally, and you\u2019re booked — no printing, no email chains.', cta: 'Review & sign', dotColor: '#1e6e68',
+        checklist: [['Questionnaire submitted','Done','done'],['Quote accepted','Done','done'],['Sign contract','Now','now'],['Pay deposit','Next','todo']] },
+      { role: 'Team', stage: 'Preparing', title: 'Confirm your shoot availability.', desc: 'You\u2019ve been added as second shooter. Confirm availability so the lead can lock the schedule.', cta: 'Confirm availability', dotColor: '#b45309',
+        checklist: [['Added to project','Done','done'],['Confirm availability','Now','now'],['Review shot list','Next','todo'],['Sync gear checklist','Later','todo']] },
+    ].map(r => ({
+      ...r,
+      checklist: r.checklist.map(([label, meta, state]) => ({
+        label, meta,
+        icon: { __html: state === 'done' ? '<span style="color:var(--ok)">' + check + '</span>' : (state === 'now' ? activeDot : dot) },
+        color: state === 'todo' ? 'var(--muted)' : 'var(--text)',
+        weight: state === 'now' ? '600' : '450',
+      })),
+    }));
+
+    const tabBase = 'display:inline-flex;align-items:center;gap:9px;padding:9px 18px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;transition:.2s;';
+    const roleTabs = ['Vendor', 'Client', 'Team'].map((label, i) => ({
+      label, dotColor: roles[i].dotColor,
+      onSelect: () => this.setState({ role: i, autoRole: false, actionVisible: true }),
+      style: i === st.role
+        ? tabBase + 'background:var(--accent);color:var(--on-accent);border:1px solid var(--accent);'
+        : tabBase + 'background:var(--surface2);color:var(--text2);border:1px solid var(--border);',
+    }));
+
+    const audiences = [
+      ['Photographers','<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'],
+      ['Filmmakers','<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>'],
+      ['Wedding teams','<path d="M12 21s-8-4.5-8-10a4.5 4.5 0 0 1 8-2.9A4.5 4.5 0 0 1 20 11c0 5.5-8 10-8 10z"/>'],
+      ['Event crews','<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'],
+      ['Content creators','<path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>'],
+      ['Studios','<path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>'],
+      ['Freelancers','<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/>'],
+      ['Small agencies','<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>'],
+    ].map(([label, p]) => ({ label, icon: { __html: this.icon(p) } }));
+
+    const plus = this.icon('<path d="M12 5v14M5 12h14"/>');
+    const minus = this.icon('<path d="M5 12h14"/>');
+    const faqData = [
+      ['Do my clients need an account?', 'No sign-up required. Clients open a clean, branded portal from a link — they complete their questionnaire, accept the quote, sign the contract and track delivery without ever creating an account.'],
+      ['Do I need to move everything over to start?', 'No. Start with your next new enquiry and run one job through end to end. There\u2019s no big migration and no weekend of setup.'],
+      ['How do payments work?', 'TrustOS tracks every payment against the project. Take card payments through Stripe or record cash and transfers manually — either way you always see what\u2019s paid, pending and overdue.'],
+      ['Does it work on my phone on a shoot day?', 'Yes. TrustOS is built to be used one-handed on a phone — your plan, gear list and venue notes are there when you\u2019re on location.'],
+      ['What happens to my data if I leave?', 'You export everything as a file you own, and we delete our copy. No lock-in, no holding your projects hostage.'],
+    ].map(([q, a], i) => ({
+      q, a, isOpen: i === st.openFaq,
+      icon: { __html: i === st.openFaq ? minus : plus },
+      onToggle: () => this.setState(s => ({ openFaq: s.openFaq === i ? -1 : i })),
+    }));
+
+    return {
+      theme: st.theme,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      themeIcon: { __html: dark ? sun : moon }, themeLabel: dark ? 'Light mode' : 'Dark mode',
+      checkIcon: { __html: check }, arrowIcon: { __html: this.icon('<path d="M5 12h14M12 5l7 7-7 7"/>') },
+      onParallax: (e) => {
+        if (this._reduce) return;
+        const el = document.getElementById('hero-stage'); if (!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.setProperty('--px', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
+        el.style.setProperty('--py', ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
+      },
+      resetParallax: () => { const el = document.getElementById('hero-stage'); if (el) { el.style.setProperty('--px', 0); el.style.setProperty('--py', 0); } },
+      pilots, chaosSteps, orderSteps,
+      stages, active, journeyFill,
+      roleTabs, current: roles[st.role], actionOpacity: st.actionVisible ? 1 : 0,
+      audiences, faqs: faqData,
+      perks: ['Founding pricing, locked in for life', 'Direct line to the team building it', 'Shape the roadmap with real feedback'],
+      email: st.email, onEmail: (e) => this.setState({ email: e.target.value }),
+      onSubmit: (e) => { e.preventDefault(); this.setState({ submitted: true }); },
+      submitLabel: st.submitted ? 'You\u2019re on the list \u2713' : 'Join the waitlist',
+      formNote: st.submitted ? 'Thanks — we\u2019ll be in touch with your pilot invite.' : 'No spam. Just your invite and founding pricing.',
+    };
+  }
+}
+</script>
+</body>
+</html>

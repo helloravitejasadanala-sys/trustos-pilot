@@ -1,0 +1,641 @@
+You are the Founding Product Designer and Creative Director for TrustOS.
+
+Use the official Anthropic frontend-design skill if it is available.
+
+You are not creating a cosmetic redesign.
+
+You are defining how TrustOS should feel, behave and communicate during its
+first real MiniMomentz pilot.
+
+Read all supplied materials before designing:
+
+1. TrustOS Product Handbook
+2. Existing public website
+3. Current application screenshots
+4. Current vendor workflow
+5. Current client workflow
+6. Venue research page
+7. Existing brand colours and product principles
+
+Do not blindly preserve the current app interface.
+
+Preserve the working product logic, but redesign the experience from the
+perspective of a real human using it for an actual project.
+
+==================================================
+FOUNDER INTENT
+==================================================
+
+This product comes from a real frustration.
+
+After a client pays a deposit, they often experience silence and uncertainty.
+
+The vendor is also managing:
+
+- client details;
+- WhatsApp messages;
+- dates;
+- payments;
+- mood boards;
+- preparation;
+- location details;
+- deadlines;
+- delivery;
+- reviews;
+
+across too many disconnected places.
+
+TrustOS should make both sides feel:
+
+- calm;
+- informed;
+- professionally supported;
+- clear about what has happened;
+- clear about what happens next.
+
+The founder is not currently testing how much money this can make.
+
+The founder is testing whether this genuinely improves the way MiniMomentz
+runs a client project.
+
+This is a learning pilot.
+
+The design must feel sincere, thoughtful and useful — not like a venture-funded
+dashboard pretending to have hundreds of customers.
+
+==================================================
+CORE PRODUCT PROMISE
+==================================================
+
+One workspace for the whole job.
+
+From the first project setup to final delivery.
+
+The vendor should always understand:
+
+1. What has happened?
+2. What is waiting?
+3. What should I do next?
+
+The client should always understand:
+
+1. Where is my project?
+2. Is anything required from me?
+3. What happens next?
+
+==================================================
+THREE EXPERIENCES
+==================================================
+
+Design one coherent system containing:
+
+1. TrustOS Admin Console
+2. Vendor Workspace
+3. Client Portal
+
+They share one product language and design system, but each must feel suited
+to its role.
+
+Do not design three unrelated products.
+
+==================================================
+1. TRUSTOS ADMIN CONSOLE
+==================================================
+
+Audience:
+
+The founder operating the TrustOS pilot.
+
+Purpose:
+
+Monitor whether vendors and projects are working correctly.
+
+This is not a business-analytics dashboard.
+
+Show only:
+
+- workspaces;
+- active vendors;
+- active projects;
+- projects waiting on vendor;
+- projects waiting on client;
+- recent signups;
+- failed or blocked projects;
+- system warnings;
+- research submissions.
+
+The design should feel:
+
+- quiet;
+- operational;
+- trustworthy;
+- compact;
+- easy to scan.
+
+Do not expose private client messages or sensitive payment details in the
+overview.
+
+==================================================
+2. VENDOR WORKSPACE
+==================================================
+
+Audience:
+
+A photographer, livestream operator, DJ, makeup artist, decorator or event
+professional.
+
+Many users may be 45–60 years old and may have little experience with business
+software.
+
+They should need no training.
+
+The Vendor Workspace must use one shared design system.
+
+Different professions should adapt through:
+
+- terminology;
+- project type;
+- Event Details;
+- preparation checklist;
+- delivery requirements;
+
+not through completely separate dashboard designs.
+
+Primary navigation:
+
+- Today
+- Projects
+- Clients
+- Settings
+
+Do not show analytics or templates prominently during the pilot.
+
+==================================================
+TODAY
+==================================================
+
+Today is not a dashboard of statistics.
+
+Today is the vendor’s working starting point.
+
+The most important feature is:
+
+DO THIS FIRST
+
+This is the single highest-priority action across every active project.
+
+Examples:
+
+- Review Chaitanya’s Event Details
+- Confirm tomorrow’s venue
+- Record the cash deposit
+- Add the Rao Family delivery link
+
+The Do This First component must be visually unforgettable.
+
+It should show:
+
+- project/client;
+- clear action;
+- why it matters;
+- urgency;
+- one dominant button.
+
+Below it show only:
+
+- Today’s shoots or services
+- Waiting on me
+- Waiting on client
+- Upcoming deadlines
+- New Project
+
+Do not show vanity charts or generic statistics.
+
+==================================================
+PROJECT WORKSPACE
+==================================================
+
+Inside every project, the strongest feature is:
+
+ONE CLEAR NEXT ACTION
+
+This component must never visually blend into normal cards.
+
+It should show:
+
+- current stage;
+- who is responsible;
+- one plain-language action;
+- one primary CTA;
+- minimal supporting actions.
+
+Examples:
+
+“Review and send the quote”
+“Chaitanya needs to confirm the Event Details”
+“No payment required — begin preparation”
+“Add the final delivery link”
+
+The project journey is:
+
+1. Project created
+2. Client link sent
+3. Event Details completed
+4. Quote accepted
+5. Payment confirmed or not required
+6. Preparation
+7. Service completed
+8. Delivery sent
+9. Client approved
+10. Archived
+
+Completed stages should feel reassuring.
+
+The current stage should feel obvious.
+
+Future stages should stay quiet.
+
+Do not show all stages and tools with equal visual importance.
+
+Supporting sections:
+
+- Overview
+- Client
+- Money
+- Preparation
+- Delivery
+- Messages
+
+History should remain collapsed.
+
+==================================================
+3. CLIENT PORTAL
+==================================================
+
+The client does not need a dashboard.
+
+The client receives one secure link.
+
+No account.
+No app download.
+No vendor navigation.
+No internal clutter.
+
+The client sees:
+
+- vendor/business name;
+- project name;
+- project progress;
+- one current action;
+- Event Details;
+- quote;
+- payment status;
+- messages;
+- delivery link.
+
+The client experience should feel closer to a guided concierge page than
+business software.
+
+They must understand what to do within five seconds.
+
+==================================================
+EVENT DETAILS
+==================================================
+
+Do not use “Questionnaire” as the dominant customer-facing word.
+
+Use:
+
+- Event Details
+- Project Details
+- Confirm your details
+
+The client is not making a new sales enquiry.
+
+The vendor has already created the project.
+
+Therefore remove questions such as:
+
+- What is your budget?
+- What package do you want?
+- What price do you expect?
+
+Only ask practical information needed to complete the work.
+
+Forms should change according to project type.
+
+Photography examples:
+
+- participants and ages;
+- location;
+- accessibility;
+- visual preferences;
+- important photographs;
+- clothing or mood-board preferences.
+
+Live-stream examples:
+
+- venue contact;
+- timings;
+- internet availability;
+- streaming platform;
+- audio sources;
+- load-in time;
+- power restrictions.
+
+Completed Event Details should collapse into a concise summary.
+
+==================================================
+PAYMENTS
+==================================================
+
+Design three clear modes:
+
+1. Pay securely online
+2. Pay manually
+3. No payment required — collaboration
+
+Do not show technical Stripe errors or configuration language.
+
+The vendor defines the amount and payment method.
+
+The client only reviews and completes the required action.
+
+Manual payment should clearly show:
+
+- instructions;
+- client confirmation;
+- vendor confirmation.
+
+==================================================
+VISUAL EMOTION
+==================================================
+
+The product should feel:
+
+- calm;
+- warm;
+- premium;
+- human;
+- professional;
+- creatively intelligent;
+- reassuring;
+- quietly confident.
+
+It should not feel:
+
+- cold;
+- corporate;
+- childish;
+- over-designed;
+- generic;
+- like an AI-generated SaaS template;
+- like a marketing page converted into a dashboard.
+
+The founder works in photography and visual storytelling.
+
+The design should reflect genuine creative taste without sacrificing usability.
+
+==================================================
+AESTHETIC DIRECTION
+==================================================
+
+Choose one strong aesthetic direction:
+
+“Warm editorial utility.”
+
+This means:
+
+- refined editorial character;
+- practical application structure;
+- calm paper-like surfaces;
+- confident forest-green brand colour;
+- distinctive but readable typography;
+- subtle visual depth;
+- controlled information density;
+- human microcopy;
+- restrained motion.
+
+Use the public website as a brand reference, not as an app layout.
+
+Do not put marketing hero sections inside the application.
+
+Do not use huge headings inside daily work screens.
+
+Do not use generic purple gradients.
+
+Do not use random illustrations.
+
+Do not use excessive glassmorphism.
+
+Do not cover every screen in oversized cards.
+
+Avoid default-looking Inter/Space Grotesk SaaS combinations unless there is a
+deliberate reason.
+
+Choose a more distinctive but highly readable display and interface type
+pairing.
+
+==================================================
+USABILITY
+==================================================
+
+Design for a non-technical 45–60-year-old vendor.
+
+Requirements:
+
+- large touch targets;
+- high contrast;
+- plain language;
+- obvious Back navigation;
+- one dominant action;
+- clear success confirmation;
+- field-level validation;
+- useful empty states;
+- no hidden essential actions;
+- no icon-only critical actions;
+- phone-first layouts;
+- readable text;
+- no horizontal scrolling;
+- minimal memory burden.
+
+Never make the user remember where a feature lives.
+
+Never show an empty page without explaining the next action.
+
+==================================================
+MICROCOPY
+==================================================
+
+Replace generic labels:
+
+“Submit”
+“Continue”
+“Save”
+“Process”
+“Action required”
+
+with context-specific language:
+
+“Send to client”
+“Confirm Event Details”
+“Save preparation notes”
+“Record payment”
+“Add delivery link”
+“Approve delivery”
+
+Copy should feel like a calm human assistant.
+
+Not robotic.
+Not cute.
+Not verbose.
+
+==================================================
+DESIGN DELIVERABLES
+==================================================
+
+Create a complete high-fidelity clickable prototype containing:
+
+1. Public authentication entry
+2. Vendor signup
+3. Vendor signin
+4. Empty MiniMomentz workspace
+5. Today
+6. Projects
+7. Clients
+8. New project flow
+9. Add client flow
+10. Project Overview
+11. Event Details status
+12. Quote
+13. Manual payment
+14. Free collaboration
+15. Preparation
+16. Messages
+17. Service complete
+18. Delivery
+19. Client approval
+20. Client Portal
+21. Admin Console
+22. Mobile vendor views
+23. Mobile client views
+
+Also create all required system states:
+
+- loading;
+- empty;
+- success;
+- error;
+- waiting on vendor;
+- waiting on client;
+- offline;
+- disabled;
+- completed;
+- archived.
+
+==================================================
+DESIGN SYSTEM
+==================================================
+
+Create a reusable design system covering:
+
+- colour tokens;
+- typography;
+- spacing;
+- radius;
+- shadows;
+- icons;
+- buttons;
+- inputs;
+- selects;
+- cards;
+- status chips;
+- navigation;
+- progress;
+- forms;
+- messages;
+- payment panels;
+- empty states;
+- loading states;
+- errors;
+- success;
+- modals;
+- mobile patterns;
+- motion;
+- accessibility.
+
+Create a `DESIGN.md` file explaining:
+
+- the emotional intention;
+- UX principles;
+- design tokens;
+- component rules;
+- mobile rules;
+- accessibility;
+- copy rules;
+- when not to use each component.
+
+==================================================
+WORKING METHOD
+==================================================
+
+Before designing screens:
+
+1. Audit the supplied app screenshots.
+2. Identify what makes them feel generic or AI-generated.
+3. Identify confusing navigation.
+4. Identify competing calls to action.
+5. Identify wording that exposes internal implementation.
+6. Identify what should be removed, not merely restyled.
+7. Define the chosen aesthetic direction.
+8. Explain the emotional logic behind the direction.
+
+Then design.
+
+Do not simply recolour the existing screens.
+
+Do not create visual concepts without interaction logic.
+
+Every screen must demonstrate:
+
+- user;
+- purpose;
+- state;
+- primary action;
+- next state.
+
+==================================================
+FINAL STANDARD
+==================================================
+
+Ask these questions before finishing:
+
+Would Ravi trust this with a real MiniMomentz project tonight?
+
+Would his client understand the link without explanation?
+
+Would a 50-year-old photographer know what to do next?
+
+Does this feel designed by someone who understands creative professionals?
+
+Is “Do This First” unmistakable?
+
+Is “One Clear Next Action” unmistakable?
+
+Does the product feel calm rather than empty?
+
+Does it feel premium rather than decorative?
+
+Does it reflect a founder who genuinely cares about the working experience?
+
+If any answer is no, refine it before presenting the result.
+
+Return:
+
+1. The clickable prototype
+2. The complete DESIGN.md
+3. A component inventory
+4. Desktop and mobile screens
+5. A UX rationale
+6. A list of existing elements removed
+7. A list of decisions engineering must follow

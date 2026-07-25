@@ -1,23 +1,20 @@
 import type { Metadata } from 'next'
-import { Inter, Fraunces } from 'next/font/google'
+import { Hanken_Grotesk, Instrument_Serif } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import './globals.css'
 
-// Body / UI — a clean, quiet grotesque.
-const inter = Inter({
+const hanken = Hanken_Grotesk({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-hanken',
   display: 'swap',
+  weight: ['400', '500', '600', '700', '800'],
 })
 
-// Display — Fraunces, a characterful "old-style" serif with soft
-// optical warmth. Used with restraint for headlines only. This is the
-// page's personality: editorial calm, like a studio's own stationery,
-// not a SaaS dashboard.
-const fraunces = Fraunces({
+const instrument = Instrument_Serif({
   subsets: ['latin'],
-  variable: '--font-fraunces',
+  variable: '--font-instrument',
   display: 'swap',
+  weight: '400',
 })
 
 export const metadata: Metadata = {
@@ -27,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${fraunces.variable}`}>
+    <html lang="en" className={`${hanken.variable} ${instrument.variable}`}>
       <body className="font-sans antialiased">
         {children}
         <Toaster
@@ -35,9 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           toastOptions={{
             className: 'text-sm',
             style: {
-              background: '#1a2420',
-              color: '#f4f1ea',
-              borderRadius: '10px',
+              background: 'var(--toast-bg)',
+              color: 'var(--toast-fg)',
+              borderRadius: 'var(--radius-sm)',
               fontSize: '13px',
               padding: '12px 16px',
             },

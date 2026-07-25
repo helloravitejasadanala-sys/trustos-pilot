@@ -1,26 +1,31 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Loader2, CheckCircle, Circle, HelpCircle, ArrowLeft } from 'lucide-react'
+import { Loader2, CheckCircle, HelpCircle } from 'lucide-react'
 import { parseJsonResponse } from '@/lib/safe-json'
-import { BASE_DETAIL_FIELDS, detailQuestionsFor, sectionLabelFor, type DetailField } from '@/lib/project-types'
+import { BASE_DETAIL_FIELDS, detailQuestionsFor, projectTypeLabel, sectionLabelFor, type DetailField } from '@/lib/project-types'
+import { ClientPortalLayout } from '@/components/layout'
 
 /**
- * Stage 5 — "Your Journey". Same data flow as Stage 3/4 (every fetch
- * derives the project from the secure session; no identifier from the
- * browser). Only the presentation changed: a guided vertical timeline,
- * a clear next action with who-acts and estimated time, and payment
- * status — never a generic "dashboard".
+ * Client portal — secure link journey.
+ * Presentation follows Phase 1 (light & warm, forest CTA).
+ * Data flow unchanged: every fetch derives the project from the secure session.
  */
 
 type Data = { project: any; questionnaire: any; proposal: any; contract: any; payment: any }
 
 const STEPS = [
-  { key: 'questionnaire', label: 'Confirm your project details', time: '3 minutes', who: 'You' },
-  { key: 'proposal', label: 'Review and accept your proposal', time: '3 minutes', who: 'You' },
-  { key: 'contract', label: 'Review and sign your agreement', time: '5 minutes', who: 'You' },
-  { key: 'payment', label: 'Pay your deposit', time: '2 minutes', who: 'You' },
+  { key: 'questionnaire', label: 'Confirm your event details', time: '3 minutes', who: 'You', why: 'A few practical things about the day. About 3 minutes — no account needed.' },
+  { key: 'proposal', label: 'Review and accept your proposal', time: '3 minutes', who: 'You', why: 'Check what’s included, then accept so your studio can prepare the agreement.' },
+  { key: 'contract', label: 'Review and sign your agreement', time: '5 minutes', who: 'You', why: 'Read the terms, then type your name to confirm — takes about five minutes.' },
+  { key: 'payment', label: 'Pay your deposit', time: '2 minutes', who: 'You', why: 'Your deposit secures the booking. Confirm once you’ve paid by the method agreed.' },
+] as const
+
+const DETAIL_CHIPS = [
+  { key: 'time', label: 'Timings', icon: '🕑' },
+  { key: 'venue', label: 'Venue', icon: '📍' },
+  { key: 'phone', label: 'Contact', icon: '📞' },
+  { key: 'notes', label: 'Notes', icon: '✎' },
 ] as const
 
 export default function ClientJourney({ params }: { params: { token: string } }) {
@@ -56,24 +61,36 @@ export default function ClientJourney({ params }: { params: { token: string } })
     })()
   }, [params.token])
 
-  if (state === 'loading') return (
-    <Centre>
-      <div className="w-full max-w-xl space-y-3">
-        <div className="h-6 w-1/2 bg-ink-100 rounded animate-pulse" />
-        <div className="h-4 w-3/4 bg-ink-100 rounded animate-pulse" />
-        <div className="h-40 w-full bg-ink-100 rounded-2xl animate-pulse mt-6" />
-      </div>
-    </Centre>
-  )
+  if (state === 'loading') {
+    return (
+      <ClientPortalLayout centered>
+        <div className="w-full max-w-xl space-y-3" aria-busy="true" aria-label="Loading your project">
+          <div className="h-8 w-1/2 animate-pulse rounded" style={{ background: 'var(--line)' }} />
+          <div className="h-4 w-3/4 animate-pulse rounded" style={{ background: 'var(--line)' }} />
+          <div className="mt-6 h-40 w-full animate-pulse rounded-[var(--r-lg)]" style={{ background: 'var(--line)' }} />
+          <div className="h-24 w-full animate-pulse rounded-[var(--r-lg)]" style={{ background: 'var(--line)' }} />
+        </div>
+      </ClientPortalLayout>
+    )
+  }
 
-  if (state === 'invalid' || !d) return (
-    <Centre>
-      <div className="text-center max-w-md">
-        <h1 className="text-2xl font-medium text-forest-950">This link isn’t valid</h1>
-        <p className="text-forest-700 mt-3">It may have expired or been replaced. Ask your vendor for a new link.</p>
-      </div>
-    </Centre>
-  )
+  if (state === 'invalid' || !d) {
+    return (
+      <ClientPortalLayout centered>
+        <div className="max-w-md text-center">
+          <div className="banner banner-error mb-4" style={{ justifyContent: 'center' }}>
+            This link isn&apos;t valid
+          </div>
+          <h1 className="serif" style={{ fontSize: 28, margin: '0 0 10px', color: 'var(--ink)' }}>
+            We couldn&apos;t open this page
+          </h1>
+          <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
+            It may have expired or been replaced. Ask your vendor for a new link.
+          </p>
+        </div>
+      </ClientPortalLayout>
+    )
+  }
 
   const { project, questionnaire, proposal, contract, payment } = d
   const done = {
@@ -90,138 +107,268 @@ export default function ClientJourney({ params }: { params: { token: string } })
   else if (contract && !done.contract) current = 'contract'
   else if (payment && !done.payment) current = 'payment'
 
-  const completedCount = Object.values(done).filter(Boolean).length
   const currentStep = STEPS.find(s => s.key === current)
+  const stepIndex = current === 'done'
+    ? STEPS.length
+    : Math.max(1, STEPS.findIndex(s => s.key === current) + 1)
+  const progressPct = current === 'done'
+    ? 100
+    : ((stepIndex - 1) / STEPS.length) * 100
+
+  const clientFirst = project.client?.name?.split(' ')[0]
+  const projectTitle = project.title.replace(/\s*\(demo\)/i, '')
+  const vendorName = project.vendor.businessName as string
+  const vendorInitial = (vendorName || 'S').charAt(0).toUpperCase()
+  const typeLabel = projectTypeLabel(project.type || 'OTHER')
+  const eventDate = project.eventDate
+    ? new Date(project.eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    : null
+
+  const answers = questionnaire?.answers || {}
+  const hasGallery = Array.isArray(project.files) && project.files.some((f: any) => f.type === 'gallery')
+  const deliveryApproved = Array.isArray(project.approvals) && project.approvals.length > 0
+
+  const quoteChip = !proposal
+    ? { cls: 'chip chip-muted', label: 'Soon' }
+    : done.proposal
+      ? { cls: 'chip chip-success', label: 'Accepted' }
+      : { cls: 'chip chip-amber', label: 'To review' }
+
+  const paymentChip = (() => {
+    if (!payment) return { cls: 'chip chip-muted', label: 'Soon' }
+    if (Number(payment.total) === 0) return { cls: 'chip chip-success', label: 'None due' }
+    if (done.payment) return { cls: 'chip chip-success', label: 'Received' }
+    if (payment.declared) return { cls: 'chip chip-amber', label: 'Awaiting' }
+    return { cls: 'chip chip-amber', label: 'Due' }
+  })()
+
+  const deliveryChip = deliveryApproved
+    ? { cls: 'chip chip-success', label: 'Approved' }
+    : hasGallery
+      ? { cls: 'chip chip-amber', label: 'Ready' }
+      : { cls: 'chip chip-muted', label: 'Soon' }
 
   return (
-    <div className="min-h-screen bg-paper">
-      <div className="max-w-xl mx-auto px-5 py-10 sm:py-14">
-        <Link href="/" aria-label="Back to home" className="inline-flex items-center gap-1 text-sm text-forest-500 hover:text-forest-800 transition mb-6">
-          <ArrowLeft size={15} /> TrustOS
-        </Link>
-        {/* Welcome */}
-        <p className="text-sm text-forest-600">{project.vendor.businessName}</p>
-        <h1 className="font-display text-4xl text-forest-950 mt-1 tracking-tight">
-          Welcome{project.client?.name ? `, ${project.client.name.split(' ')[0]}` : ''}.
-        </h1>
-        <p className="text-forest-700 mt-2 leading-relaxed">
-          {project.vendor.businessName} has invited you to your {project.title.replace(/\s*\(demo\)/i, '')}.
-        </p>
+    <ClientPortalLayout
+      brandName={vendorName}
+      brandLetter={vendorInitial}
+      forLine={clientFirst ? `For ${project.client?.name}` : undefined}
+      title={projectTitle}
+      stepLabel={`Step ${stepIndex} of ${STEPS.length}`}
+      progressPct={progressPct}
+    >
+      <div className="portal-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+          {/* One current action — forest CTA, never lime */}
+          {current !== 'done' && currentStep ? (
+            <div>
+              <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
+                What we need from you
+              </div>
+              <div className="action-outline" style={{ padding: '22px 20px' }}>
+                <div className="serif" style={{ fontSize: 'clamp(22px, 3vw, 25px)', lineHeight: 1.1, marginBottom: 6 }}>
+                  {currentStep.label}
+                </div>
+                <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 18px' }}>
+                  {currentStep.why}
+                </p>
 
-        {/* Progress bar */}
-        <div className="mt-6">
-          <div className="flex justify-between text-xs text-forest-500 mb-1.5">
-            <span>Your progress</span>
-            <span>{completedCount} of {STEPS.length}</span>
-          </div>
-          <div className="h-1.5 bg-ink-100 rounded-full overflow-hidden">
-            <div className="h-full bg-forest-500 rounded-full transition-all" style={{ width: `${(completedCount / STEPS.length) * 100}%` }} />
+                {current === 'questionnaire' && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 9,
+                      marginBottom: 18,
+                    }}
+                  >
+                    {DETAIL_CHIPS.map(chip => {
+                      const filled = !!(answers[chip.key] || (chip.key === 'venue' && project.location) || (chip.key === 'time' && answers.time))
+                      return (
+                        <span
+                          key={chip.key}
+                          className="chip"
+                          style={{
+                            padding: 12,
+                            justifyContent: 'flex-start',
+                            background: filled ? 'var(--success-soft)' : 'var(--canvas-2)',
+                            color: filled ? 'var(--success)' : 'var(--ink)',
+                            border: filled ? '1px solid #bfe0cd' : '1px solid var(--line)',
+                          }}
+                        >
+                          {chip.icon} {chip.label}{filled ? ' ✓' : ''}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {current === 'questionnaire' && (
+                  <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />
+                )}
+                {current === 'proposal' && (
+                  <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />
+                )}
+                {current === 'contract' && (
+                  <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />
+                )}
+                {current === 'payment' && (
+                  <PaymentStep payment={payment} busy={busy} setBusy={setBusy} onDone={refresh} />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="action-outline" style={{ padding: 24 }}>
+              <div className="serif" style={{ fontSize: 25, lineHeight: 1.15, marginBottom: 8 }}>
+                You&apos;re all set
+              </div>
+              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
+                Nothing needed right now — {vendorName} is preparing your project and will be in touch about the next steps.
+              </p>
+            </div>
+          )}
+
+          <div className="portal-quote">
+            <span
+              className="marker"
+              style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--forest)', color: '#fff' }}
+            >
+              {vendorInitial}
+            </span>
+            <div>
+              <div className="serif" style={{ fontStyle: 'italic', fontSize: 19, lineHeight: 1.3 }}>
+                &ldquo;Anything you need, just message us right here.&rdquo;
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
+                {vendorName}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Next step — the client's single clear action, matching the
-            vendor's "Today's Action". One thing, no hunting. */}
-        {current !== 'done' && currentStep && (
-          <div className="mt-6 rounded-2xl bg-forest-950 text-paper-50 p-6">
-            <p className="text-xs uppercase tracking-widest text-forest-300">Your next step</p>
-            <p className="font-display text-xl mt-2 leading-snug">{currentStep.label}</p>
-            <p className="text-sm text-forest-200 mt-1">Takes about {currentStep.time}. The step opens just below.</p>
+        {/* Status rail */}
+        <div className="portal-status">
+          <div style={{ font: 'var(--t-xs)', fontWeight: 700 }}>Where things stand</div>
+
+          <div className="panel portal-status-row">
+            <span className="marker marker-photo" style={{ width: 36, height: 36, borderRadius: 9 }}>
+              {typeLabel.charAt(0)}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your project</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                {[typeLabel, eventDate].filter(Boolean).join(' · ') || 'Details coming'}
+              </div>
+            </div>
+            <span className={current === 'done' ? 'chip chip-success' : 'chip chip-lav'}>
+              {current === 'done' ? 'On track' : 'In prep'}
+            </span>
           </div>
-        )}
 
-        {/* Vertical journey timeline (mobile-first) */}
-        <ol className="mt-8 relative">
-          {STEPS.map((s, i) => {
-            const isDone = done[s.key]
-            const isCurrent = s.key === current
-            return (
-              <li key={s.key} className="flex gap-3 pb-1">
-                <div className="flex flex-col items-center">
-                  {isDone
-                    ? <CheckCircle size={20} className="text-forest-600" />
-                    : <Circle size={20} className={isCurrent ? 'text-forest-950' : 'text-forest-300'} />}
-                  {i < STEPS.length - 1 && <div className={`w-px flex-1 my-1 ${isDone ? 'bg-sage-300' : 'bg-ink-200'}`} />}
-                </div>
-                <div className={`pb-6 ${isCurrent ? '' : 'opacity-70'}`}>
-                  <p className={isDone ? 'text-forest-500 text-sm' : isCurrent ? 'text-forest-950 font-medium' : 'text-forest-600 text-sm'}>{s.label}</p>
-                  {isCurrent && (
-                    <div className="mt-3">
-                      {s.key === 'questionnaire' && <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />}
-                      {s.key === 'proposal' && <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />}
-                      {s.key === 'contract' && <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />}
-                      {s.key === 'payment' && <PaymentStep payment={payment} busy={busy} setBusy={setBusy} onDone={refresh} />}
-                    </div>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ol>
-
-        {/* Payment status summary */}
-        {payment && (done.contract || done.payment) && (
-          <div className="mt-4 border border-forest-200 rounded-2xl bg-white p-5 text-sm">
-            <p className="text-xs uppercase tracking-wide text-forest-500 mb-2">Payment</p>
-            {Number(payment.total) === 0 ? (
-              <Row k="Amount" v="No payment required" />
-            ) : (
-              <Row
-                k="Deposit"
-                v={
-                  Number(payment.depositPaid) > 0 || payment.fullyPaid
-                    ? `£${Number(payment.depositPaid || payment.depositDue).toFixed(2)} received`
-                    : payment.declared
-                      ? `£${Number(payment.depositDue).toFixed(2)} — awaiting confirmation`
-                      : `£${Number(payment.depositDue).toFixed(2)} due`
-                }
-              />
-            )}
+          <div className="panel portal-status-row">
+            <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--success-soft)', color: 'var(--success)' }}>£</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your quote</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                {proposal
+                  ? `£${Number(proposal.price).toFixed(0)}${proposal.title ? ` · ${proposal.title}` : ''}`
+                  : 'Waiting for your studio'}
+              </div>
+            </div>
+            <span className={quoteChip.cls}>{quoteChip.label}</span>
           </div>
-        )}
 
-        {current === 'done' && (
-          <div className="mt-6 border border-forest-200 bg-forest-50 rounded-2xl p-5">
-            <p className="font-medium text-forest-950">You’re all set.</p>
-            <p className="text-sm text-forest-700 mt-1">Everything is confirmed. {project.vendor.businessName} will be in touch about the next steps.</p>
+          <div className="panel portal-status-row">
+            <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--amber-soft)', color: 'var(--amber)' }}>⇄</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Payment</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                {!payment
+                  ? 'Opens after the agreement'
+                  : Number(payment.total) === 0
+                    ? 'No payment required'
+                    : payment.declared && !done.payment
+                      ? 'Bank transfer · awaiting confirmation'
+                      : done.payment
+                        ? 'Deposit confirmed'
+                        : `£${Number(payment.depositDue).toFixed(0)} deposit`}
+              </div>
+            </div>
+            <span className={paymentChip.cls}>{paymentChip.label}</span>
           </div>
-        )}
 
-        {/* Files — shared galleries and deliverables */}
-        {Array.isArray(project.files) && project.files.some((f: any) => f.type === 'gallery') && (
-          <div className="mt-4 border border-forest-200 rounded-2xl bg-white p-5">
-            <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Your files</p>
-            <ul className="space-y-2">
-              {project.files.filter((f: any) => f.type === 'gallery').map((f: any) => (
-                <li key={f.id}>
-                  <a href={f.url} target="_blank" rel="noreferrer" className="text-sm text-forest-800 underline underline-offset-2 hover:text-forest-950">
-                    {f.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <DeliveryApproval
-              approved={Array.isArray(project.approvals) && project.approvals.length > 0}
-              busy={busy}
-              setBusy={setBusy}
-              onDone={refresh}
-            />
+          <div className="panel portal-status-row">
+            <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--recessed)', color: 'var(--faint)' }}>⬇</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your delivery</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                {hasGallery ? 'Files are ready below' : 'Ready a few days after'}
+              </div>
+            </div>
+            <span className={deliveryChip.cls}>{deliveryChip.label}</span>
           </div>
-        )}
-
-        {/* Messages */}
-        <ClientMessages vendorName={project.vendor.businessName} />
-
-        {/* Help */}
-        <p className="mt-8 text-xs text-forest-500 flex items-center gap-1.5">
-          <HelpCircle size={13} />
-          Questions? Contact {project.vendor.businessName}{project.vendor.phone ? ` on ${project.vendor.phone}` : ''}.
-        </p>
+        </div>
       </div>
-    </div>
+
+      {/* Payment status summary */}
+      {payment && (done.contract || done.payment) && (
+        <div className="panel" style={{ padding: 18 }}>
+          <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 10 }}>Payment</div>
+          {Number(payment.total) === 0 ? (
+            <Row k="Amount" v="No payment required" />
+          ) : (
+            <Row
+              k="Deposit"
+              v={
+                Number(payment.depositPaid) > 0 || payment.fullyPaid
+                  ? `£${Number(payment.depositPaid || payment.depositDue).toFixed(2)} received`
+                  : payment.declared
+                    ? `£${Number(payment.depositDue).toFixed(2)} — awaiting confirmation`
+                    : `£${Number(payment.depositDue).toFixed(2)} due`
+              }
+            />
+          )}
+        </div>
+      )}
+
+      {/* Files — shared galleries and deliverables */}
+      {hasGallery && (
+        <div className="panel" style={{ padding: 18 }}>
+          <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>Your files</div>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
+            {project.files.filter((f: any) => f.type === 'gallery').map((f: any) => (
+              <li key={f.id}>
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 14, color: 'var(--forest)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                >
+                  {f.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <DeliveryApproval
+            approved={deliveryApproved}
+            busy={busy}
+            setBusy={setBusy}
+            onDone={refresh}
+          />
+        </div>
+      )}
+
+      <ClientMessages vendorName={vendorName} />
+
+      <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+        <HelpCircle size={13} />
+        Questions? Contact {vendorName}{project.vendor.phone ? ` on ${project.vendor.phone}` : ''}.
+      </p>
+    </ClientPortalLayout>
   )
 }
 
-// ---- steps (logic unchanged from Stage 3/4) -------------------------
+// ---- steps (logic unchanged) ----------------------------------------
 
 function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
   const essentials = BASE_DETAIL_FIELDS
@@ -274,20 +421,17 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
   }
 
   return (
-    <Panel>
-      <p className="text-sm text-forest-600 mb-4">
-        Just a quick confirmation so your vendor can prepare everything for the day.
-      </p>
-      <p className="text-xs font-semibold uppercase tracking-wide text-forest-400 mb-3">The essentials</p>
+    <div>
+      <p className="kicker" style={{ color: 'var(--faint)', marginBottom: 10 }}>The essentials</p>
       {essentials.map(renderField)}
       {typeFields.length > 0 && (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wide text-forest-400 mb-3 mt-5">{sectionLabelFor(project?.type ?? 'OTHER')}</p>
+          <p className="kicker" style={{ color: 'var(--faint)', margin: '18px 0 10px' }}>{sectionLabelFor(project?.type ?? 'OTHER')}</p>
           {typeFields.map(renderField)}
         </>
       )}
-      <Primary onClick={submit} busy={busy}>Confirm details</Primary>
-    </Panel>
+      <Primary onClick={submit} busy={busy}>Confirm event details</Primary>
+    </div>
   )
 }
 
@@ -308,19 +452,26 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
     }
   }
   return (
-    <Panel>
-      {proposal.description && <p className="text-forest-700 text-sm mb-3">{proposal.description}</p>}
-      <p className="text-2xl font-medium text-forest-950">£{Number(proposal.price).toFixed(2)}</p>
+    <div>
+      {proposal.description && (
+        <p style={{ color: 'var(--muted)', fontSize: 13.5, margin: '0 0 12px' }}>{proposal.description}</p>
+      )}
+      <p className="num" style={{ fontSize: 28, fontWeight: 800, margin: '0 0 12px', color: 'var(--ink)' }}>
+        £{Number(proposal.price).toFixed(2)}
+      </p>
       {Array.isArray(proposal.items) && (
-        <ul className="mt-3 mb-4 space-y-1.5">
+        <ul style={{ margin: '0 0 16px', padding: 0, listStyle: 'none' }} className="space-y-1.5">
           {proposal.items.map((it: any, i: number) => (
-            <li key={i} className="flex gap-2 text-sm text-forest-700"><CheckCircle size={15} className="text-forest-600 mt-0.5 shrink-0" />{it.name}</li>
+            <li key={i} style={{ display: 'flex', gap: 8, fontSize: 13.5, color: 'var(--ink)' }}>
+              <CheckCircle size={15} style={{ color: 'var(--success)', marginTop: 2, flexShrink: 0 }} />
+              {it.name}
+            </li>
           ))}
         </ul>
       )}
-      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+      {error && <div className="banner banner-error mb-3">{error}</div>}
       <Primary onClick={accept} busy={busy}>Accept proposal</Primary>
-    </Panel>
+    </div>
   )
 }
 
@@ -346,16 +497,29 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
     }
   }
   return (
-    <Panel>
-      <div className="max-h-56 overflow-y-auto border border-forest-100 rounded-xl p-3 text-sm text-forest-700 whitespace-pre-wrap mb-4">{contract.content}</div>
-      <label className="flex items-start gap-2 text-sm text-forest-700 mb-3">
-        <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1" />
+    <div>
+      <div
+        className="context"
+        style={{
+          maxHeight: 220,
+          overflowY: 'auto',
+          fontSize: 13.5,
+          color: 'var(--ink)',
+          whiteSpace: 'pre-wrap',
+          marginBottom: 14,
+          padding: 14,
+        }}
+      >
+        {contract.content}
+      </div>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13.5, color: 'var(--ink)', marginBottom: 12 }}>
+        <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 3 }} />
         <span>By typing my name and confirming, I agree to the terms of this agreement.</span>
       </label>
-      <input value={name} onChange={e => setName(e.target.value)} className={inputCls + ' mb-4'} placeholder="Type your full name" />
-      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+      <input value={name} onChange={e => setName(e.target.value)} className={inputCls} style={{ marginBottom: 14 }} placeholder="Type your full name" />
+      {error && <div className="banner banner-error mb-3">{error}</div>}
       <Primary onClick={sign} busy={busy} disabled={!consent || name.trim().length < 2}>Sign agreement</Primary>
-    </Panel>
+    </div>
   )
 }
 
@@ -370,22 +534,24 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
   // Free collaboration — nothing owed.
   if (total === 0) {
     return (
-      <Panel>
-        <p className="text-lg font-medium text-forest-950">No payment required</p>
-        <p className="text-sm text-forest-600 mt-1">This project is a free collaboration — there’s nothing to pay.</p>
-      </Panel>
+      <div>
+        <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>No payment required</p>
+        <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
+          This project is a free collaboration — there&apos;s nothing to pay.
+        </p>
+      </div>
     )
   }
 
   // Client has already reported a manual payment — waiting on the vendor.
   if (payment?.declared) {
     return (
-      <Panel>
-        <p className="text-lg font-medium text-forest-950">Thanks — payment reported</p>
-        <p className="text-sm text-forest-600 mt-1">
-          We’ve let your vendor know. They’ll confirm once the £{deposit.toFixed(2)} deposit has cleared.
+      <div>
+        <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>Thanks — payment reported</p>
+        <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
+          We&apos;ve let your vendor know. They&apos;ll confirm once the £{deposit.toFixed(2)} deposit has cleared.
         </p>
-      </Panel>
+      </div>
     )
   }
 
@@ -424,21 +590,21 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
   }
 
   return (
-    <Panel>
-      <p className="text-2xl font-medium text-forest-950">£{deposit.toFixed(2)}</p>
-      <p className="text-xs text-forest-500 mt-1 mb-4">Your deposit secures the booking.</p>
-      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+    <div>
+      <p className="num" style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>£{deposit.toFixed(2)}</p>
+      <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 14px' }}>Your deposit secures the booking.</p>
+      {error && <div className="banner banner-error mb-3">{error}</div>}
       {canPayOnline ? (
         <Primary onClick={payOnline} busy={busy}>Pay securely online</Primary>
       ) : (
         <>
-          <p className="text-sm text-forest-600 mb-3">
-            Your vendor will confirm your payment once it’s received. Pay by the method you’ve agreed with them, then let them know below.
+          <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
+            Your vendor will confirm your payment once it&apos;s received. Pay by the method you&apos;ve agreed with them, then let them know below.
           </p>
-          <Primary onClick={declareManual} busy={busy}>I’ve made the payment</Primary>
+          <Primary onClick={declareManual} busy={busy}>I&apos;ve made the payment</Primary>
         </>
       )}
-    </Panel>
+    </div>
   )
 }
 
@@ -446,10 +612,8 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
   if (approved) {
     return (
-      <div className="mt-4 border-t border-forest-100 pt-4">
-        <p className="inline-flex items-center gap-1.5 text-sm font-medium text-forest-800">
-          <CheckCircle size={16} className="text-forest-600" /> You’ve approved the delivery. Thank you!
-        </p>
+      <div className="banner banner-success" style={{ marginTop: 14 }}>
+        You&apos;ve approved the delivery. Thank you!
       </div>
     )
   }
@@ -470,9 +634,11 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
     }
   }
   return (
-    <div className="mt-4 border-t border-forest-100 pt-4">
-      <p className="text-sm text-forest-600 mb-3">Happy with everything? Let your vendor know the deliverables are approved.</p>
-      {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line-soft)' }}>
+      <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 12px' }}>
+        Happy with everything? Let your vendor know the deliverables are approved.
+      </p>
+      {error && <div className="banner banner-error mb-3">{error}</div>}
       <Primary onClick={approve} busy={busy}>Approve delivery</Primary>
     </div>
   )
@@ -483,6 +649,7 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [sendError, setSendError] = useState('')
 
   async function loadMessages() {
     const res = await fetch('/api/client/messages')
@@ -497,6 +664,7 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
     const content = draft.trim()
     if (!content || sending) return
     setSending(true)
+    setSendError('')
     setDraft('')
     const res = await fetch('/api/client/messages', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -505,57 +673,128 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
     const parsed = await parseJsonResponse<{ error?: string }>(res)
     setSending(false)
     if (parsed.ok) loadMessages()
+    else {
+      setDraft(content)
+      setSendError("Message didn't send — tap to retry.")
+    }
   }
 
-  if (!loaded) return null
+  if (!loaded) {
+    return (
+      <div className="panel" style={{ padding: 18 }} aria-busy="true">
+        <div className="h-4 w-40 animate-pulse rounded mb-3" style={{ background: 'var(--line)' }} />
+        <div className="h-16 w-3/4 animate-pulse rounded-xl mb-2" style={{ background: 'var(--line)' }} />
+        <div className="h-16 w-1/2 animate-pulse rounded-xl ml-auto" style={{ background: 'var(--line)' }} />
+      </div>
+    )
+  }
 
   return (
-    <div className="mt-8 border border-forest-200 rounded-2xl bg-white p-5">
-      <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Messages with {vendorName}</p>
-      <div className="space-y-2.5 max-h-64 overflow-y-auto">
-        {messages.length === 0 ? (
-          <p className="text-sm text-forest-500">No messages yet. Send a note if you have any questions.</p>
-        ) : messages.map(m => {
-          const mine = m.type === 'client' || m.sender?.role === 'CLIENT'
-          return (
-            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-forest-950 text-paper-50' : 'bg-forest-50 text-forest-900'}`}>
-                <p className="whitespace-pre-wrap">{m.content}</p>
-                <p className={`mt-1 text-[11px] ${mine ? 'text-forest-300' : 'text-forest-400'}`}>
-                  {mine ? 'You' : (m.sender?.name || vendorName)} · {new Date(m.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
+    <div>
+      <div style={{ font: 'var(--t-h2)', marginBottom: 12 }}>Messages · {vendorName}</div>
+      <div className="panel" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="space-y-3.5 max-h-64 overflow-y-auto" aria-live="polite" role="log">
+          {messages.length === 0 ? (
+            <div className="empty" style={{ padding: '24px 8px' }}>
+              <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
+                No messages yet — say hello.
+              </p>
             </div>
-          )
-        })}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <input
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
-          placeholder="Write a message…"
-          className={inputCls}
-        />
-        <button onClick={send} disabled={!draft.trim() || sending}
-          className="shrink-0 bg-forest-900 text-paper-50 rounded-xl px-4 disabled:opacity-40 hover:bg-forest-800 transition">
-          {sending ? <Loader2 size={15} className="animate-spin" /> : 'Send'}
-        </button>
+          ) : messages.map(m => {
+            const mine = m.type === 'client' || m.sender?.role === 'CLIENT'
+            return (
+              <div key={m.id} style={{ display: 'flex', gap: 10, flexDirection: mine ? 'row-reverse' : 'row' }}>
+                <span
+                  className="marker"
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    fontSize: 11,
+                    background: mine ? 'var(--forest)' : 'var(--recessed)',
+                    color: mine ? '#fff' : 'var(--muted)',
+                  }}
+                >
+                  {mine ? 'Y' : vendorName.charAt(0).toUpperCase()}
+                </span>
+                <div style={{ maxWidth: '74%' }}>
+                  <div className={mine ? 'ws-msg-mine' : 'ws-msg-theirs'}>
+                    <p className="whitespace-pre-wrap" style={{ margin: 0 }}>{m.content}</p>
+                  </div>
+                  <div
+                    className="num"
+                    style={{
+                      fontSize: 10.5,
+                      color: 'var(--faint)',
+                      marginTop: 4,
+                      textAlign: mine ? 'right' : 'left',
+                    }}
+                  >
+                    {new Date(m.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        {sendError && (
+          <button type="button" className="banner banner-error" style={{ border: '1px solid #e0b8a8', cursor: 'pointer', width: '100%' }} onClick={send}>
+            {sendError}
+          </button>
+        )}
+        <div style={{ display: 'flex', gap: 10, paddingTop: 14, borderTop: '1px solid var(--line-soft)' }}>
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
+            placeholder="Write a reply…"
+            className="flex-1"
+            style={{
+              padding: '11px 14px',
+              background: 'var(--canvas-2)',
+              border: '1px solid var(--line)',
+              borderRadius: 9,
+            }}
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={!draft.trim() || sending}
+            className="btn btn-forest"
+            style={{ minHeight: 44 }}
+          >
+            {sending ? <Loader2 size={15} className="animate-spin" /> : 'Send'}
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
-const inputCls = 'w-full border border-forest-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10 focus:border-forest-300'
-const Centre = ({ children }: any) => <div className="min-h-screen bg-paper flex items-center justify-center px-6">{children}</div>
-const Panel = ({ children }: any) => <div className="border border-forest-200 rounded-xl bg-white p-4">{children}</div>
-const Field = ({ label, children }: any) => <div className="mb-4"><label className="block text-sm text-forest-700 mb-1.5">{label}</label>{children}</div>
-const Row = ({ k, v }: any) => <div className="flex justify-between py-1"><span className="text-forest-600">{k}</span><span className="text-forest-950">{v}</span></div>
+const inputCls = 'w-full'
+const Field = ({ label, children }: any) => (
+  <div style={{ marginBottom: 14 }}>
+    <label className="label" style={{ display: 'block', marginBottom: 6 }}>{label}</label>
+    {children}
+  </div>
+)
+const Row = ({ k, v }: any) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: 13.5 }}>
+    <span style={{ color: 'var(--muted)' }}>{k}</span>
+    <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{v}</span>
+  </div>
+)
 function Primary({ onClick, busy, disabled, children }: any) {
   return (
-    <button onClick={onClick} disabled={busy || disabled}
-      className="w-full bg-forest-900 text-paper-50 text-sm font-medium rounded-full py-3 disabled:opacity-40 flex items-center justify-center gap-2 hover:bg-forest-800 transition">
-      {busy && <Loader2 size={15} className="animate-spin" />}{children}
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy || disabled}
+      className="btn btn-forest btn-block"
+      style={{ minHeight: 44 }}
+    >
+      {busy && <Loader2 size={15} className="animate-spin" />}
+      {children}
     </button>
   )
 }

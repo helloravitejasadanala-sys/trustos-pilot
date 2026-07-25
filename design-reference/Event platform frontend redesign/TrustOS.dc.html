@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E4E0D5;font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;color:#191813}
+  :root{
+    --bg:#F4F2EC; --bg-2:#EFECE3; --panel:#FFFFFF; --panel-2:#FBFAF5; --recessed:#F0EDE4;
+    --ink:#191813; --muted:#6C6A5A; --faint:#9B9887;
+    --line:#E7E3D8; --line-2:#EFEDE4; --line-strong:#DBD6C8;
+    --rail:#0E1B16; --rail-2:#15251E; --rail-3:#1C3128; --rail-line:rgba(255,255,255,.08); --rail-ink:#EBE8DC; --rail-muted:#8CA298; --rail-faint:#5E7168;
+    --forest:#1E6E68; --forest-deep:#124039; --forest-soft:#DEECEA;
+    --lime:#C9E85B; --lime-deep:#A9CB39; --lime-ink:#182412; --lime-soft:#EAF3C9;
+    --coral:#DE5B34; --coral-deep:#B4441F; --coral-soft:#F7E3DA;
+    --lav:#5C61A8; --lav-soft:#E7E7F3;
+    --amber:#A9711A; --amber-soft:#F3E9D6;
+    --success:#1E7A51; --success-soft:#DEEFE5;
+    --gold:#A9812C; --gold-soft:#F1E8D3;
+    --r-xs:5px; --r-sm:6px; --r:8px; --r-md:10px; --r-lg:13px;
+    --sh-sm:0 1px 2px rgba(24,22,15,.05);
+    --sh:0 1px 2px rgba(24,22,15,.05),0 8px 22px -14px rgba(24,22,15,.24);
+    --sh-lg:0 4px 12px rgba(24,22,15,.07),0 40px 70px -30px rgba(24,22,15,.42);
+  }
+  a{color:var(--forest);text-decoration:none}
+  a:hover{color:var(--forest-deep)}
+  button{font-family:inherit}
+  .num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  ::selection{background:var(--lime);color:var(--lime-ink)}
+  .sc{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+  .sc::-webkit-scrollbar{width:9px;height:9px}
+  .sc::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px}
+  .sc-d::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13)}
+  :focus-visible{outline:2px solid var(--forest);outline-offset:2px;border-radius:5px}
+  .rowh{transition:background .12s ease}
+  .rowh:hover{background:var(--bg-2)!important}
+  .rowd:hover{background:var(--rail-3)!important}
+  .lift{transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}
+  .lift:hover{transform:translateY(-1px);box-shadow:var(--sh);border-color:var(--line-strong)}
+  .kbd{font-variant-numeric:tabular-nums;font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.08);color:var(--rail-muted);border:1px solid var(--rail-line)}
+  .kbdl{font-size:11px;font-weight:700;padding:2px 6px;border-radius:5px;background:rgba(24,36,18,.12);color:var(--lime-ink)}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+  @keyframes ring{0%{box-shadow:0 0 0 0 rgba(201,232,91,.5)}70%{box-shadow:0 0 0 7px rgba(201,232,91,0)}100%{box-shadow:0 0 0 0 rgba(201,232,91,0)}}
+  .screen{animation:in .28s cubic-bezier(.2,.8,.3,1) both}
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important}}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:26px 22px 60px;display:flex;flex-direction:column;align-items:center;gap:18px">
+
+  <!-- demo toolbar -->
+  <div style="width:100%;max-width:1360px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:29px;height:29px;border-radius:8px;background:var(--rail);color:var(--lime);display:grid;place-items:center;font-weight:800;font-size:14px">T</span>
+      <div>
+        <div style="font-weight:700;font-size:14px;letter-spacing:-.01em">TrustOS</div>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:-1px;letter-spacing:.01em">Operating system for service businesses</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:2px;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:9px">
+      <sc-for list="{{ viewTabs }}" as="t" hint-placeholder-count="2"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+    </div>
+    <div style="display:flex;gap:2px;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:9px">
+      <sc-for list="{{ devTabs }}" as="t" hint-placeholder-count="2"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+    </div>
+    <div style="margin-left:auto;font-size:11px;color:var(--muted);max-width:260px;text-align:right;line-height:1.45">{{ contextNote }}</div>
+  </div>
+
+  <!-- ================= VENDOR DESKTOP ================= -->
+  <sc-if value="{{ showVendorDesktop }}" hint-placeholder-val="{{ true }}">
+  <div style="width:1360px;max-width:100%;height:864px;background:var(--panel);border-radius:16px;box-shadow:var(--sh-lg);overflow:hidden;display:flex;border:1px solid var(--line-strong)">
+
+    <!-- RAIL -->
+    <div class="sc sc-d" style="width:246px;flex-shrink:0;background:var(--rail);color:var(--rail-ink);display:flex;flex-direction:column;padding:14px 12px 12px">
+      <button onClick="{{ noop }}" class="rowd" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;background:var(--rail-2);border:1px solid var(--rail-line);cursor:pointer;color:var(--rail-ink);text-align:left;margin-bottom:12px">
+        <span style="width:30px;height:30px;border-radius:8px;background:linear-gradient(150deg,var(--forest),var(--forest-deep));color:#fff;display:grid;place-items:center;font-weight:800;font-size:14px;flex-shrink:0">M</span>
+        <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px;line-height:1.1">MiniMomentz</div><div style="font-size:10.5px;color:var(--rail-muted)">Photography studio</div></div>
+        <span dangerouslySetInnerHTML="{{ icoChevD }}"></span>
+      </button>
+
+      <button onClick="{{ noop }}" style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid var(--rail-line);cursor:pointer;color:var(--rail-muted);margin-bottom:16px">
+        <span dangerouslySetInnerHTML="{{ icoSearch }}"></span>
+        <span style="flex:1;text-align:left;font-size:12.5px">Search or jump to…</span>
+        <span class="kbd">⌘K</span>
+      </button>
+
+      <div style="font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--rail-faint);padding:0 11px 8px">Workspace</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <sc-for list="{{ railItems }}" as="n" hint-placeholder-count="5">
+          <button onClick="{{ n.onClick }}" style="{{ n.style }}">
+            <span style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:{{ n.barH }};border-radius:0 3px 3px 0;background:{{ n.bar }}"></span>
+            <span dangerouslySetInnerHTML="{{ n.icon }}"></span><span style="flex:1;text-align:left">{{ n.label }}</span>
+            <sc-if value="{{ n.badge }}" hint-placeholder-val="{{ false }}"><span class="num" style="font-size:11px;font-weight:700;background:{{ n.badgeBg }};color:{{ n.badgeInk }};padding:1px 7px;border-radius:20px">{{ n.badge }}</span></sc-if>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--rail-faint);padding:18px 11px 8px">Pinned</div>
+      <sc-for list="{{ pinned }}" as="p" hint-placeholder-count="2">
+        <button onClick="{{ p.onClick }}" class="rowd" style="display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:9px;background:transparent;border:none;cursor:pointer;color:var(--rail-muted)">
+          <span style="width:8px;height:8px;border-radius:3px;background:{{ p.dot }};flex-shrink:0"></span>
+          <span style="flex:1;text-align:left;font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.title }}</span>
+          <span style="font-size:10px;font-weight:700;color:{{ p.tagInk }};background:{{ p.tagBg }};padding:2px 6px;border-radius:4px">{{ p.tag }}</span>
+        </button>
+      </sc-for>
+
+      <button onClick="{{ openNewProject }}" style="margin-top:16px;display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:9px;background:var(--rail-2);border:1px solid var(--rail-line);cursor:pointer;color:var(--rail-ink);font-weight:600;font-size:12.5px">
+        <span dangerouslySetInnerHTML="{{ icoPlusLime }}"></span>New project<span style="margin-left:auto" class="kbd">C</span>
+      </button>
+
+      <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--rail-line);display:flex;align-items:center;gap:10px">
+        <span style="width:32px;height:32px;border-radius:50%;background:var(--forest);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0">RM</span>
+        <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">Ravi Menon</div><div style="font-size:10.5px;color:var(--rail-muted)">Founder</div></div>
+        <span style="color:var(--rail-muted)" dangerouslySetInnerHTML="{{ icoDots }}"></span>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)">
+      <div style="height:56px;flex-shrink:0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 24px;background:var(--panel)">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <span style="font-size:14px;font-weight:700;color:var(--ink)">{{ crumbTitle }}</span>
+          <sc-if value="{{ crumbSub }}" hint-placeholder-val="{{ false }}"><span style="color:var(--faint)" dangerouslySetInnerHTML="{{ icoChevR }}"></span><span style="font-size:13px;color:var(--muted)">{{ crumbSub }}</span></sc-if>
+        </div>
+        <div class="num" style="margin-left:14px;font-size:12px;color:var(--faint)">{{ topbarDate }}</div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <button onClick="{{ noop }}" style="width:34px;height:34px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;color:var(--muted);position:relative"><span dangerouslySetInnerHTML="{{ icoBell }}"></span><span style="position:absolute;top:8px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--coral)"></span></button>
+          <button onClick="{{ openNewProject }}" style="display:flex;align-items:center;gap:8px;padding:9px 15px;border-radius:8px;border:none;background:var(--forest);color:#fff;font-weight:700;font-size:13px;cursor:pointer"><span dangerouslySetInnerHTML="{{ icoPlus }}"></span>New project</button>
+        </div>
+      </div>
+
+      <div class="sc" style="flex:1;overflow-y:auto">
+
+        <!-- ===== TODAY ===== -->
+        <sc-if value="{{ deskToday }}" hint-placeholder-val="{{ true }}">
+        <div class="screen" style="padding:26px 28px 40px">
+          <div style="margin-bottom:22px">
+            <div class="num" style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em">{{ todayEyebrow }}</div>
+            <div style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin-top:3px">{{ todayHead }}</div>
+            <div style="font-size:13.5px;color:var(--muted);margin-top:3px">{{ todaySub }}</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:22px;align-items:start">
+            <div style="display:flex;flex-direction:column;gap:24px">
+
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--coral-deep);margin-bottom:10px"><span style="width:6px;height:6px;border-radius:50%;background:var(--coral);animation:pulse 2s infinite"></span>Do first</div>
+                <div style="background:var(--rail);border-radius:14px;padding:22px;color:var(--rail-ink)">
+                  <div style="display:flex;gap:18px;align-items:flex-start">
+                    <div style="width:84px;flex-shrink:0;border-radius:11px;background:var(--rail-2);border:1px solid var(--rail-line);display:flex;flex-direction:column;justify-content:space-between;padding:11px;height:84px">
+                      <span style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lime)">Sat</span>
+                      <div><div class="num" style="font-size:28px;font-weight:800;line-height:.85">26</div><div style="font-size:10.5px;color:var(--rail-muted)">Jul · 9am</div></div>
+                    </div>
+                    <div style="flex:1;min-width:0">
+                      <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+                        <span style="width:22px;height:22px;border-radius:6px;background:var(--gold);color:#231a06;display:grid;place-items:center;font-weight:800;font-size:11px">P</span>
+                        <span style="font-size:12.5px;font-weight:600;color:var(--rail-muted)">Rao Family · Wedding</span>
+                        <span style="font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--coral);color:#fff;padding:2px 7px;border-radius:5px">New</span>
+                      </div>
+                      <div style="font-size:19px;font-weight:700;line-height:1.2;margin-bottom:6px">Review Priya's event details</div>
+                      <div style="font-size:12.5px;line-height:1.5;color:var(--rail-muted);max-width:48ch">Everything for Saturday came in 8 minutes ago. Approving it unlocks the quote — before she starts wondering.</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:11px;margin-top:18px">
+                    <button onClick="{{ openRao }}" style="display:flex;align-items:center;gap:9px;padding:12px 20px;border-radius:9px;border:none;background:var(--lime);color:var(--lime-ink);font-weight:800;font-size:14px;cursor:pointer">Review details<span class="kbdl">↵</span></button>
+                    <button onClick="{{ noop }}" style="padding:12px 16px;border-radius:9px;background:transparent;border:1px solid var(--rail-line);color:var(--rail-ink);font-weight:600;font-size:13px;cursor:pointer">Snooze</button>
+                    <span class="num" style="margin-left:auto;font-size:11.5px;color:var(--rail-faint)">~2 min · unlocks the quote</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px"><div style="font-size:14px;font-weight:700">Coming up</div><span style="font-size:12px;color:var(--muted)">Next 7 days</span></div>
+                <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden">
+                  <sc-for list="{{ agenda }}" as="s" hint-placeholder-count="3">
+                    <button onClick="{{ s.onClick }}" class="rowh" style="width:100%;display:flex;align-items:center;gap:15px;padding:14px 16px;background:var(--panel);border:none;border-top:1px solid var(--line-2);cursor:pointer;text-align:left">
+                      <div style="width:42px;flex-shrink:0;text-align:center"><div class="num" style="font-size:15px;font-weight:800;color:var(--forest);line-height:1">{{ s.day }}</div><div class="num" style="font-size:10.5px;color:var(--faint)">{{ s.time }}</div></div>
+                      <span style="width:36px;height:36px;border-radius:8px;background:{{ s.markBg }};color:{{ s.markInk }};display:grid;place-items:center;font-weight:800;font-size:13px;flex-shrink:0">{{ s.mark }}</span>
+                      <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600">{{ s.title }}</div><div style="font-size:12px;color:var(--muted)">{{ s.meta }}</div></div>
+                      <span style="font-size:11px;font-weight:700;color:{{ s.chipInk }};background:{{ s.chipBg }};padding:4px 10px;border-radius:6px;white-space:nowrap">{{ s.chip }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:11px">Waiting on you</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <sc-for list="{{ waitingMe }}" as="w" hint-placeholder-count="2">
+                    <button onClick="{{ w.onClick }}" class="lift" style="text-align:left;padding:15px;border-radius:11px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);cursor:pointer">
+                      <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber)">{{ w.tag }}</div>
+                      <div style="font-size:13.5px;font-weight:600;margin-top:6px">{{ w.title }}</div>
+                      <div style="font-size:11.5px;color:var(--muted);margin-top:2px">{{ w.meta }}</div>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="background:var(--recessed);border-radius:12px;padding:16px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="width:8px;height:8px;border-radius:3px;background:var(--lav)"></span><div style="font-size:12.5px;font-weight:700">Waiting on clients</div><span class="num" style="margin-left:auto;font-size:11.5px;color:var(--muted)">1</span></div>
+                <sc-for list="{{ waitingClient }}" as="c" hint-placeholder-count="1">
+                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="width:22px;height:22px;border-radius:6px;background:var(--lav-soft);color:var(--lav);display:grid;place-items:center;font-weight:700;font-size:10.5px">{{ c.mark }}</span><span style="font-size:12.5px;font-weight:600">{{ c.title }}</span></div>
+                    <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">{{ c.meta }}</div>
+                    <button onClick="{{ c.onClick }}" style="width:100%;padding:9px;border-radius:7px;background:var(--lav-soft);border:none;color:var(--lav);font-weight:700;font-size:12px;cursor:pointer">{{ c.cta }}</button>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="background:var(--recessed);border-radius:12px;padding:16px">
+                <div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Deadlines</div>
+                <sc-for list="{{ deadlines }}" as="d" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid var(--line-2)">
+                    <div class="num" style="width:38px;text-align:center;font-size:12.5px;font-weight:800;color:{{ d.ink }}">{{ d.day }}</div>
+                    <div style="flex:1"><div style="font-size:12.5px;font-weight:600">{{ d.label }}</div><div style="font-size:11px;color:var(--muted)">{{ d.meta }}</div></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="background:var(--recessed);border-radius:12px;padding:16px">
+                <div style="font-size:12.5px;font-weight:700;margin-bottom:11px">This month</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4"><div style="background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px"><div class="num" style="font-size:22px;font-weight:800;line-height:1;color:{{ s.ink }}">{{ s.value }}</div><div style="font-size:11px;color:var(--muted);margin-top:5px">{{ s.label }}</div></div></sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===== PROJECTS ===== -->
+        <sc-if value="{{ deskProjects }}" hint-placeholder-val="{{ false }}">
+        <div class="screen" style="padding:26px 28px 40px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div><div style="font-size:22px;font-weight:800;letter-spacing:-.02em">Projects</div><div style="font-size:13px;color:var(--muted);margin-top:2px">2 active · 1 archived</div></div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="display:flex;gap:2px;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:8px">
+                <span style="padding:6px 13px;border-radius:6px;background:var(--forest);color:#fff;font-size:12px;font-weight:700">Active</span>
+                <span style="padding:6px 13px;font-size:12px;font-weight:600;color:var(--muted)">Archived</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:2.4fr 1.7fr 2fr 0.8fr;gap:14px;padding:11px 18px;background:var(--panel-2);border-bottom:1px solid var(--line);font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)">
+              <div>Project</div><div>Stage</div><div>Next</div><div style="text-align:right">Date</div>
+            </div>
+            <sc-for list="{{ worklist }}" as="p" hint-placeholder-count="3">
+              <button onClick="{{ p.onClick }}" class="rowh" style="width:100%;display:grid;grid-template-columns:2.4fr 1.7fr 2fr 0.8fr;gap:14px;align-items:center;padding:15px 18px;background:{{ p.rowBg }};border:none;border-top:1px solid var(--line-2);border-left:3px solid {{ p.edge }};cursor:pointer;text-align:left;opacity:{{ p.op }}">
+                <div style="display:flex;align-items:center;gap:12px;min-width:0">
+                  <span style="width:38px;height:38px;border-radius:9px;background:{{ p.markBg }};color:{{ p.markInk }};display:grid;place-items:center;font-weight:800;font-size:14px;flex-shrink:0">{{ p.mark }}</span>
+                  <div style="min-width:0"><div style="font-size:14px;font-weight:700">{{ p.title }}</div><div style="font-size:12px;color:var(--muted)">{{ p.client }} · {{ p.type }}</div></div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><span class="num" style="font-size:11px;font-weight:700;color:var(--muted)">{{ p.stageNo }}/10</span><span style="font-size:12px;font-weight:600">{{ p.stageName }}</span></div>
+                  <div style="height:5px;border-radius:3px;background:var(--line);overflow:hidden"><div style="height:100%;width:{{ p.pct }};background:{{ p.barColor }};border-radius:3px"></div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;min-width:0">
+                  <span style="font-size:10px;font-weight:700;color:{{ p.whoInk }};background:{{ p.whoBg }};padding:3px 8px;border-radius:5px;white-space:nowrap">{{ p.who }}</span>
+                  <span style="font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.nextAction }}</span>
+                </div>
+                <div class="num" style="text-align:right;font-size:12.5px;font-weight:700;color:{{ p.dateInk }}">{{ p.date }}</div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===== MESSAGES ===== -->
+        <sc-if value="{{ deskMessages }}" hint-placeholder-val="{{ false }}">
+        <div class="screen" style="height:100%;display:flex">
+          <div class="sc" style="width:300px;flex-shrink:0;border-right:1px solid var(--line);overflow-y:auto;background:var(--panel)">
+            <div style="padding:18px 18px 12px"><div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Messages</div></div>
+            <sc-for list="{{ threads }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.onClick }}" class="rowh" style="width:100%;display:flex;gap:12px;padding:13px 18px;background:{{ t.bg }};border:none;border-top:1px solid var(--line-2);border-left:3px solid {{ t.edge }};cursor:pointer;text-align:left">
+                <span style="width:38px;height:38px;border-radius:10px;background:{{ t.avBg }};color:{{ t.avInk }};display:grid;place-items:center;font-weight:800;font-size:13px;flex-shrink:0">{{ t.av }}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.name }}</span><span class="num" style="font-size:10.5px;color:var(--faint)">{{ t.time }}</span></div>
+                  <div style="font-size:11.5px;color:var(--muted);margin:2px 0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.preview }}</div>
+                  <span style="font-size:9.5px;font-weight:700;color:{{ t.tagInk }};background:{{ t.tagBg }};padding:2px 7px;border-radius:4px">{{ t.tag }}</span>
+                </div>
+                <sc-if value="{{ t.unread }}" hint-placeholder-val="{{ false }}"><span style="width:8px;height:8px;border-radius:50%;background:var(--coral);flex-shrink:0;margin-top:6px"></span></sc-if>
+              </button>
+            </sc-for>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)">
+            <div style="padding:14px 22px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;align-items:center;gap:12px">
+              <span style="width:36px;height:36px;border-radius:9px;background:{{ thread.avBg }};color:{{ thread.avInk }};display:grid;place-items:center;font-weight:800;font-size:13px">{{ thread.av }}</span>
+              <div style="flex:1"><div style="font-size:14px;font-weight:700">{{ thread.name }}</div><div style="font-size:11.5px;color:var(--muted)">{{ thread.sub }}</div></div>
+              <button onClick="{{ thread.openProject }}" style="display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:12.5px;cursor:pointer">Open project<span dangerouslySetInnerHTML="{{ icoChevR }}"></span></button>
+            </div>
+            <div style="padding:12px 22px;background:var(--recessed);display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)"><span style="width:8px;height:8px;border-radius:3px;background:{{ thread.dot }};flex-shrink:0"></span><span style="font-size:12px;color:var(--muted)">{{ thread.context }}</span></div>
+            <div class="sc" style="flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:14px">
+              <sc-for list="{{ threadMsgs }}" as="m" hint-placeholder-count="3">
+                <div style="display:flex;gap:10px;flex-direction:{{ m.dir }};align-items:flex-end">
+                  <span style="width:28px;height:28px;border-radius:50%;background:{{ m.avBg }};color:{{ m.avInk }};display:grid;place-items:center;font-weight:700;font-size:10.5px;flex-shrink:0">{{ m.av }}</span>
+                  <div style="max-width:64%"><div style="background:{{ m.bubbleBg }};color:{{ m.bubbleInk }};border:1px solid {{ m.bubbleBorder }};border-radius:13px;padding:10px 14px;font-size:13.5px;line-height:1.5">{{ m.text }}</div><div class="num" style="font-size:10px;color:var(--faint);margin-top:4px;text-align:{{ m.align }}">{{ m.time }}</div></div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding:14px 22px;border-top:1px solid var(--line);background:var(--panel);display:flex;gap:10px;align-items:center">
+              <div style="flex:1;padding:11px 14px;background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--faint);font-size:13px">Write a reply…</div>
+              <button onClick="{{ noop }}" style="width:40px;height:40px;border-radius:9px;border:none;background:var(--forest);color:#fff;display:grid;place-items:center;cursor:pointer" dangerouslySetInnerHTML="{{ icoSend }}"></button>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===== CLIENTS ===== -->
+        <sc-if value="{{ deskClients }}" hint-placeholder-val="{{ false }}">
+        <div class="screen" style="padding:26px 28px 40px">
+          <div style="font-size:22px;font-weight:800;letter-spacing:-.02em">Clients</div>
+          <div style="font-size:13px;color:var(--muted);margin:2px 0 18px">The people you're looking after</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ clientDir }}" as="c" hint-placeholder-count="3">
+              <div class="lift" style="display:grid;grid-template-columns:2fr 2fr 1.3fr 0.7fr;gap:18px;align-items:center;padding:15px 18px;background:var(--panel);border:1px solid var(--line);border-radius:12px">
+                <div style="display:flex;align-items:center;gap:13px;min-width:0">
+                  <span style="width:42px;height:42px;border-radius:11px;background:{{ c.avBg }};color:{{ c.avInk }};display:grid;place-items:center;font-weight:800;font-size:14px;flex-shrink:0">{{ c.initials }}</span>
+                  <div style="min-width:0"><div style="font-size:14.5px;font-weight:700">{{ c.name }}</div><div style="font-size:12px;color:var(--muted)">{{ c.project }}</div></div>
+                </div>
+                <div style="min-width:0"><div style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-bottom:3px">Latest</div><div style="font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.msg }}</div></div>
+                <span style="font-size:11px;font-weight:700;color:{{ c.stInk }};background:{{ c.stBg }};padding:5px 11px;border-radius:6px;justify-self:start">{{ c.status }}</span>
+                <div class="num" style="text-align:right;font-size:11.5px;color:var(--muted)">{{ c.last }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===== SETTINGS ===== -->
+        <sc-if value="{{ deskSettings }}" hint-placeholder-val="{{ false }}">
+        <div class="screen" style="padding:26px 28px 40px">
+          <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:18px">Settings</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:760px">
+            <sc-for list="{{ settingsList }}" as="s" hint-placeholder-count="4">
+              <button onClick="{{ noop }}" class="lift" style="text-align:left;padding:17px;background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer"><span style="width:34px;height:34px;border-radius:9px;background:var(--forest-soft);color:var(--forest);display:grid;place-items:center" dangerouslySetInnerHTML="{{ s.icon }}"></span><div style="font-size:14px;font-weight:700;margin-top:12px">{{ s.title }}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">{{ s.meta }}</div></button>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===== PROJECT WORKSPACE ===== -->
+        <sc-if value="{{ deskProject }}" hint-placeholder-val="{{ false }}">
+        <div class="screen" style="padding:22px 28px 40px">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+            <span style="width:50px;height:50px;border-radius:12px;background:{{ proj.markBg }};color:{{ proj.markInk }};display:grid;place-items:center;font-weight:800;font-size:19px;flex-shrink:0">{{ proj.mark }}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><span style="font-size:10.5px;font-weight:700;color:{{ proj.typeInk }};background:{{ proj.typeBg }};padding:3px 9px;border-radius:5px">{{ proj.typeLabel }}</span><span class="num" style="font-size:11.5px;color:var(--muted)">Stage {{ proj.stageNo }} of 10</span></div>
+              <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ proj.title }}</div>
+              <div style="font-size:12.5px;color:var(--muted);margin-top:3px">{{ proj.client }} · {{ proj.date }} · {{ proj.location }}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:20px">
+            <sc-for list="{{ sectionTabs }}" as="t" hint-placeholder-count="5"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.62fr 1fr;gap:22px;align-items:start">
+            <div style="display:flex;flex-direction:column;gap:22px">
+
+              <sc-if value="{{ secOverview }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:22px">
+                <div>
+                  <div style="font-size:10.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--forest);margin-bottom:10px">Next action</div>
+                  <div style="background:var(--rail);border-radius:14px;padding:22px;color:var(--rail-ink)">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--rail-line)">
+                      <span style="width:34px;height:34px;border-radius:9px;background:{{ proj.fromActive }};color:{{ proj.fromInk }};display:grid;place-items:center;font-weight:800;font-size:13px">{{ proj.fromMark }}</span>
+                      <div style="flex:1"><div style="font-size:10.5px;color:var(--rail-muted)">Now with</div><div style="font-size:13px;font-weight:700">{{ proj.who }}</div></div>
+                      <span style="color:var(--rail-faint)" dangerouslySetInnerHTML="{{ icoArrow }}"></span>
+                      <span style="width:34px;height:34px;border-radius:9px;background:{{ proj.toActive }};color:{{ proj.toInk }};display:grid;place-items:center;font-weight:800;font-size:13px">{{ proj.toMark }}</span>
+                    </div>
+                    <div style="font-size:20px;font-weight:700;line-height:1.2;margin-bottom:7px">{{ proj.action }}</div>
+                    <div style="font-size:12.5px;line-height:1.55;color:var(--rail-muted);max-width:52ch;margin-bottom:18px">{{ proj.actionWhy }}</div>
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <button onClick="{{ proj.onPrimary }}" style="display:flex;align-items:center;gap:9px;padding:12px 20px;border-radius:9px;border:none;background:var(--lime);color:var(--lime-ink);font-weight:800;font-size:14px;cursor:pointer">{{ proj.primaryCta }}<span dangerouslySetInnerHTML="{{ icoArrow }}"></span></button>
+                      <span class="num" style="font-size:11.5px;color:var(--rail-faint)">Advances to stage {{ proj.nextStageNo }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px"><div style="font-size:14px;font-weight:700">Timeline</div><span class="num" style="font-size:11.5px;color:var(--muted)">Stage {{ proj.stageNo }} / 10</span></div>
+                  <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 20px 18px">
+                    <div style="display:flex;align-items:center">
+                      <sc-for list="{{ timeline }}" as="j" hint-placeholder-count="10">
+                        <div style="display:flex;align-items:center;flex:{{ j.flex }}">
+                          <span style="width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800;background:{{ j.dotBg }};color:{{ j.dotInk }};border:2px solid {{ j.dotBorder }};flex-shrink:0;{{ j.anim }}" class="num" dangerouslySetInnerHTML="{{ j.mark }}"></span>
+                          <sc-if value="{{ j.hasLine }}" hint-placeholder-val="{{ true }}"><span style="flex:1;height:2px;background:{{ j.lineColor }};margin:0 3px"></span></sc-if>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex;margin-top:12px">
+                      <sc-for list="{{ phases }}" as="ph" hint-placeholder-count="4"><div style="flex:{{ ph.flex }};font-size:10.5px;font-weight:{{ ph.weight }};color:{{ ph.ink }};text-align:{{ ph.align }}">{{ ph.label }}</div></sc-for>
+                    </div>
+                    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line-2);display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--muted)"><b style="color:var(--ink)">Now · {{ proj.stageName }}.</b><span>{{ proj.stageNote }}</span></div>
+                  </div>
+                </div>
+              </div>
+              </sc-if>
+
+              <sc-if value="{{ secMoney }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px">
+                  <div style="display:flex;align-items:flex-end;justify-content:space-between">
+                    <div><div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)">Total</div><div class="num" style="font-size:34px;font-weight:800;line-height:1;margin-top:4px">{{ proj.amount }}</div></div>
+                    <span style="font-size:12px;font-weight:700;color:{{ proj.payStInk }};background:{{ proj.payStBg }};padding:5px 12px;border-radius:6px">{{ proj.payStatus }}</span>
+                  </div>
+                </div>
+                <div style="font-size:13px;font-weight:700;margin-bottom:10px">How {{ proj.client }} pays</div>
+                <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:16px">
+                  <sc-for list="{{ payModes }}" as="p" hint-placeholder-count="3">
+                    <button onClick="{{ p.onSelect }}" style="{{ p.cardStyle }}">
+                      <div style="display:flex;align-items:center;gap:12px"><span style="width:20px;height:20px;border-radius:50%;border:2px solid {{ p.ring }};display:grid;place-items:center;flex-shrink:0"><sc-if value="{{ p.selected }}" hint-placeholder-val="{{ false }}"><span style="width:10px;height:10px;border-radius:50%;background:var(--forest)"></span></sc-if></span><div style="flex:1;text-align:left"><div style="font-size:13.5px;font-weight:700">{{ p.title }}</div><div style="font-size:12px;color:var(--muted)">{{ p.desc }}</div></div></div>
+                      <sc-if value="{{ p.selected }}" hint-placeholder-val="{{ false }}"><div style="margin-top:13px;padding-top:13px;border-top:1px solid var(--line-2);font-size:12.5px;line-height:1.55;color:var(--muted)" dangerouslySetInnerHTML="{{ p.detail }}"></div></sc-if>
+                    </button>
+                  </sc-for>
+                </div>
+                <div style="background:var(--recessed);border-radius:11px;padding:16px">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:11px">Handshake</div>
+                  <div style="display:flex;gap:11px">
+                    <div style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px"><div style="font-size:11.5px;color:var(--muted)">Client marks sent</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;font-weight:700;color:var(--success)"><span dangerouslySetInnerHTML="{{ icoCheck }}"></span>Confirmed</div></div>
+                    <div style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px"><div style="font-size:11.5px;color:var(--muted)">You mark received</div><button onClick="{{ noop }}" style="margin-top:6px;width:100%;padding:8px;border-radius:6px;border:none;background:var(--forest);color:#fff;font-weight:700;font-size:12px;cursor:pointer">Mark received</button></div>
+                  </div>
+                </div>
+              </div>
+              </sc-if>
+
+              <sc-if value="{{ secPrep }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div style="font-size:14px;font-weight:700">Preparation</div><span class="num" style="font-size:11.5px;color:var(--muted)">3 of 6 done</span></div>
+                <div style="height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:14px"><div style="height:100%;width:50%;background:var(--forest);border-radius:3px"></div></div>
+                <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px">
+                  <sc-for list="{{ prepList }}" as="p" hint-placeholder-count="6">
+                    <button onClick="{{ noop }}" class="rowh" style="width:100%;display:flex;align-items:center;gap:13px;padding:13px 16px;background:var(--panel);border:none;border-top:1px solid var(--line-2);cursor:pointer;text-align:left">
+                      <span style="width:22px;height:22px;border-radius:6px;border:2px solid {{ p.boxBorder }};background:{{ p.boxBg }};display:grid;place-items:center;flex-shrink:0;color:#fff" dangerouslySetInnerHTML="{{ p.mark }}"></span>
+                      <span style="flex:1;font-size:13.5px;font-weight:{{ p.weight }};color:{{ p.ink }};text-decoration:{{ p.strike }}">{{ p.label }}</span>
+                      <span style="font-size:11px;color:var(--muted)">{{ p.meta }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+                <div style="background:var(--recessed);border-radius:11px;padding:16px"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Venue notes</div><div style="font-size:13px;line-height:1.55;color:var(--ink)">{{ proj.venueNote }}</div></div>
+              </div>
+              </sc-if>
+
+              <sc-if value="{{ secMsg }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:10px;background:var(--recessed);margin-bottom:12px"><span style="width:8px;height:8px;border-radius:3px;background:{{ thread.dot }};flex-shrink:0"></span><span style="font-size:12px;color:var(--muted)">{{ thread.context }}</span></div>
+                <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px">
+                  <sc-for list="{{ threadMsgs }}" as="m" hint-placeholder-count="3">
+                    <div style="display:flex;gap:10px;flex-direction:{{ m.dir }};align-items:flex-end">
+                      <span style="width:28px;height:28px;border-radius:50%;background:{{ m.avBg }};color:{{ m.avInk }};display:grid;place-items:center;font-weight:700;font-size:10.5px;flex-shrink:0">{{ m.av }}</span>
+                      <div style="max-width:72%"><div style="background:{{ m.bubbleBg }};color:{{ m.bubbleInk }};border:1px solid {{ m.bubbleBorder }};border-radius:13px;padding:10px 14px;font-size:13.5px;line-height:1.5">{{ m.text }}</div><div class="num" style="font-size:10px;color:var(--faint);margin-top:4px;text-align:{{ m.align }}">{{ m.time }}</div></div>
+                    </div>
+                  </sc-for>
+                  <div style="display:flex;gap:10px;margin-top:2px;padding-top:14px;border-top:1px solid var(--line-2)"><div style="flex:1;padding:11px 14px;background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--faint);font-size:13px">Write a reply…</div><button onClick="{{ noop }}" style="padding:11px 18px;border-radius:9px;border:none;background:var(--forest);color:#fff;font-weight:700;font-size:13px;cursor:pointer">Send</button></div>
+                </div>
+              </div>
+              </sc-if>
+
+              <sc-if value="{{ secDelivery }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="background:var(--rail);border-radius:13px;padding:30px 24px;color:var(--rail-ink);text-align:center">
+                  <span style="width:46px;height:46px;border-radius:12px;background:var(--rail-2);color:var(--lime);display:inline-grid;place-items:center;margin-bottom:14px" dangerouslySetInnerHTML="{{ icoLock }}"></span>
+                  <div style="font-size:16px;font-weight:700">Delivery opens after the event</div>
+                  <div style="font-size:12.5px;color:var(--rail-muted);margin-top:6px;max-width:42ch;margin-left:auto;margin-right:auto;line-height:1.5">On Saturday, drop your gallery link here — Priya sees it on her portal the moment you do.</div>
+                  <button onClick="{{ noop }}" style="margin-top:18px;padding:11px 20px;border-radius:9px;border:1px solid var(--rail-line);background:transparent;color:var(--rail-muted);font-weight:600;font-size:12.5px;cursor:not-allowed">Add gallery link · locked</button>
+                </div>
+              </div>
+              </sc-if>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px">
+                <div style="display:flex;align-items:center;gap:11px"><span style="width:38px;height:38px;border-radius:10px;background:{{ proj.clAvBg }};color:{{ proj.clAvInk }};display:grid;place-items:center;font-weight:800;font-size:14px">{{ proj.clInit }}</span><div style="min-width:0"><div style="font-size:13.5px;font-weight:700">{{ proj.client }}</div><div style="font-size:11.5px;color:var(--muted)">{{ proj.clRole }}</div></div></div>
+                <button onClick="{{ openClient }}" style="width:100%;margin-top:13px;padding:9px;border-radius:8px;background:var(--forest-deep);color:#fff;border:none;font-weight:700;font-size:12.5px;cursor:pointer">Open client portal</button>
+              </div>
+              <div style="background:var(--recessed);border-radius:12px;padding:14px">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:8px">Sections</div>
+                <sc-for list="{{ glance }}" as="g" hint-placeholder-count="4">
+                  <button onClick="{{ g.onClick }}" class="rowh" style="width:100%;display:flex;align-items:center;gap:11px;padding:11px 8px;background:transparent;border:none;border-top:1px solid var(--line-2);cursor:pointer;text-align:left;border-radius:6px">
+                    <span style="width:30px;height:30px;border-radius:8px;background:{{ g.iBg }};color:{{ g.iInk }};display:grid;place-items:center;flex-shrink:0" dangerouslySetInnerHTML="{{ g.icon }}"></span>
+                    <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">{{ g.title }}</div><div style="font-size:11px;color:var(--muted)">{{ g.meta }}</div></div>
+                    <sc-if value="{{ g.chip }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;color:{{ g.chipInk }};background:{{ g.chipBg }};padding:3px 8px;border-radius:5px;white-space:nowrap">{{ g.chip }}</span></sc-if>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===== NEW PROJECT ===== -->
+        <sc-if value="{{ deskNewProject }}" hint-placeholder-val="{{ false }}">
+        <div class="screen" style="padding:26px 28px 40px;max-width:900px;margin:0 auto;width:100%">
+          <button onClick="{{ closeOverlay }}" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;padding:0 0 14px"><span dangerouslySetInnerHTML="{{ icoBack }}"></span>Back</button>
+
+          <sc-if value="{{ npForm }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <div style="font-size:22px;font-weight:800;letter-spacing:-.02em">New project</div>
+            <div style="font-size:13px;color:var(--muted);margin:2px 0 22px">Set it up in under a minute. Your client gets one secure link — no account, no app.</div>
+
+            <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">What kind of work is it?</div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px">
+              <sc-for list="{{ npTypes }}" as="t" hint-placeholder-count="5">
+                <button onClick="{{ t.onSelect }}" style="{{ t.style }}">
+                  <span style="width:34px;height:34px;border-radius:9px;background:{{ t.iconBg }};color:{{ t.iconInk }};display:grid;place-items:center" dangerouslySetInnerHTML="{{ t.icon }}"></span>
+                  <span style="font-size:12.5px;font-weight:600;margin-top:9px">{{ t.label }}</span>
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+              <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Client name</div><div style="padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;font-size:13.5px;color:var(--ink)">Priya Rao</div></div>
+              <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Email</div><div style="padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;font-size:13.5px;color:var(--faint)">priya@example.com</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+              <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Project title</div><div style="padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;font-size:13.5px;color:var(--ink)">Rao Family wedding</div></div>
+              <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Event date</div><div class="num" style="padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;font-size:13.5px;color:var(--ink)">Sat 26 July 2026</div></div>
+            </div>
+            <div style="margin-bottom:24px"><div style="font-size:12px;font-weight:600;margin-bottom:6px">Location <span style="color:var(--faint);font-weight:400">· optional</span></div><div style="padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;font-size:13.5px;color:var(--faint)">Grand Palms Hall</div></div>
+
+            <div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--recessed);border-radius:11px;margin-bottom:22px">
+              <span style="width:34px;height:34px;border-radius:9px;background:var(--forest);color:#fff;display:grid;place-items:center;flex-shrink:0" dangerouslySetInnerHTML="{{ icoLink }}"></span>
+              <div style="flex:1"><div style="font-size:12.5px;font-weight:700">One secure link does the rest</div><div style="font-size:11.5px;color:var(--muted)">Priya opens it, confirms her event details, and you're both in sync — no chasing.</div></div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px">
+              <button onClick="{{ npCreate }}" style="display:flex;align-items:center;gap:9px;padding:13px 22px;border-radius:9px;border:none;background:var(--forest);color:#fff;font-weight:700;font-size:14px;cursor:pointer">Create & send link<span dangerouslySetInnerHTML="{{ icoArrow }}"></span></button>
+              <button onClick="{{ closeOverlay }}" style="padding:13px 18px;border-radius:9px;background:transparent;border:1px solid var(--line-strong);color:var(--muted);font-weight:600;font-size:13.5px;cursor:pointer">Cancel</button>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ npSent }}" hint-placeholder-val="{{ false }}">
+          <div style="max-width:520px;margin:40px auto 0;text-align:center">
+            <span style="width:60px;height:60px;border-radius:16px;background:var(--success-soft);color:var(--success);display:inline-grid;place-items:center;margin-bottom:18px" dangerouslySetInnerHTML="{{ icoCheckBig }}"></span>
+            <div style="font-size:22px;font-weight:800;letter-spacing:-.02em">Rao Family wedding is live</div>
+            <div style="font-size:13.5px;color:var(--muted);margin:6px 0 22px;line-height:1.55">Priya's secure link is on its way. You'll see her here the moment she opens it.</div>
+            <div style="display:flex;align-items:center;gap:11px;padding:14px 16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;text-align:left;margin-bottom:22px">
+              <span style="color:var(--forest)" dangerouslySetInnerHTML="{{ icoLink }}"></span>
+              <span class="num" style="flex:1;font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">trustos.app/p/rao-family-2f9a1c</span>
+              <button onClick="{{ noop }}" style="padding:7px 13px;border-radius:7px;background:var(--forest-soft);border:none;color:var(--forest);font-weight:700;font-size:12px;cursor:pointer">Copy</button>
+            </div>
+            <button onClick="{{ openRao }}" style="padding:12px 22px;border-radius:9px;border:none;background:var(--lime);color:var(--lime-ink);font-weight:800;font-size:14px;cursor:pointer">Open the project</button>
+          </div>
+          </sc-if>
+        </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ================= VENDOR MOBILE ================= -->
+  <sc-if value="{{ showVendorMobile }}" hint-placeholder-val="{{ false }}">
+  <div style="width:392px;max-width:100%;height:844px;background:#0a0a0a;border-radius:52px;padding:11px;box-shadow:var(--sh-lg);position:relative;flex-shrink:0">
+    <div style="position:absolute;top:22px;left:50%;transform:translateX(-50%);width:118px;height:30px;background:#0a0a0a;border-radius:18px;z-index:20"></div>
+    <div class="sc" style="width:100%;height:100%;background:var(--bg);border-radius:42px;overflow-y:auto;overflow-x:hidden">
+      <div style="position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;padding:15px 30px 8px;font-size:12.5px;font-weight:700;background:var(--bg)"><span class="num">9:41</span><span class="num" style="font-size:11px">100%</span></div>
+
+      <sc-if value="{{ mobToday }}" hint-placeholder-val="{{ true }}">
+      <div class="screen" style="padding:6px 18px 108px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0 16px"><div><div class="num" style="font-size:12px;color:var(--muted)">{{ todayEyebrow }}</div><div style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin-top:2px">{{ todayHead }}</div></div><span style="width:40px;height:40px;border-radius:12px;background:var(--forest);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px">RM</span></div>
+        <div style="display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-deep);margin-bottom:9px"><span style="width:6px;height:6px;border-radius:50%;background:var(--coral);animation:pulse 2s infinite"></span>Do first</div>
+        <div style="background:var(--rail);border-radius:14px;padding:18px;color:var(--rail-ink)">
+          <div style="display:flex;gap:13px;margin-bottom:13px"><div style="width:52px;height:52px;flex-shrink:0;border-radius:10px;background:var(--rail-2);padding:9px;border:1px solid var(--rail-line)"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--lime)">Sat</div><div class="num" style="font-size:20px;font-weight:800;line-height:1;margin-top:6px">26</div></div><div style="min-width:0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:12px;font-weight:600;color:var(--rail-muted)">Rao · Wedding</span><span style="font-size:9px;font-weight:700;text-transform:uppercase;background:var(--coral);color:#fff;padding:2px 6px;border-radius:4px">New</span></div><div style="font-size:17px;font-weight:700;line-height:1.2">Review Priya's event details</div></div></div>
+          <div style="font-size:12.5px;line-height:1.5;color:var(--rail-muted);margin-bottom:15px">Came in 8 minutes ago. Approving it unlocks the quote.</div>
+          <button onClick="{{ openRao }}" style="width:100%;padding:14px;border-radius:11px;border:none;background:var(--lime);color:var(--lime-ink);font-weight:800;font-size:15px;cursor:pointer">Review details</button>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin:22px 0 10px"><div style="font-size:14px;font-weight:700">Coming up</div></div>
+        <div style="background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden">
+          <sc-for list="{{ agenda }}" as="s" hint-placeholder-count="3"><button onClick="{{ s.onClick }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:13px 14px;background:var(--panel);border:none;border-top:1px solid var(--line-2);cursor:pointer;text-align:left"><div style="width:36px;text-align:center;flex-shrink:0"><div class="num" style="font-size:14px;font-weight:800;color:var(--forest)">{{ s.day }}</div><div class="num" style="font-size:10px;color:var(--faint)">{{ s.time }}</div></div><span style="width:34px;height:34px;border-radius:8px;background:{{ s.markBg }};color:{{ s.markInk }};display:grid;place-items:center;font-weight:800;font-size:13px;flex-shrink:0">{{ s.mark }}</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">{{ s.title }}</div><div style="font-size:11px;color:var(--muted)">{{ s.meta }}</div></div><span style="font-size:10px;font-weight:700;color:{{ s.chipInk }};background:{{ s.chipBg }};padding:4px 8px;border-radius:5px;white-space:nowrap">{{ s.chip }}</span></button></sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:14px">
+          <div style="padding:15px;border-radius:11px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber)"><div class="num" style="font-size:24px;font-weight:800;color:var(--amber);line-height:1">2</div><div style="font-size:12px;font-weight:600;margin-top:5px">Waiting on you</div></div>
+          <button onClick="{{ openClient }}" style="text-align:left;padding:15px;border-radius:11px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lav);cursor:pointer"><div class="num" style="font-size:24px;font-weight:800;color:var(--lav);line-height:1">1</div><div style="font-size:12px;font-weight:600;margin-top:5px">Waiting on client</div></button>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ mobProjects }}" hint-placeholder-val="{{ false }}">
+      <div class="screen" style="padding:6px 18px 108px">
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;padding:8px 0 2px">Projects</div><div style="font-size:12.5px;color:var(--muted);margin-bottom:15px">2 active · 1 archived</div>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ worklist }}" as="p" hint-placeholder-count="3"><button onClick="{{ p.onClick }}" style="text-align:left;padding:15px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid {{ p.edge }};cursor:pointer;opacity:{{ p.op }}">
+            <div style="display:flex;align-items:center;gap:11px;margin-bottom:11px"><span style="width:38px;height:38px;border-radius:9px;background:{{ p.markBg }};color:{{ p.markInk }};display:grid;place-items:center;font-weight:800;font-size:14px">{{ p.mark }}</span><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">{{ p.title }}</div><div style="font-size:11.5px;color:var(--muted)">{{ p.client }}</div></div><span style="font-size:10px;font-weight:700;color:{{ p.whoInk }};background:{{ p.whoBg }};padding:3px 8px;border-radius:5px">{{ p.who }}</span></div>
+            <div style="height:5px;border-radius:3px;background:var(--line);overflow:hidden"><div style="height:100%;width:{{ p.pct }};background:{{ p.barColor }}"></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px"><span style="font-size:11.5px;color:var(--muted)">{{ p.stageNo }}/10 · {{ p.nextAction }}</span><span class="num" style="font-size:11.5px;font-weight:700;color:{{ p.dateInk }}">{{ p.date }}</span></div>
+          </button></sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ mobMessages }}" hint-placeholder-val="{{ false }}">
+      <div class="screen" style="padding:6px 18px 108px">
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.02em;padding:8px 0 15px">Messages</div>
+        <div style="display:flex;flex-direction:column;gap:9px"><sc-for list="{{ threads }}" as="t" hint-placeholder-count="3"><button onClick="{{ t.onClick }}" style="display:flex;gap:12px;padding:14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);cursor:pointer;text-align:left;width:100%"><span style="width:40px;height:40px;border-radius:11px;background:{{ t.avBg }};color:{{ t.avInk }};display:grid;place-items:center;font-weight:800;font-size:14px;flex-shrink:0">{{ t.av }}</span><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:13.5px;font-weight:700;flex:1">{{ t.name }}</span><span class="num" style="font-size:10.5px;color:var(--faint)">{{ t.time }}</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.preview }}</div></div><sc-if value="{{ t.unread }}" hint-placeholder-val="{{ false }}"><span style="width:8px;height:8px;border-radius:50%;background:var(--coral);flex-shrink:0;margin-top:6px"></span></sc-if></button></sc-for></div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ mobProject }}" hint-placeholder-val="{{ false }}">
+      <div class="screen" style="padding:6px 18px 108px">
+        <button onClick="{{ backToProjectsMob }}" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;padding:8px 0"><span dangerouslySetInnerHTML="{{ icoBack }}"></span>Projects</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:10px;font-weight:700;color:{{ proj.typeInk }};background:{{ proj.typeBg }};padding:3px 8px;border-radius:5px">{{ proj.typeLabel }}</span><span class="num" style="font-size:11.5px;color:var(--muted)">Stage {{ proj.stageNo }}/10</span></div>
+        <div style="font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.05">{{ proj.title }}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:18px">{{ proj.client }} · {{ proj.date }}</div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--forest);margin-bottom:8px">Next action</div>
+        <div style="background:var(--rail);border-radius:14px;padding:18px;color:var(--rail-ink)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:13px;padding-bottom:13px;border-bottom:1px solid var(--rail-line)"><span style="width:30px;height:30px;border-radius:8px;background:{{ proj.fromActive }};color:{{ proj.fromInk }};display:grid;place-items:center;font-weight:800;font-size:12px">{{ proj.fromMark }}</span><div style="flex:1"><div style="font-size:10px;color:var(--rail-muted)">Now with</div><div style="font-size:12.5px;font-weight:700">{{ proj.who }}</div></div><span style="color:var(--rail-faint)" dangerouslySetInnerHTML="{{ icoArrow }}"></span><span style="width:30px;height:30px;border-radius:8px;background:{{ proj.toActive }};color:{{ proj.toInk }};display:grid;place-items:center;font-weight:800;font-size:12px">{{ proj.toMark }}</span></div>
+          <div style="font-size:18px;font-weight:700;line-height:1.2;margin-bottom:6px">{{ proj.action }}</div>
+          <div style="font-size:12.5px;line-height:1.5;color:var(--rail-muted);margin-bottom:15px">{{ proj.actionWhy }}</div>
+          <button onClick="{{ proj.onPrimary }}" style="width:100%;padding:14px;border-radius:11px;border:none;background:var(--lime);color:var(--lime-ink);font-weight:800;font-size:15px;cursor:pointer">{{ proj.primaryCta }}</button>
+        </div>
+        <div style="margin:22px 0 10px;font-size:14px;font-weight:700">Sections</div>
+        <div style="display:flex;flex-direction:column;gap:9px"><sc-for list="{{ glance }}" as="g" hint-placeholder-count="4"><button onClick="{{ g.onClick }}" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line);cursor:pointer;text-align:left;width:100%"><span style="width:34px;height:34px;border-radius:9px;background:{{ g.iBg }};color:{{ g.iInk }};display:grid;place-items:center;flex-shrink:0" dangerouslySetInnerHTML="{{ g.icon }}"></span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">{{ g.title }}</div><div style="font-size:11px;color:var(--muted)">{{ g.meta }}</div></div><sc-if value="{{ g.chip }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;color:{{ g.chipInk }};background:{{ g.chipBg }};padding:3px 7px;border-radius:5px">{{ g.chip }}</span></sc-if></button></sc-for></div>
+      </div>
+      </sc-if>
+
+    </div>
+    <div style="position:absolute;left:11px;right:11px;bottom:11px;height:74px;background:rgba(14,27,22,.95);backdrop-filter:blur(14px);border-radius:0 0 42px 42px;display:flex;align-items:flex-start;justify-content:space-around;padding:12px 10px 0;z-index:16">
+      <sc-for list="{{ mobNav }}" as="n" hint-placeholder-count="4"><button onClick="{{ n.onClick }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ n.color }};padding:2px 14px"><span dangerouslySetInnerHTML="{{ n.icon }}"></span><span style="font-size:10px;font-weight:{{ n.weight }}">{{ n.label }}</span></button></sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ================= CLIENT DESKTOP ================= -->
+  <sc-if value="{{ showClientDesktop }}" hint-placeholder-val="{{ false }}">
+  <div style="width:960px;max-width:100%;background:var(--panel);border-radius:16px;box-shadow:var(--sh-lg);overflow:hidden;border:1px solid var(--line-strong)">
+    <div style="background:var(--forest-deep);color:#fff;padding:26px 40px 30px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px"><span style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.14);display:grid;place-items:center;font-weight:800;font-size:13px">M</span><span style="font-weight:600;font-size:14px">MiniMomentz</span><span style="margin-left:auto;font-size:11.5px;color:rgba(255,255,255,.6)">Private link · no account needed</span></div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px">
+        <div><div style="font-size:12.5px;color:rgba(255,255,255,.65)">Sri Venkatesh Temple committee</div><div style="font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1.05;margin-top:4px">Your anniversary livestream</div></div>
+        <div style="text-align:right;flex-shrink:0"><div class="num" style="font-size:12.5px;color:rgba(255,255,255,.75)">Step 3 of 10</div><div style="width:200px;height:6px;border-radius:3px;background:rgba(255,255,255,.16);overflow:hidden;margin-top:7px"><div style="height:100%;width:28%;background:var(--lime)"></div></div></div>
+      </div>
+    </div>
+    <div style="padding:26px 40px 36px;display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start;background:var(--bg)">
+      <div>
+        <div style="font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-deep);margin-bottom:9px">Your turn</div>
+        <div style="background:var(--panel);border:2px solid var(--forest);border-radius:14px;padding:22px;box-shadow:var(--sh)">
+          <div style="font-size:21px;font-weight:800;letter-spacing:-.01em;margin-bottom:6px">Confirm your event details</div>
+          <div style="font-size:13px;line-height:1.5;color:var(--muted);margin-bottom:18px">A few practical things so the team arrives fully prepared. About 3 minutes.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:18px"><sc-for list="{{ eventFields }}" as="f" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:9px;background:{{ f.bg }};border:1px solid {{ f.border }}"><span style="color:{{ f.iconInk }};flex-shrink:0" dangerouslySetInnerHTML="{{ f.icon }}"></span><span style="font-size:12.5px;font-weight:500;flex:1">{{ f.short }}</span><sc-if value="{{ f.done }}" hint-placeholder-val="{{ false }}"><span style="color:var(--success)" dangerouslySetInnerHTML="{{ icoCheck }}"></span></sc-if></div></sc-for></div>
+          <button onClick="{{ noop }}" style="padding:13px 24px;border-radius:10px;border:none;background:var(--forest);color:#fff;font-weight:700;font-size:14.5px;cursor:pointer">Confirm details</button>
+        </div>
+        <div style="margin-top:20px;padding:18px;border-radius:12px;background:var(--recessed);display:flex;align-items:center;gap:14px"><span style="width:42px;height:42px;border-radius:50%;background:var(--forest);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px">R</span><div><div style="font-size:14px;line-height:1.4;font-weight:600">"Anything you need, just message us right here."</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Ravi · MiniMomentz</div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:2px">Where things stand</div>
+        <sc-for list="{{ clientCards }}" as="c" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:11px;background:var(--panel);border:1px solid var(--line)"><span style="width:34px;height:34px;border-radius:9px;background:{{ c.iconBg }};color:{{ c.iconInk }};display:grid;place-items:center;flex-shrink:0" dangerouslySetInnerHTML="{{ c.icon }}"></span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">{{ c.title }}</div><div style="font-size:11.5px;color:var(--muted)">{{ c.meta }}</div></div><span style="font-size:10.5px;font-weight:700;color:{{ c.chipInk }};background:{{ c.chipBg }};padding:4px 9px;border-radius:5px">{{ c.chip }}</span></div></sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ================= CLIENT MOBILE ================= -->
+  <sc-if value="{{ showClientMobile }}" hint-placeholder-val="{{ false }}">
+  <div style="width:392px;max-width:100%;height:844px;background:#0a0a0a;border-radius:52px;padding:11px;box-shadow:var(--sh-lg);position:relative;flex-shrink:0">
+    <div style="position:absolute;top:22px;left:50%;transform:translateX(-50%);width:118px;height:30px;background:#0a0a0a;border-radius:18px;z-index:20"></div>
+    <div class="sc" style="width:100%;height:100%;background:var(--bg);border-radius:42px;overflow-y:auto;overflow-x:hidden">
+      <div style="position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;padding:15px 30px 8px;font-size:12.5px;font-weight:700;background:var(--forest-deep);color:#fff"><span class="num">9:41</span><span class="num" style="font-size:11px">100%</span></div>
+      <div style="background:var(--forest-deep);color:#fff;padding:8px 22px 26px;border-radius:0 0 24px 24px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:20px"><span style="width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.14);display:grid;place-items:center;font-weight:800;font-size:12px">M</span><span style="font-weight:600;font-size:13px">MiniMomentz</span><span style="margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.6)">Secure link</span></div>
+        <div style="font-size:11.5px;color:rgba(255,255,255,.65)">Sri Venkatesh Temple committee</div>
+        <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.08;margin:3px 0 18px">Your anniversary livestream</div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.16);overflow:hidden"><div style="height:100%;width:28%;background:var(--lime)"></div></div><span class="num" style="font-size:11.5px;color:rgba(255,255,255,.75)">Step 3 / 10</span></div>
+      </div>
+      <div style="padding:20px 18px 40px">
+        <div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-deep);margin-bottom:9px">Your turn</div>
+        <div style="background:var(--panel);border:2px solid var(--forest);border-radius:14px;padding:20px;box-shadow:var(--sh)">
+          <div style="font-size:20px;font-weight:800;letter-spacing:-.01em;line-height:1.12;margin-bottom:6px">Confirm your event details</div>
+          <div style="font-size:12.5px;line-height:1.5;color:var(--muted);margin-bottom:15px">A few practical things about the day. About 3 minutes — no account needed.</div>
+          <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px"><sc-for list="{{ eventFields }}" as="f" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:9px;background:{{ f.bg }};border:1px solid {{ f.border }}"><span style="color:{{ f.iconInk }};flex-shrink:0" dangerouslySetInnerHTML="{{ f.icon }}"></span><span style="font-size:12.5px;font-weight:500;flex:1">{{ f.label }}</span><sc-if value="{{ f.done }}" hint-placeholder-val="{{ false }}"><span style="color:var(--success)" dangerouslySetInnerHTML="{{ icoCheck }}"></span></sc-if></div></sc-for></div>
+          <button onClick="{{ noop }}" style="width:100%;padding:14px;border-radius:11px;border:none;background:var(--forest);color:#fff;font-weight:800;font-size:15px;cursor:pointer">Confirm details</button>
+        </div>
+        <div style="margin:22px 0 10px;font-size:14px;font-weight:700">Where things stand</div>
+        <div style="display:flex;flex-direction:column;gap:9px"><sc-for list="{{ clientCards }}" as="c" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:11px;padding:14px;border-radius:11px;background:var(--panel);border:1px solid var(--line)"><span style="width:34px;height:34px;border-radius:9px;background:{{ c.iconBg }};color:{{ c.iconInk }};display:grid;place-items:center;flex-shrink:0" dangerouslySetInnerHTML="{{ c.icon }}"></span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">{{ c.title }}</div><div style="font-size:11px;color:var(--muted)">{{ c.meta }}</div></div><span style="font-size:10px;font-weight:700;color:{{ c.chipInk }};background:{{ c.chipBg }};padding:4px 9px;border-radius:5px">{{ c.chip }}</span></div></sc-for></div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="font-size:11px;color:var(--muted);text-align:center;max-width:560px;line-height:1.5">{{ footNote }}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;1420px&quot;,&quot;height&quot;:&quot;960px&quot;}}">
+class Component extends DCLogic {
+  state = { view:'vendor', device:'desktop', tab:'today', overlay:null, section:'overview', projectId:'rao', payMode:'manual', np:'form', npType:'photography', msgId:'rao' };
+  ico(p,s){return '<svg width="'+(s||18)+'" height="'+(s||18)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';}
+  go(patch){ this.setState(patch); const s=document.querySelectorAll('.sc'); s.forEach(el=>el.scrollTop=0); }
+
+  renderVals(){
+    const st=this.state, I=(p,s)=>({__html:this.ico(p,s)});
+    const icoBack=I('<path d="M15 18l-6-6 6-6"/>'), icoArrow=I('<path d="M5 12h14M13 6l6 6-6 6"/>',16), icoCheck=I('<path d="M20 6L9 17l-5-5"/>',15);
+    const icoCheckBig=I('<path d="M20 6L9 17l-5-5"/>',28);
+    const icoPlus=I('<path d="M12 5v14M5 12h14"/>',16), icoSearch=I('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',16);
+    const icoPlusLime={__html:this.ico('<path d="M12 5v14M5 12h14"/>',17).replace('currentColor','var(--lime)')};
+    const icoChevD=I('<path d="M6 9l6 6 6-6"/>',15), icoChevR=I('<path d="M9 6l6 6-6 6"/>',15);
+    const icoDots=I('<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',17);
+    const icoBell=I('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',17);
+    const icoLock=I('<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',22);
+    const icoLink=I('<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/>',18);
+    const icoSend=I('<path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>',18);
+
+    const v=st.view, dev=st.device, ov=st.overlay;
+    const showVendorDesktop=v==='vendor'&&dev==='desktop';
+    const showVendorMobile=v==='vendor'&&dev==='mobile';
+    const showClientDesktop=v==='client'&&dev==='desktop';
+    const showClientMobile=v==='client'&&dev==='mobile';
+    const deskToday=showVendorDesktop&&!ov&&st.tab==='today';
+    const deskProjects=showVendorDesktop&&!ov&&st.tab==='projects';
+    const deskMessages=showVendorDesktop&&!ov&&st.tab==='messages';
+    const deskClients=showVendorDesktop&&!ov&&st.tab==='clients';
+    const deskSettings=showVendorDesktop&&!ov&&st.tab==='settings';
+    const deskProject=showVendorDesktop&&ov==='project';
+    const deskNewProject=showVendorDesktop&&ov==='newproject';
+    const mobToday=showVendorMobile&&!ov&&st.tab==='today';
+    const mobProjects=showVendorMobile&&!ov&&st.tab==='projects';
+    const mobMessages=showVendorMobile&&!ov&&st.tab==='messages';
+    const mobProject=showVendorMobile&&ov==='project';
+    const sec=st.section;
+
+    // ---- projects ----
+    const PROJ={
+      rao:{ title:'Rao Family wedding', client:'Priya Rao', clInit:'PR', clRole:'Bride · main contact', clAvBg:'var(--gold-soft)', clAvInk:'#7a4a1e', mark:'P', markBg:'var(--gold)', markInk:'#fff', date:'Sat 26 Jul', location:'Grand Palms Hall', typeLabel:'Photography', typeInk:'#7a4a1e', typeBg:'var(--gold-soft)',
+        stageNo:3, stageName:'Details', nextStageNo:4, stageNote:'Priya submitted this morning — approve to unlock the quote.', currentIdx:2,
+        who:'You', fromMark:'R', fromActive:'var(--lime)', fromInk:'var(--lime-ink)', toMark:'P', toActive:'var(--rail-2)', toInk:'var(--rail-muted)',
+        action:'Approve the details, then send the quote', actionWhy:'Priya sent everything for Saturday. Check it over, build the quote from your wedding package, and it lands straight on her portal.', primaryCta:'Review details',
+        amount:'\u2014', payStatus:'No quote yet', payStInk:'var(--amber)', payStBg:'var(--amber-soft)', venueNote:'Load-in via the rear service door from 8am. Ceremony 11:30 in the garden pavilion; low light in the main hall after 6pm — bring the fast primes.' },
+      temple:{ title:'Temple anniversary livestream', client:'Sri Venkatesh Temple', clInit:'SV', clRole:'Committee · Mr Iyer', clAvBg:'var(--lav-soft)', clAvInk:'var(--lav)', mark:'S', markBg:'var(--lav)', markInk:'#fff', date:'Fri 1 Aug', location:'Temple main hall', typeLabel:'Livestream', typeInk:'var(--lav)', typeBg:'var(--lav-soft)',
+        stageNo:3, stageName:'Details', nextStageNo:4, stageNote:'The committee has the link — a gentle nudge usually does it.', currentIdx:2,
+        who:'The temple committee', fromMark:'S', fromActive:'var(--lav)', fromInk:'#fff', toMark:'R', toActive:'var(--rail-2)', toInk:'var(--rail-muted)',
+        action:'Nudge the committee to confirm their details', actionWhy:'Their secure link went out two days ago. Nothing is needed from you yet — a friendly reminder keeps it moving.', primaryCta:'Send a reminder',
+        amount:'\u00A3180', payStatus:'Awaiting transfer', payStInk:'var(--amber)', payStBg:'var(--amber-soft)', venueNote:'Fixed 100Mbps line; stream to YouTube + Facebook. Two ceiling power points near the sanctum — bring extension reels. Load-in before 4pm; no vehicles in the courtyard after 5.' },
+    };
+    const proj=PROJ[st.projectId]||PROJ.rao;
+
+    // timeline
+    const JT=['Enquiry','Link sent','Details','Quote','Payment','Prep','Event','Delivery','Approved','Done'];
+    const ci=proj.currentIdx;
+    const timeline=JT.map((label,i)=>{const done=i<ci,cur=i===ci;return{flex:i<JT.length-1?'1':'0',hasLine:i<JT.length-1,dotBg:done?'var(--forest)':(cur?'var(--lime)':'var(--panel)'),dotInk:done?'#fff':(cur?'var(--lime-ink)':'var(--faint)'),dotBorder:done?'var(--forest)':(cur?'var(--lime-deep)':'var(--line-strong)'),lineColor:i<ci?'var(--forest)':'var(--line-strong)',anim:cur?'animation:ring 2.4s infinite':'',mark:done?{__html:this.ico('<path d="M20 6L9 17l-5-5"/>',12)}:{__html:String(i+1)}};});
+    const phaseNow=(a,b)=>ci>=a&&ci<=b;
+    const phases=[
+      {label:'Booking',flex:'4',align:'left',weight:phaseNow(0,3)?'800':'600',ink:phaseNow(0,3)?'var(--ink)':'var(--faint)'},
+      {label:'Payment',flex:'1',align:'center',weight:phaseNow(4,4)?'800':'600',ink:phaseNow(4,4)?'var(--ink)':'var(--faint)'},
+      {label:'Preparation',flex:'3',align:'center',weight:phaseNow(5,7)?'800':'600',ink:phaseNow(5,7)?'var(--ink)':'var(--faint)'},
+      {label:'Handover',flex:'2',align:'right',weight:phaseNow(8,9)?'800':'600',ink:phaseNow(8,9)?'var(--ink)':'var(--faint)'},
+    ];
+
+    // today
+    const agenda=[
+      {day:'Sat',time:'9am',title:'Rao Family wedding',meta:'Grand Palms · full day',mark:'P',markBg:'var(--gold-soft)',markInk:'#7a4a1e',chip:'Prep due',chipInk:'var(--amber)',chipBg:'var(--amber-soft)',onClick:()=>this.go({projectId:'rao',overlay:'project',section:'prep'})},
+      {day:'Fri',time:'5pm',title:'Temple livestream',meta:'Sri Venkatesh · 2-camera',mark:'S',markBg:'var(--lav-soft)',markInk:'var(--lav)',chip:'Waiting',chipInk:'var(--lav)',chipBg:'var(--lav-soft)',onClick:()=>this.go({projectId:'temple',overlay:'project',section:'overview'})},
+    ];
+    const waitingMe=[
+      {tag:'Review',title:"Priya's event details",meta:'8 min ago',onClick:()=>this.go({projectId:'rao',overlay:'project',section:'overview'})},
+      {tag:'Quote',title:'Draft the Rao wedding quote',meta:'After the review',onClick:()=>this.go({projectId:'rao',overlay:'project',section:'money'})},
+    ];
+    const waitingClient=[
+      {mark:'S',title:'Temple committee',meta:'Details unconfirmed · 2 days',cta:'Send a reminder',onClick:()=>this.go({projectId:'temple',overlay:'project',section:'overview'})},
+    ];
+    const deadlines=[
+      {day:'Fri',ink:'var(--coral-deep)',label:'Chen wedding gallery',meta:'Final delivery due'},
+      {day:'Mon',ink:'var(--forest)',label:'Okafor 40th edit',meta:'Retouch selects'},
+      {day:'1 Aug',ink:'var(--muted)',label:'Temple livestream',meta:'Go-live'},
+    ];
+    const stats=[
+      {value:'2',label:'Active projects',ink:'var(--ink)'},
+      {value:'\u00A32.4k',label:'Booked this month',ink:'var(--forest)'},
+      {value:'3',label:'Delivered',ink:'var(--ink)'},
+      {value:'1',label:'Awaiting client',ink:'var(--lav)'},
+    ];
+
+    // worklist
+    const worklist=[
+      {title:'Rao Family wedding',client:'Priya Rao',type:'Photography',mark:'P',markBg:'var(--gold-soft)',markInk:'#7a4a1e',stageNo:3,stageName:'Details',pct:'28%',barColor:'var(--coral)',who:'You',whoInk:'var(--lime-ink)',whoBg:'var(--lime)',nextAction:'Review & send quote',date:'26 Jul',dateInk:'var(--coral-deep)',edge:'var(--coral)',rowBg:'var(--coral-soft)',op:'1',onClick:()=>this.go({projectId:'rao',overlay:'project',section:'overview'})},
+      {title:'Temple livestream',client:'Sri Venkatesh',type:'Livestream',mark:'S',markBg:'var(--lav-soft)',markInk:'var(--lav)',stageNo:3,stageName:'Details',pct:'28%',barColor:'var(--forest)',who:'Client',whoInk:'var(--lav)',whoBg:'var(--lav-soft)',nextAction:'Awaiting details',date:'1 Aug',dateInk:'var(--ink)',edge:'transparent',rowBg:'var(--panel)',op:'1',onClick:()=>this.go({projectId:'temple',overlay:'project',section:'overview'})},
+      {title:'Okafor 40th birthday',client:'Dayo Okafor',type:'Photography',mark:'D',markBg:'var(--success-soft)',markInk:'var(--success)',stageNo:10,stageName:'Done',pct:'100%',barColor:'var(--success)',who:'Done',whoInk:'var(--success)',whoBg:'var(--success-soft)',nextAction:'Delivered & archived',date:'Jun',dateInk:'var(--muted)',edge:'transparent',rowBg:'var(--panel)',op:'.6',onClick:()=>this.go({projectId:'rao',overlay:'project',section:'overview'})},
+    ];
+
+    // section tabs
+    const secDefs=[['overview','Overview'],['money','Money'],['prep','Preparation'],['messages','Messages'],['delivery','Delivery']];
+    const stBase='padding:9px 14px 11px;margin-bottom:-1px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer;border:none;border-bottom:2px solid transparent;white-space:nowrap;transition:color .12s;';
+    const sectionTabs=secDefs.map(([id,label])=>({label,onClick:()=>this.setState({section:id}),style:stBase+(sec===id?'color:var(--forest);border-bottom-color:var(--forest)':'color:var(--muted)')}));
+
+    const gI=(bg,ink,p)=>({iBg:bg,iInk:ink,icon:I(p,16)});
+    const glance=[
+      {title:'Money',meta:proj.payStatus,...gI('var(--success-soft)','var(--success)','<path d="M18 7H9.5a3 3 0 0 0 0 6H13a3 3 0 0 1 0 6H5"/><path d="M12 3v18"/>'),chip:st.projectId==='rao'?'To do':'Awaiting',chipInk:'var(--amber)',chipBg:'var(--amber-soft)',onClick:()=>this.setState({section:'money'})},
+      {title:'Preparation',meta:'3 of 6 done',...gI('var(--gold-soft)','#7a4a1e','<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'),chip:'In progress',chipInk:'var(--forest)',chipBg:'var(--success-soft)',onClick:()=>this.setState({section:'prep'})},
+      {title:'Messages',meta:'2 with the client',...gI('var(--coral-soft)','var(--coral-deep)','<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),chip:'',chipInk:'',chipBg:'',onClick:()=>this.setState({section:'messages'})},
+      {title:'Delivery',meta:'Opens after the event',...gI('var(--recessed)','var(--faint)','<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/>'),chip:'Locked',chipInk:'var(--faint)',chipBg:'var(--recessed)',onClick:()=>this.setState({section:'delivery'})},
+    ];
+
+    // payment
+    const modeCard=(sel)=>'display:block;width:100%;text-align:left;padding:16px;border-radius:11px;cursor:pointer;background:'+(sel?'var(--panel)':'var(--panel)')+';border:2px solid '+(sel?'var(--forest)':'var(--line)')+';';
+    const payDetails={ online:'A secure card link. The client pays online and it\u2019s recorded automatically — you never touch card numbers.', manual:'<b style="color:var(--ink)">They see:</b> Transfer \u00A3180 to MiniMomentz · Sort 04-00-04 · Acc 12345678, ref \u201cTemple Aug\u201d.<br><b style="color:var(--ink)">They confirm</b> once sent · <b style="color:var(--ink)">you confirm</b> when it lands.', free:'A community collaboration — no payment. The project skips to preparation and the client sees a warm \u201cno payment needed\u201d note.' };
+    const payModes=[['online','Pay online','Secure card link'],['manual','Pay manually','Bank transfer or cash'],['free','No payment','A free collaboration']].map(([id,title,desc])=>({title,desc,selected:st.payMode===id,ring:st.payMode===id?'var(--forest)':'var(--line-strong)',cardStyle:modeCard(st.payMode===id),detail:{__html:payDetails[id]},onSelect:()=>this.setState({payMode:id})}));
+
+    // prep
+    const prepDone=(d)=>({boxBorder:d?'var(--forest)':'var(--line-strong)',boxBg:d?'var(--forest)':'transparent',mark:d?{__html:this.ico('<path d="M20 6L9 17l-5-5"/>',12)}:{__html:''},weight:d?'500':'600',ink:d?'var(--muted)':'var(--ink)',strike:d?'line-through':'none'});
+    const prepList=[
+      {label:'Confirm shot list with Priya',meta:'Done',...prepDone(true)},
+      {label:'Charge & pack two bodies + primes',meta:'Done',...prepDone(true)},
+      {label:'Scout Grand Palms lighting',meta:'Done',...prepDone(true)},
+      {label:'Confirm load-in with venue',meta:'Today',...prepDone(false)},
+      {label:'Brief second shooter',meta:'Fri',...prepDone(false)},
+      {label:'Format backup cards',meta:'Fri',...prepDone(false)},
+    ];
+
+    // messages / threads
+    const THREADS={
+      rao:{name:'Priya Rao',sub:'Rao Family wedding · Sat 26 Jul',av:'PR',avBg:'var(--gold-soft)',avInk:'#7a4a1e',dot:'var(--lime-deep)',context:'Your move — reply, then review her details.',openProject:()=>this.go({projectId:'rao',overlay:'project',section:'overview'}),
+        msgs:[
+          {av:'PR',avBg:'var(--gold-soft)',avInk:'#7a4a1e',dir:'row',align:'left',bubbleBg:'var(--panel)',bubbleInk:'var(--ink)',bubbleBorder:'var(--line)',text:'Hi Ravi! Just sent over all our details for Saturday.',time:'8:41'},
+          {av:'RM',avBg:'var(--forest)',avInk:'#fff',dir:'row-reverse',align:'right',bubbleBg:'var(--forest)',bubbleInk:'#fff',bubbleBorder:'var(--forest)',text:'Got it, Priya — reviewing now, quote to follow today.',time:'8:52'},
+          {av:'PR',avBg:'var(--gold-soft)',avInk:'#7a4a1e',dir:'row',align:'left',bubbleBg:'var(--panel)',bubbleInk:'var(--ink)',bubbleBorder:'var(--line)',text:'Perfect, no rush. So excited!',time:'8:53'},
+        ]},
+      temple:{name:'Sri Venkatesh Temple',sub:'Livestream · Fri 1 Aug',av:'SV',avBg:'var(--lav-soft)',avInk:'var(--lav)',dot:'var(--lav)',context:'Waiting on the committee. A warm nudge keeps it moving.',openProject:()=>this.go({projectId:'temple',overlay:'project',section:'overview'}),
+        msgs:[
+          {av:'SV',avBg:'var(--lav-soft)',avInk:'var(--lav)',dir:'row',align:'left',bubbleBg:'var(--panel)',bubbleInk:'var(--ink)',bubbleBorder:'var(--line)',text:'Namaste Ravi, we received the link, thank you.',time:'Tue'},
+          {av:'RM',avBg:'var(--forest)',avInk:'#fff',dir:'row-reverse',align:'right',bubbleBg:'var(--forest)',bubbleInk:'#fff',bubbleBorder:'var(--forest)',text:'Wonderful. Whenever the committee is ready, just confirm the details in the link.',time:'Tue'},
+        ]},
+      dayo:{name:'Dayo Okafor',sub:'40th birthday · delivered',av:'DO',avBg:'var(--success-soft)',avInk:'var(--success)',dot:'var(--success)',context:'Delivered and approved. Nothing needed.',openProject:()=>this.go({projectId:'rao',overlay:'project',section:'overview'}),
+        msgs:[
+          {av:'DO',avBg:'var(--success-soft)',avInk:'var(--success)',dir:'row',align:'left',bubbleBg:'var(--panel)',bubbleInk:'var(--ink)',bubbleBorder:'var(--line)',text:'The photos are stunning, thank you so much!',time:'Jun'},
+        ]},
+    };
+    const threadDefs=[
+      {id:'rao',preview:'Perfect, no rush. So excited!',time:'8:53',tag:'Your turn',tagInk:'var(--lime-ink)',tagBg:'var(--lime)',unread:true},
+      {id:'temple',preview:'Namaste Ravi, we received the link…',time:'Tue',tag:'Waiting',tagInk:'var(--lav)',tagBg:'var(--lav-soft)',unread:false},
+      {id:'dayo',preview:'The photos are stunning, thank you!',time:'Jun',tag:'Done',tagInk:'var(--success)',tagBg:'var(--success-soft)',unread:false},
+    ];
+    const threads=threadDefs.map(t=>{const T=THREADS[t.id];const active=st.msgId===t.id;return{...t,name:T.name,av:T.av,avBg:T.avBg,avInk:T.avInk,bg:active?'var(--bg-2)':'var(--panel)',edge:active?'var(--forest)':'transparent',onClick:()=>this.setState({msgId:t.id})};});
+    const thread=THREADS[st.msgId]||THREADS.rao;
+    const threadMsgs=(deskMessages||mobMessages)?thread.msgs:(THREADS[st.projectId]?THREADS[st.projectId].msgs:thread.msgs);
+    const threadForProject=THREADS[st.projectId]||thread;
+
+    // clients
+    const clientDir=[
+      {name:'Priya Rao',project:'Wedding · 26 Jul',initials:'PR',avBg:'var(--gold-soft)',avInk:'#7a4a1e',msg:'Perfect, no rush. So excited!',status:'Your turn',stInk:'var(--lime-ink)',stBg:'var(--lime)',last:'8 min'},
+      {name:'Sri Venkatesh Temple',project:'Livestream · 1 Aug',initials:'SV',avBg:'var(--lav-soft)',avInk:'var(--lav)',msg:'Namaste Ravi, we received the link.',status:'Waiting',stInk:'var(--lav)',stBg:'var(--lav-soft)',last:'2 days'},
+      {name:'Dayo Okafor',project:'40th · delivered',initials:'DO',avBg:'var(--success-soft)',avInk:'var(--success)',msg:'The photos are stunning, thank you!',status:'Complete',stInk:'var(--success)',stBg:'var(--success-soft)',last:'Jun'},
+    ];
+    const settingsList=[
+      {title:'Business profile',meta:'MiniMomentz · Ravi Menon',icon:I('<path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>')},
+      {title:'Services & packages',meta:'Photography, livestream',icon:I('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>')},
+      {title:'Payments',meta:'Manual & online ready',icon:I('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>')},
+      {title:'Help & support',meta:'Talk to a human',icon:I('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>')},
+    ];
+
+    // new project types
+    const typeDefs=[['photography','Photography','<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'],['livestream','Livestream','<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>'],['dj','DJ','<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>'],['makeup','Makeup','<path d="M9 11l6-6 3 3-6 6M9 11l-4 9 9-4M9 11l3 3"/>'],['decor','Decor','<path d="M12 2a5 5 0 0 0-5 5c0 3 5 9 5 9s5-6 5-9a5 5 0 0 0-5-5z"/><circle cx="12" cy="7" r="1.6"/>']];
+    const npTypes=typeDefs.map(([id,label,p])=>{const a=st.npType===id;return{label,icon:I(p,18),iconBg:a?'var(--forest)':'var(--recessed)',iconInk:a?'#fff':'var(--muted)',style:'display:flex;flex-direction:column;align-items:center;padding:16px 8px;border-radius:11px;cursor:pointer;background:'+(a?'var(--panel)':'var(--panel-2)')+';border:2px solid '+(a?'var(--forest)':'var(--line)')+';',onSelect:()=>this.setState({npType:id})};});
+
+    // client portal
+    const cf=(done,short,label,p)=>({done,short,label,icon:I(p,17),bg:done?'var(--success-soft)':'var(--panel)',border:done?'#bfe0cd':'var(--line)',iconInk:done?'var(--success)':'var(--forest)'});
+    const eventFields=[
+      cf(true,'Timings','Timings — arrival to finish','<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
+      cf(false,'Venue contact','Venue contact on the day','<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7A2 2 0 0 1 22 16.9z"/>'),
+      cf(false,'Internet','Internet & platform','<path d="M5 12.5a11 11 0 0 1 14 0M1.4 9a16 16 0 0 1 21.2 0M8.5 16a6 6 0 0 1 7 0M12 20h.01"/>'),
+      cf(false,'Audio','Audio sources','<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>'),
+      cf(false,'Power','Power & load-in','<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>'),
+    ];
+    const cIco=(bg,ink,p)=>({iconBg:bg,iconInk:ink,icon:I(p,18)});
+    const clientCards=[
+      {title:'Your project',meta:'2-camera livestream · 1 Aug',...cIco('var(--lav-soft)','var(--lav)','<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>'),chip:'In prep',chipInk:'var(--forest)',chipBg:'var(--success-soft)'},
+      {title:'Your quote',meta:'\u00A3180 · anniversary package',...cIco('var(--success-soft)','var(--success)','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>'),chip:'Accepted',chipInk:'var(--success)',chipBg:'var(--success-soft)'},
+      {title:'Payment',meta:'Bank transfer · reference given',...cIco('var(--amber-soft)','var(--amber)','<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>'),chip:'Awaiting',chipInk:'var(--amber)',chipBg:'var(--amber-soft)'},
+      {title:'Your recording',meta:'Ready a few days after',...cIco('var(--recessed)','var(--faint)','<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/>'),chip:'Soon',chipInk:'var(--faint)',chipBg:'var(--recessed)'},
+    ];
+
+    // nav
+    const railDefs=[
+      ['today','Today','<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>','2'],
+      ['projects','Projects','<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',''],
+      ['messages','Messages','<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>','1'],
+      ['clients','Clients','<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>',''],
+      ['settings','Settings','<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',''],
+    ];
+    const railBase='position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:9px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:background .12s,color .12s;';
+    const railItems=railDefs.map(([id,label,p,badge])=>{const a=st.tab===id&&!ov;return{label,icon:{__html:this.ico(p,18)},badge,badgeBg:a?'var(--lime)':'var(--rail-3)',badgeInk:a?'var(--lime-ink)':'var(--rail-muted)',bar:a?'var(--lime)':'transparent',barH:a?'18px':'0',style:railBase+(a?'background:var(--rail-2);color:var(--lime)':'background:transparent;color:var(--rail-muted)'),onClick:()=>this.go({tab:id,overlay:null})};});
+    const pinned=[
+      {title:'Rao Family wedding',dot:'var(--coral)',tag:'You',tagInk:'var(--lime-ink)',tagBg:'var(--lime)',onClick:()=>this.go({projectId:'rao',overlay:'project',section:'overview'})},
+      {title:'Temple livestream',dot:'var(--lav)',tag:'Client',tagInk:'var(--lav)',tagBg:'var(--lav-soft)',onClick:()=>this.go({projectId:'temple',overlay:'project',section:'overview'})},
+    ];
+    const mobDefs=[['today','Today','<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>'],['projects','Projects','<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'],['messages','Messages','<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'],['clients','Clients','<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>']];
+    const mobNav=mobDefs.map(([id,label,p])=>{const a=st.tab===id&&!ov;return{label,icon:{__html:this.ico(p,21)},color:a?'var(--lime)':'var(--rail-muted)',weight:a?'700':'500',onClick:()=>this.go({tab:id,overlay:null})};});
+
+    const tb='padding:7px 13px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s;';
+    const viewTabs=[['vendor','Vendor'],['client','Client']].map(([id,label])=>({label,onClick:()=>this.go({view:id,overlay:null,tab:'today'}),style:tb+(v===id?'background:var(--forest);color:#fff':'background:transparent;color:var(--muted)')}));
+    const devTabs=[['desktop','Desktop'],['mobile','Mobile']].map(([id,label])=>({label,onClick:()=>this.go({device:id}),style:tb+(dev===id?'background:var(--rail);color:var(--lime)':'background:transparent;color:var(--muted)')}));
+
+    const crumbMap={today:['Today',''],projects:['Projects',''],messages:['Messages',''],clients:['Clients',''],settings:['Settings','']};
+    let crumbTitle='Today', crumbSub='';
+    if(ov==='project'){crumbTitle='Projects';crumbSub=proj.title;}
+    else if(ov==='newproject'){crumbTitle='Projects';crumbSub='New project';}
+    else if(crumbMap[st.tab]){crumbTitle=crumbMap[st.tab][0];}
+
+    const notes={vendor:'Ravi\u2019s workspace — dark rail anchor, calm canvas, lime for the one action that matters now.',client:'The temple committee\u2019s secure link — guided, never a dashboard.'};
+    const foots={vendor:'Vendor Workspace · Do first (Today) is the single highest-priority action across every live project. Inside a project, the Next action names who holds it and advances the 10-stage lifecycle. Toggle Vendor / Client and Desktop / Mobile above.',client:'Client Portal · one secure link, one clear action, guided like a concierge. Calmer and lighter than the vendor workspace.'};
+
+    return {
+      showVendorDesktop,showVendorMobile,showClientDesktop,showClientMobile,
+      deskToday,deskProjects,deskMessages,deskClients,deskSettings,deskProject,deskNewProject,
+      mobToday,mobProjects,mobMessages,mobProject,
+      secOverview:sec==='overview',secMoney:sec==='money',secPrep:sec==='prep',secMsg:sec==='messages',secDelivery:sec==='delivery',
+      npForm:st.np==='form',npSent:st.np==='sent',
+      icoBack,icoArrow,icoCheck,icoCheckBig,icoPlus,icoPlusLime,icoSearch,icoChevD,icoChevR,icoDots,icoBell,icoLock,icoLink,icoSend,
+      topbarDate:'Thu 24 Jul 2026', crumbTitle, crumbSub,
+      todayEyebrow:'Thursday · 24 July', todayHead:'Two things need you.', todaySub:'One quote to send, one client to nudge — then you\u2019re clear.',
+      proj, timeline, phases, agenda, waitingMe, waitingClient, deadlines, stats, worklist,
+      sectionTabs, glance, payModes, prepList,
+      threads, thread:(deskMessages||mobMessages)?thread:threadForProject, threadMsgs,
+      clientDir, settingsList, npTypes, eventFields, clientCards, railItems, pinned, mobNav, viewTabs, devTabs,
+      contextNote:notes[v], footNote:foots[v],
+      openRao:()=>this.go({projectId:'rao',overlay:'project',section:'overview'}),
+      openClient:()=>this.go({view:'client'}),
+      openNewProject:()=>this.go({overlay:'newproject',np:'form'}),
+      npCreate:()=>this.go({np:'sent'}),
+      closeOverlay:()=>this.go({overlay:null,tab:'projects'}),
+      backToProjectsMob:()=>this.go({overlay:null,tab:'projects'}),
+      noop:()=>{},
+    };
+  }
+}
+</script>
+</body>
+</html>

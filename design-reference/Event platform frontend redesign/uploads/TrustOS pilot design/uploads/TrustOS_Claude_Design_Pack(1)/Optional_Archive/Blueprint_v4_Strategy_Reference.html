@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TrustOS — Blueprint v4.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F7F4; --surface:#FFFFFF;
+  --primary:#287A5B; --dark:#174B39; --border:#DDE3DE;
+  --warning:#D98B2B; --info:#3F6FD8; --future:#7655C9; --danger:#C94949;
+  --text:#1B211D; --muted:#5C6660;
+  --head:"Space Grotesk",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif;
+  --sp1:4px;--sp2:8px;--sp3:16px;--sp4:24px;--sp5:32px;--sp6:48px;--sp7:64px;
+  --r:12px; --tap:44px;
+  --shadow:0 1px 2px rgba(23,75,57,.04),0 2px 8px rgba(23,75,57,.06);
+  --shadow-h:0 2px 4px rgba(23,75,57,.06),0 8px 20px rgba(23,75,57,.10);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--head);margin:0;line-height:1.2;letter-spacing:-.01em}
+.wrap{max-width:1100px;margin:0 auto;padding:0 var(--sp4)}
+header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+.bar{display:flex;align-items:center;gap:var(--sp3);padding:var(--sp3) 0;flex-wrap:wrap}
+.logo{font-family:var(--head);font-weight:700;color:var(--dark);font-size:19px}
+.logo span{color:var(--primary)}
+.ver{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:3px 10px}
+nav{margin-left:auto;display:flex;gap:var(--sp1);flex-wrap:wrap}
+nav a{font-size:13px;color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:8px}
+nav a:hover{background:var(--bg);color:var(--dark)}
+nav a:focus-visible,button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+/* hero */
+.hero{padding:var(--sp7) 0 var(--sp6)}
+.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--primary);font-weight:600;margin-bottom:var(--sp3)}
+.thesis{font-family:var(--head);font-weight:500;font-size:clamp(24px,4.2vw,40px);line-height:1.22;max-width:24ch;color:var(--dark)}
+.thesis b{font-weight:700;color:var(--primary)}
+.sub{margin-top:var(--sp4);color:var(--muted);max-width:60ch}
+
+/* loop — the signature element */
+.loop{margin:var(--sp6) 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:var(--sp5) var(--sp4);box-shadow:var(--shadow)}
+.loop-track{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;justify-content:center}
+.node{flex:1 1 130px;min-width:130px;text-align:center;padding:var(--sp3) var(--sp2);border-radius:10px;position:relative}
+.node em{display:block;font-style:normal;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.node strong{font-family:var(--head);font-size:14px;color:var(--dark);font-weight:700}
+.node.key{background:rgba(40,122,91,.07);outline:1px solid rgba(40,122,91,.25)}
+.node.key strong{color:var(--primary)}
+.arrow{align-self:center;color:var(--border);font-size:18px;padding:0 2px}
+.loop-back{margin-top:var(--sp3);text-align:center;font-size:12px;color:var(--muted);border-top:1px dashed var(--border);padding-top:var(--sp3)}
+
+/* sections */
+section{padding:var(--sp6) 0;border-top:1px solid var(--border)}
+.h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:600;margin-bottom:var(--sp2)}
+h2{font-size:clamp(22px,3vw,30px);color:var(--dark);margin-bottom:var(--sp3)}
+.lede{color:var(--muted);max-width:66ch;margin-bottom:var(--sp5)}
+.grid{display:grid;gap:var(--sp3)}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:var(--sp4);box-shadow:var(--shadow);transition:box-shadow .2s,transform .2s}
+.card:hover{box-shadow:var(--shadow-h);transform:translateY(-2px)}
+.card h4{font-size:16px;color:var(--dark);margin-bottom:6px}
+.card p{margin:0;font-size:14px;color:var(--muted)}
+.pill{display:inline-block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;padding:3px 9px;border-radius:999px;margin-bottom:var(--sp2)}
+.p1{background:rgba(217,139,43,.14);color:#8a5610}
+.p2{background:rgba(63,111,216,.12);color:#2b4d99}
+.p3{background:rgba(118,85,201,.12);color:#54399b}
+.pcore{background:rgba(40,122,91,.12);color:var(--dark)}
+
+/* pillars cycle */
+.cycle{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp3)}
+.pil{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:10px;padding:var(--sp3)}
+.pil h4{font-family:var(--head);font-size:14px;color:var(--dark)}
+.pil p{font-size:13px;color:var(--muted);margin:4px 0 0}
+.cycle-note{margin-top:var(--sp4);padding:var(--sp3) var(--sp4);background:rgba(40,122,91,.06);border-radius:10px;font-size:14px;color:var(--dark)}
+
+/* workspace mock */
+.ws{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.ws-top{padding:var(--sp3) var(--sp4);border-bottom:1px solid var(--border);display:flex;gap:var(--sp2);align-items:center;flex-wrap:wrap}
+.ws-top h4{font-size:15px;color:var(--dark)}
+.tabs{display:flex;gap:2px;padding:0 var(--sp3);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{font-family:var(--body);font-size:13px;font-weight:500;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:12px 14px;cursor:pointer;white-space:nowrap;min-height:var(--tap)}
+.tab[aria-selected="true"]{color:var(--primary);border-bottom-color:var(--primary)}
+.panel{padding:var(--sp4);display:none}
+.panel[data-open]{display:grid;gap:var(--sp3);grid-template-columns:1.6fr 1fr}
+@media(max-width:720px){.panel[data-open]{grid-template-columns:1fr}}
+.nextaction{background:rgba(40,122,91,.07);border:1px solid rgba(40,122,91,.3);border-radius:10px;padding:var(--sp4)}
+.nextaction em{display:block;font-style:normal;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--primary);font-weight:600;margin-bottom:6px}
+.nextaction strong{font-family:var(--head);font-size:18px;color:var(--dark);display:block;margin-bottom:var(--sp2)}
+.btn{font-family:var(--body);font-size:14px;font-weight:600;background:var(--primary);color:#fff;border:0;border-radius:8px;padding:11px 18px;min-height:var(--tap);cursor:pointer}
+.btn:hover{background:var(--dark)}
+.side{font-size:13px}
+.side div{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)}
+.side span{color:var(--muted)}
+.note{border:1px solid var(--border);border-radius:8px;padding:var(--sp3);margin-bottom:var(--sp2);font-size:13px}
+.note.observed{border-left:3px solid var(--primary)}
+.note.told{border-left:3px dashed var(--warning)}
+.note b{display:block;color:var(--dark);font-size:13px}
+.note span{color:var(--muted)}
+.conf{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+th{text-align:left;font-family:var(--head);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dark);background:rgba(40,122,91,.06);padding:12px var(--sp3)}
+td{padding:12px var(--sp3);border-top:1px solid var(--border);color:var(--muted)}
+td b{color:var(--text)}
+.tscroll{overflow-x:auto}
+
+/* stages */
+.stage{display:flex;gap:var(--sp3);align-items:flex-start;padding:var(--sp3) 0;border-bottom:1px solid var(--border)}
+.stage:last-child{border-bottom:0}
+.stagenum{font-family:var(--head);font-weight:700;font-size:13px;color:var(--primary);background:rgba(40,122,91,.09);border-radius:8px;min-width:34px;height:34px;display:grid;place-items:center;flex:0 0 auto}
+.stage h4{font-size:15px;color:var(--dark)}
+.stage p{margin:2px 0 0;font-size:14px;color:var(--muted)}
+
+.callout{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--warning);border-radius:10px;padding:var(--sp4);font-size:14px;color:var(--text)}
+footer{padding:var(--sp6) 0;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <div class="logo">Trust<span>OS</span></div>
+    <div class="ver">Blueprint v4.0 · Freeze</div>
+    <nav>
+      <a href="#loop">Learning Loop</a>
+      <a href="#pillars">Pillars</a>
+      <a href="#workspace">Workspace</a>
+      <a href="#oi">Operational Intelligence</a>
+      <a href="#scope">Phase 1A</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">Professional Operating System for Service Businesses</div>
+    <h1 class="thesis">Run every client project from one trusted workspace — and turn every completed project into <b>knowledge that makes the next one better</b>.</h1>
+    <p class="sub">A CRM manages customers. TrustOS manages professional work. Clients are one participant; projects are the centre. Everything lives in one Project Workspace, and nothing a project teaches is ever lost.</p>
+  </div>
+
+  <!-- SIGNATURE ELEMENT -->
+  <div class="loop" id="loop">
+    <div class="eyebrow" style="text-align:center">The Learning Loop</div>
+    <div class="loop-track">
+      <div class="node"><em>run it</em><strong>Project</strong></div>
+      <div class="arrow">→</div>
+      <div class="node"><em>what happened</em><strong>Evidence</strong></div>
+      <div class="arrow">→</div>
+      <div class="node"><em>what it means</em><strong>Lessons</strong></div>
+      <div class="arrow">→</div>
+      <div class="node key"><em>structured, stored</em><strong>Operational<br>Intelligence</strong></div>
+      <div class="arrow">→</div>
+      <div class="node key"><em>surfaced early</em><strong>Better Next<br>Project</strong></div>
+      <div class="arrow">→</div>
+      <div class="node"><em>and again</em><strong>New Evidence</strong></div>
+    </div>
+    <div class="loop-back">↺ New evidence returns to lessons. TrustOS continuously improves itself — every arrow works in Phase 1, and none of them require AI.</div>
+  </div>
+
+</div>
+
+<section id="pillars"><div class="wrap">
+  <div class="h2">Section 01</div>
+  <h2>Five pillars, one cycle</h2>
+  <p class="lede">The pillars are not a list of capabilities. They are a loop, and Learning is where it turns.</p>
+  <div class="cycle">
+    <div class="pil"><h4>Trust</h4><p>Nobody can dispute what was agreed, sent, signed or paid.</p></div>
+    <div class="pil"><h4>Workflow</h4><p>Nobody ever wonders what happens next.</p></div>
+    <div class="pil"><h4>Preparation</h4><p>Avoidable mistakes are handled before the day.</p></div>
+    <div class="pil"><h4>Delivery</h4><p>The project continues until both sides consider it complete.</p></div>
+    <div class="pil"><h4>Learning</h4><p>Every completed project makes the next one easier.</p></div>
+  </div>
+  <p class="cycle-note"><b>Learning creates Operational Intelligence</b> → which <b>feeds Trust</b>, because you can prove what you know → which <b>improves Workflow</b>, because certainty removes hesitation → which <b>improves Preparation</b> → which <b>improves Delivery</b> → which <b>generates Learning</b>.</p>
+</div></section>
+
+<section id="workspace"><div class="wrap">
+  <div class="h2">Section 02</div>
+  <h2>The Project Workspace is the hero</h2>
+  <p class="lede">There are no separate modules. Six tabs, and only six. A feature that fits none of them is a Parking Lot item.</p>
+
+  <div class="ws">
+    <div class="ws-top">
+      <h4>Rao family — Maternity session</h4>
+      <span class="pill pcore" style="margin:0">Phase 1A · Manual pilot</span>
+      <span class="pill p1" style="margin:0">Prototype only</span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="timeline">Timeline</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="money">Money</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="prep">Preparation</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="delivery">Delivery</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="learning">Learning</button>
+    </div>
+
+    <div class="panel" data-panel="overview" data-open>
+      <div class="nextaction">
+        <em>One Clear Next Action</em>
+        <strong>Send the proposal to the Rao family</strong>
+        <p style="margin:0 0 16px;font-size:14px;color:var(--muted)">Questionnaire complete. First Chapter package pre-selected. A proposal within 24h keeps momentum and trust.</p>
+        <button class="btn">Review and send proposal</button>
+      </div>
+      <div class="side">
+        <div><span>Status</span><b>Active</b></div>
+        <div><span>Stage</span><b>Proposal</b></div>
+        <div><span>Client</span><b>Meera &amp; Arjun</b></div>
+        <div><span>Session</span><b>Sat 8 Aug · 17:30</b></div>
+        <div><span>Payment</span><b>£90 / £535</b></div>
+        <div><span>Countdown</span><b>18 days</b></div>
+      </div>
+    </div>
+
+    <div class="panel" data-panel="timeline">
+      <div>
+        <div class="note observed"><b>Questionnaire submitted</b><span>18 July · by client · client-visible</span></div>
+        <div class="note observed"><b>Project created</b><span>12 July · by Ravi · manual</span></div>
+        <div class="note observed"><b>Enquiry received</b><span>12 July · Instagram</span></div>
+      </div>
+      <div class="side"><div><span>Entries</span><b>3</b></div><div><span>Client-visible</span><b>1</b></div><div><span>Immutable</span><b>Yes</b></div></div>
+    </div>
+
+    <div class="panel" data-panel="money">
+      <div>
+        <div class="note"><b>Proposal — First Chapter Journey</b><span>£450 + add-ons · totals computed server-side</span></div>
+        <div class="note"><b>Contract</b><span>Reviewed template v2 · awaiting signature</span></div>
+        <div class="note told"><b>Deposit £90</b><span>Confirmed only by a verified Stripe event — never client-side</span></div>
+      </div>
+      <div class="side"><div><span>Deposit</span><b>Due</b></div><div><span>Balance</span><b>£445</b></div><div><span>Booking</span><b>Not confirmed</b></div></div>
+    </div>
+
+    <div class="panel" data-panel="prep">
+      <div>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Surfaced from Company Memory for <b>Coombe Abbey</b> and <b>the Rao family</b> — automatically, on project creation:</p>
+        <div class="note observed"><b>Side gate closes at 16:00</b><span>Arrived 16:20 last time, 15 minutes lost. Use main reception after 4pm.</span><div class="conf">Observed · Venue · from Sharma session, May 2026</div></div>
+        <div class="note told"><b>Golden hour on the lake terrace ≈ 17:30 in August</b><span>Reported by venue events team, not measured.</span><div class="conf">Told · Venue</div></div>
+      </div>
+      <div class="side"><div><span>Questionnaire</span><b>Complete</b></div><div><span>Notes surfaced</span><b>2</b></div></div>
+    </div>
+
+    <div class="panel" data-panel="delivery">
+      <div>
+        <div class="note"><b>Delivery link</b><span>External gallery — Pixieset. TrustOS never hosts media.</span></div>
+        <div class="note"><b>Review</b><span>The client's review is the approval. Archive is blocked until it exists.</span></div>
+      </div>
+      <div class="side"><div><span>Released</span><b>Not yet</b></div><div><span>Review</span><b>Pending</b></div></div>
+    </div>
+
+    <div class="panel" data-panel="learning">
+      <div>
+        <div class="nextaction" style="margin-bottom:16px">
+          <em>Required before archive</em>
+          <strong>What should the next vendor know?</strong>
+          <p style="margin:0 0 16px;font-size:14px;color:var(--muted)">One note, thirty seconds. Attach it to the venue, the client or a piece of equipment — not just to this project.</p>
+          <button class="btn">Capture operational note</button>
+        </div>
+        <div class="note observed"><b>85mm too tight from the upper balcony</b><span>Bring 70–200 for upper-level coverage.</span><div class="conf">Observed · Equipment · Bhavan London</div></div>
+      </div>
+      <div class="side"><div><span>Notes captured</span><b>1</b></div><div><span>Archive</span><b>Unlocked</b></div><div><span>Visibility</span><b>Private</b></div></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="oi"><div class="wrap">
+  <div class="h2">Section 03</div>
+  <h2>Operational Intelligence</h2>
+  <p class="lede">Promoted in v4.0 from future feature to Phase 1 core. Phase 1 collects data. That is all Phase 1 does — no AI, no recommendations, no community.</p>
+  <div class="grid g3">
+    <div class="card"><span class="pill pcore">Phase 1</span><h4>Venue</h4><p>Access, parking, power, internet, light, restrictions, staff.</p></div>
+    <div class="card"><span class="pill pcore">Phase 1</span><h4>Client</h4><p>Communication style, decision pattern, sensitivities, family context.</p></div>
+    <div class="card"><span class="pill pcore">Phase 1</span><h4>Equipment</h4><p>What was needed, what was missing, what failed.</p></div>
+    <div class="card"><span class="pill pcore">Phase 1</span><h4>Communication</h4><p>What worked, what caused confusion, what timing landed.</p></div>
+    <div class="card"><span class="pill pcore">Phase 1</span><h4>Workflow</h4><p>Process friction, sequencing, timing.</p></div>
+    <div class="card"><span class="pill pcore">Phase 1</span><h4>General</h4><p>Everything else. Reviewed quarterly for emerging patterns.</p></div>
+  </div>
+  <p class="callout" style="margin-top:24px"><b>The decision that matters most:</b> a note must attach to a durable entity — a venue, a client, an equipment item — not only to a project. A note attached to a project is a diary entry. A note attached to <i>Coombe Abbey</i> surfaces automatically the next time anyone works there. One foreign key now; a rewrite later.</p>
+</div></section>
+
+<section id="scope"><div class="wrap">
+  <div class="h2">Section 04</div>
+  <h2>Phase 1A — eighteen features</h2>
+  <p class="lede">Reduced from twenty-eight in v1.0. Definition of done: one real MiniMomentz client completes enquiry to archive without step-by-step guidance, and the project leaves at least one Operational Note behind.</p>
+  <div class="tscroll"><table>
+    <tr><th>#</th><th>Feature</th><th>Tab</th><th>Pillar</th></tr>
+    <tr><td>1</td><td><b>Authentication</b></td><td>—</td><td>Workflow</td></tr>
+    <tr><td>2</td><td><b>Today Dashboard</b></td><td>—</td><td>Workflow</td></tr>
+    <tr><td>3</td><td><b>Project Workspace</b></td><td>—</td><td>Workflow</td></tr>
+    <tr><td>4</td><td><b>Client</b></td><td>Overview</td><td>Workflow</td></tr>
+    <tr><td>5</td><td><b>Project</b></td><td>Overview</td><td>Workflow</td></tr>
+    <tr><td>6</td><td><b>Questionnaire</b></td><td>Preparation</td><td>Preparation</td></tr>
+    <tr><td>7</td><td><b>Proposal</b></td><td>Money</td><td>Trust</td></tr>
+    <tr><td>8</td><td><b>Contract</b></td><td>Money</td><td>Trust</td></tr>
+    <tr><td>9</td><td><b>Signature</b></td><td>Money</td><td>Trust</td></tr>
+    <tr><td>10</td><td><b>Deposit</b></td><td>Money</td><td>Trust</td></tr>
+    <tr><td>11</td><td><b>Activity Timeline</b></td><td>Timeline</td><td>Trust</td></tr>
+    <tr><td>12</td><td><b>Manual Updates</b></td><td>Timeline</td><td>Workflow</td></tr>
+    <tr><td>13</td><td><b>Preparation</b></td><td>Preparation</td><td>Preparation</td></tr>
+    <tr><td>14</td><td><b>Operational Notes</b></td><td>Learning</td><td>Learning</td></tr>
+    <tr><td>15</td><td><b>Delivery Link</b></td><td>Delivery</td><td>Delivery</td></tr>
+    <tr><td>16</td><td><b>Review</b></td><td>Delivery</td><td>Delivery</td></tr>
+    <tr><td>17</td><td><b>Archive</b></td><td>Learning</td><td>Delivery</td></tr>
+    <tr><td>18</td><td><b>One Clear Next Action</b></td><td>Overview</td><td>Workflow</td></tr>
+  </table></div>
+  <p class="callout" style="margin-top:24px"><b>Honesty rule.</b> This prototype demonstrates the intended experience. It does not prove that any feature is implemented. Repository status at this freeze: <b>not verified</b>. Every "exists" claim must be checked against code — and if documentation and code disagree, the code wins.</p>
+</div></section>
+
+<section id="roadmap"><div class="wrap">
+  <div class="h2">Section 05</div>
+  <h2>Network effect roadmap</h2>
+  <p class="lede">Four stages. Each earns the next with written evidence. Nothing auto-advances — skipping to stage 3 because it is the exciting part is the most likely way this product dies.</p>
+  <div class="card">
+    <div class="stage"><div class="stagenum">1</div><div><h4>Collect <span class="pill pcore" style="margin:0 0 0 8px">Phase 1</span></h4><p>Every completed project deposits a structured note against a venue, client or equipment item. Honest position: this asks for effort and returns almost nothing yet. It must be fast.</p></div></div>
+    <div class="stage"><div class="stagenum">2</div><div><h4>Search <span class="pill p2" style="margin:0 0 0 8px">Phase 1 late / 2</span></h4><p>Notes surface automatically for a known venue or client. A database query, not intelligence — and most of the practical benefit.</p></div></div>
+    <div class="stage"><div class="stagenum">3</div><div><h4>Recommend <span class="pill p3" style="margin:0 0 0 8px">Phase 3</span></h4><p>Patterns from the vendor's own history, always shown with source and confidence. Never as a guarantee.</p></div></div>
+    <div class="stage"><div class="stagenum">4</div><div><h4>Shared intelligence <span class="pill p3" style="margin:0 0 0 8px">Long term</span></h4><p>Consented, anonymised, cross-vendor venue knowledge. The moat — and the legal minefield. Venue notes may one day be shared. Client notes never will be.</p></div></div>
+  </div>
+</div></section>
+
+<section id="pricing"><div class="wrap">
+  <div class="h2">Section 06</div>
+  <h2>Pricing — documented, not built</h2>
+  <p class="lede">No billing code in Phase 1. These are hypotheses to test with real vendors, not decisions. Annual billing is two months free.</p>
+  <div class="grid g3">
+    <div class="card"><h4>Starter · £15/mo</h4><p>5 active projects · 1 user · full client portal · contracts, signature, deposits · <b>Operational Intelligence included</b>.</p></div>
+    <div class="card"><h4>Professional · £29/mo</h4><p>Unlimited projects · 3 team members · equipment and crew workflow · templates when they arrive.</p></div>
+    <div class="card"><h4>Business · £59/mo</h4><p>10 team members · multi-brand · priority support. Enterprise later, on request.</p></div>
+  </div>
+  <p class="callout" style="margin-top:24px"><b>Never gate the Learning pillar.</b> Operational Intelligence appears on every tier including the cheapest. It is the reason to stay and it compounds — gating it destroys the moat to win a short-term upgrade. TrustOS also takes no percentage of vendor revenue.</p>
+</div></section>
+
+<footer><div class="wrap">
+  <p><b>TrustOS Blueprint v4.0</b> · Documentation freeze · Ravi Teja Sadanala · July 2026</p>
+  <p>This prototype is a UX reference. It is not implementation proof. Terminology is locked — see the glossary. The handbook is frozen and changes only when a real MiniMomentz or Agara Live project proves it must.</p>
+</div></footer>
+</main>
+
+<script>
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-selected','false')});
+    t.setAttribute('aria-selected','true');
+    document.querySelectorAll('.panel').forEach(function(p){p.removeAttribute('data-open')});
+    document.querySelector('[data-panel="'+t.dataset.tab+'"]').setAttribute('data-open','');
+  });
+});
+</script>
+</body>
+</html>

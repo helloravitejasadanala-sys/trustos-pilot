@@ -1,0 +1,141 @@
+/* =============================================================
+   TrustOS — Creative Operations Studio
+   PHASE 1 DESIGN TOKENS  (v2, approved)
+   Single source of truth. Do not hard-code any hex, font or px
+   that a token below already carries. Import first, everywhere.
+   ============================================================= */
+:root {
+  /* ---- Surfaces (the four-surface contract) ---- */
+  --canvas:      #EAE4D6;  /* Surface 1 — working canvas / app ground */
+  --canvas-2:    #F1ECE0;  /* Surface 1 raised — topbar, inset fields */
+  --panel:       #FFFFFF;  /* Surface 2 — standard operational panel */
+  --nav:         #0D1B17;  /* Surface 3 — dark nav + elevated action module */
+  --nav-2:       #14261F;  /* Surface 3 raised — panels inside dark areas */
+  --recessed:    #E4DECF;  /* Surface 4 — context / recessed panel */
+  --sand:        #EDE7D9;  /* Surface 4 warm — quotes, footers */
+
+  /* ---- Text ---- */
+  --ink:         #16150F;
+  --muted:       #636155;
+  --faint:       #918E7E;
+  --on-dark:     #ECE8DC;  /* text on --nav */
+  --on-dark-mut: #8DA298;  /* muted text on --nav */
+
+  /* ---- Lines ---- */
+  --line:        #D8D2C3;
+  --line-soft:   #E7E1D3;
+  --nav-line:    rgba(255,255,255,.09);
+
+  /* ---- Brand & semantic roles (colour == meaning) ---- */
+  --forest:      #1E6E68;  /* brand · secondary actions · client header */
+  --forest-deep: #123F3A;
+  --nav-active:  #1C3229;  /* selected rail item bg */
+
+  --lime:        #C7E85A;  /* SIGNATURE — the one immediate action ONLY */
+  --lime-deep:   #A6C935;
+  --lime-ink:    #15251A;  /* text on lime */
+
+  --coral:       #E0603A;  --coral-deep: #B4441F;  --coral-soft: #F6E1D7;  /* urgency */
+  --lav:         #5A5FA6;  --lav-soft:   #E6E6F2;                          /* client's turn */
+  --success:     #1E7A51;  --success-soft:#DCEEE3;                         /* done / accepted */
+  --amber:       #A9711A;  --amber-soft: #F2E8D3;                          /* vendor pending */
+  --gold:        #A9812C;  --gold-soft:  #F0E7D2;                          /* photography marker */
+
+  /* ---- Radius (tightened; chips square-ish) ---- */
+  --r-xs: 4px; --r-sm: 6px; --r: 8px; --r-md: 10px; --r-lg: 13px;
+
+  /* ---- Spacing (4px base) ---- */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s7: 32px;
+
+  /* ---- Elevation (tuned to warm canvas) ---- */
+  --sh-sm: 0 1px 2px rgba(20,19,15,.06);
+  --sh:    0 2px 4px rgba(20,19,15,.05), 0 10px 24px -14px rgba(20,19,15,.22);
+  --sh-lg: 0 4px 10px rgba(20,19,15,.08), 0 30px 60px -26px rgba(20,19,15,.4);
+
+  /* ---- Type ---- */
+  --font-ui:    'Hanken Grotesk', -apple-system, system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;  /* RARE moments only */
+
+  /* Type scale (size / line-height / weight) */
+  --t-display: 700 32px/1.0  var(--font-ui);   /* section screen headings (sans) */
+  --t-serif-lg:400 32px/1.0  var(--font-serif); /* welcome / project title */
+  --t-serif-md:400 25px/1.05 var(--font-serif);
+  --t-h1:  700 22px/1.15 var(--font-ui);   /* action module headline */
+  --t-h2:  700 15px/1.2  var(--font-ui);   /* panel titles */
+  --t-body:500 14px/1.5  var(--font-ui);
+  --t-sm:  500 13px/1.45 var(--font-ui);
+  --t-xs:  600 12px/1.3  var(--font-ui);
+  --t-kicker: 800 11px/1 var(--font-ui);   /* uppercase, letter-spacing .14em */
+}
+
+/* ============================ BASE ============================ */
+* { box-sizing: border-box; }
+body { margin:0; background:var(--canvas); color:var(--ink); font:var(--t-body); -webkit-font-smoothing:antialiased; }
+a { color:var(--forest); text-decoration:none; }
+.num { font-variant-numeric: tabular-nums; letter-spacing:-.01em; }
+.serif { font-family:var(--font-serif); font-weight:400; }
+.kicker { font:var(--t-kicker); letter-spacing:.14em; text-transform:uppercase; }
+::selection { background:var(--lime); }
+:focus-visible { outline:2px solid var(--forest); outline-offset:2px; border-radius:var(--r-xs); }
+
+/* ============================ COMPONENT LAYER ============================
+   Reusable classes for the reference pages AND Cursor. */
+
+/* Buttons — min height 44px (touch), full-width variant .btn-block */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  min-height:44px; padding:0 20px; border:none; border-radius:var(--r-md);
+  font:700 14.5px/1 var(--font-ui); cursor:pointer; }
+.btn-block { width:100%; }
+.btn-lime      { background:var(--lime);        color:var(--lime-ink); }  /* ONE per screen */
+.btn-forest    { background:var(--forest);      color:#fff; }
+.btn-forest-d  { background:var(--forest-deep);  color:#fff; }
+.btn-ghost     { background:transparent; border:1px solid var(--line); color:var(--ink); }
+.btn-ghost-dark{ background:transparent; border:1px solid var(--nav-line); color:var(--on-dark); }
+.btn[disabled] { opacity:.5; cursor:not-allowed; }
+
+/* Chips — one per row max. Pair each with --soft bg. */
+.chip { display:inline-flex; align-items:center; padding:4px 9px; border-radius:var(--r-sm);
+  font:700 11px/1.2 var(--font-ui); white-space:nowrap; }
+.chip-lime   { background:var(--lime);        color:var(--lime-ink); }
+.chip-coral  { background:var(--coral);       color:#fff; }
+.chip-lav    { background:var(--lav-soft);    color:var(--lav); }
+.chip-amber  { background:var(--amber-soft);  color:var(--amber); }
+.chip-success{ background:var(--success-soft);color:var(--success); }
+.chip-muted  { background:var(--recessed);    color:var(--faint); }
+
+/* The four surfaces */
+.panel    { background:var(--panel);   border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-sm); }
+.context  { background:var(--recessed); border-radius:var(--r-lg); padding:var(--s5); }
+.action   { background:var(--nav); color:var(--on-dark); border-radius:var(--r-lg); padding:var(--s6); } /* ≤1 per screen */
+.action-outline { background:var(--panel); border:2px solid var(--forest); border-radius:var(--r-lg); box-shadow:var(--sh); }
+
+/* Category / client marker (used instead of stock photos) */
+.marker { display:grid; place-items:center; border-radius:var(--r); font:800 15px/1 var(--font-ui); flex-shrink:0; }
+.marker-photo  { background:var(--gold-soft);   color:#7a4a1e; }
+.marker-stream { background:var(--lav-soft);    color:var(--lav); }
+.marker-done   { background:var(--success-soft);color:var(--success); }
+
+/* Worklist row */
+.wl-head, .wl-row { display:grid; grid-template-columns:2.3fr 1.5fr 2fr .9fr; gap:14px; align-items:center; }
+.wl-head { padding:11px 18px; background:var(--canvas-2); border-bottom:1px solid var(--line);
+  font:700 11px/1 var(--font-ui); letter-spacing:.08em; text-transform:uppercase; color:var(--faint); }
+.wl-row { padding:16px 18px; background:var(--panel); border-top:1px solid var(--line-soft);
+  border-left:3px solid transparent; cursor:pointer; text-align:left; width:100%; }
+.wl-row:hover { background:var(--canvas-2); }
+.wl-row.urgent { background:var(--coral-soft); border-left-color:var(--coral); }
+
+/* Progress bar */
+.bar { height:5px; border-radius:3px; background:var(--line-soft); overflow:hidden; }
+.bar > i { display:block; height:100%; border-radius:3px; background:var(--forest); }
+
+/* State blocks — loading / empty / error / success */
+.skeleton { background:linear-gradient(90deg,var(--line-soft),var(--canvas-2),var(--line-soft));
+  background-size:200% 100%; animation:sk 1.2s linear infinite; border-radius:var(--r); }
+@keyframes sk { from{background-position:200% 0} to{background-position:-200% 0} }
+.empty { text-align:center; padding:var(--s7) var(--s5); }
+.banner { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:var(--r-md); font:var(--t-sm); }
+.banner-error   { background:var(--coral-soft);  color:var(--coral-deep); border:1px solid #e0b8a8; }
+.banner-success { background:var(--success-soft); color:var(--success);    border:1px solid #bfe0cd; }
+.banner-offline { background:var(--recessed);     color:var(--muted);      border:1px solid var(--line); }
+
+@media (prefers-reduced-motion: reduce) { * { animation-duration:.01ms !important; } }

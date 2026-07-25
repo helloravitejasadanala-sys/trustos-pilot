@@ -3,11 +3,20 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, FolderKanban, Users, Settings } from 'lucide-react'
-import { ReactNode, useEffect, useState } from 'react'
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { parseJsonResponse } from '@/lib/safe-json'
+import { getNextAction } from '@/lib/journey'
+import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
+import NewProjectModal from '@/components/vendor/NewProjectModal'
 
-// Phase 1 primary navigation only. Templates and Analytics routes still
-// exist but stay out of the pilot nav.
 const NAV = [
   { href: '/vendor', label: 'Today', icon: CalendarDays, exact: true },
   { href: '/vendor/projects', label: 'Projects', icon: FolderKanban },
@@ -15,117 +24,185 @@ const NAV = [
   { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ] as const
 
+type VendorChromeValue = {
+  openNewProject: () => void
+  businessName: string
+  userName: string
+}
+
+const VendorChromeContext = createContext<VendorChromeValue | null>(null)
+
+export function useVendorChrome() {
+  const ctx = useContext(VendorChromeContext)
+  if (!ctx) {
+    return {
+      openNewProject: () => {},
+      businessName: '',
+      userName: '',
+    }
+  }
+  return ctx
+}
+
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+function formatTopbarDate(d = new Date()) {
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
 export default function VendorShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const inWorkspace = pathname.startsWith('/vendor/projects/') && pathname.split('/').length > 3
-  const [businessName, setBusinessName] = useState<string>('')
+  const [businessName, setBusinessName] = useState('')
+  const [userName, setUserName] = useState('')
+  const [todayCount, setTodayCount] = useState(0)
+  const [projectCount, setProjectCount] = useState(0)
+  const [showCreate, setShowCreate] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const res = await fetch('/api/auth/me')
-      const { ok, data } = await parseJsonResponse<{
-        user?: { vendorProfile?: { businessName?: string | null } | null }
-      }>(res)
-      if (!cancelled && ok) {
-        setBusinessName(data.user?.vendorProfile?.businessName?.trim() || '')
+      const [meRes, projRes] = await Promise.all([
+        fetch('/api/auth/me'),
+        fetch('/api/vendor/projects'),
+      ])
+      const me = await parseJsonResponse<{
+        user?: { name?: string; vendorProfile?: { businessName?: string | null } | null }
+      }>(meRes)
+      if (!cancelled && me.ok) {
+        setBusinessName(me.data.user?.vendorProfile?.businessName?.trim() || '')
+        setUserName(me.data.user?.name?.trim() || '')
+      }
+      const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
+      if (!cancelled && proj.ok) {
+        const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
+        setProjectCount(live.length)
+        setTodayCount(live.filter(p => getNextAction(p.status).responsible === 'Vendor').length)
       }
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [pathname])
+
+  const openNewProject = useCallback(() => setShowCreate(true), [])
+
+  const chrome = useMemo(
+    () => ({ openNewProject, businessName, userName }),
+    [openNewProject, businessName, userName],
+  )
 
   const workspaceLabel = businessName || 'Your workspace'
-  const initial = (businessName || 'T').charAt(0).toUpperCase()
+  const workspaceInitial = workspaceLabel.charAt(0).toUpperCase()
+  const profileInitial = (userName || workspaceLabel).charAt(0).toUpperCase()
+  const firstName = userName.split(' ')[0] || 'there'
+
+  const badgeFor = (href: string) => {
+    if (href === '/vendor' && todayCount > 0) return todayCount
+    if (href === '/vendor/projects' && projectCount > 0) return projectCount
+    return null
+  }
 
   return (
-    <div className="min-h-screen bg-paper text-ink-900">
-      <div className="flex min-h-screen">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-forest-100 md:bg-white">
-          <div className="border-b border-forest-100 px-4 py-3">
-            <Link href="/vendor" className="flex items-center gap-2.5 hover:opacity-80">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-950 text-[12px] font-bold text-paper-50">
-                {initial}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold tracking-tight text-forest-950">
-                  {workspaceLabel}
-                </span>
-                <span className="block text-[10px] font-medium uppercase tracking-[0.12em] text-forest-400">
-                  TrustOS
-                </span>
-              </span>
-            </Link>
-          </div>
-          <nav className="flex-1 px-2 py-3 space-y-0.5">
+    <VendorChromeContext.Provider value={chrome}>
+      <div className="vendor-shell">
+        <aside className="vendor-rail" aria-label="Workspace">
+          <Link href="/vendor" className="vendor-rail__brand">
+            <span className="vendor-rail__mark" aria-hidden>{workspaceInitial}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-[14px] font-bold leading-tight">{workspaceLabel}</span>
+              <span className="block text-[11px] text-[color:var(--on-dark-mut)]">Workspace</span>
+            </span>
+          </Link>
+
+          <nav className="vendor-rail__nav" aria-label="Primary">
             {NAV.map(item => {
               const active = isActive(pathname, item.href, 'exact' in item ? item.exact : undefined)
               const Icon = item.icon
+              const badge = badgeFor(item.href)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition ${
-                    active ? 'bg-forest-50 text-forest-900' : 'text-forest-600 hover:bg-forest-50/70 hover:text-forest-900'
-                  }`}
+                  className="vendor-rail__link"
                 >
-                  <Icon size={17} strokeWidth={active ? 2.25 : 1.75} className={active ? 'text-forest-700' : 'text-forest-400'} />
+                  <Icon size={18} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
                   {item.label}
+                  {badge != null && <span className="vendor-rail__bdg num">{badge}</span>}
                 </Link>
               )
             })}
           </nav>
+
+          <div className="vendor-rail__profile">
+            <span className="vendor-rail__avatar" aria-hidden>{profileInitial}</span>
+            <div className="min-w-0">
+              <div className="truncate text-[13px] font-semibold">{userName || firstName}</div>
+              <div className="text-[11px] text-[color:var(--on-dark-mut)]">Owner</div>
+            </div>
+          </div>
         </aside>
 
-        <div className="flex min-h-screen flex-1 flex-col">
-          {/* Mobile header — workspace brand first */}
-          <header className="md:hidden sticky top-0 z-20 flex h-12 items-center border-b border-forest-100 bg-white/95 px-4 backdrop-blur">
-            <Link href="/vendor" className="flex min-w-0 items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-forest-950 text-[10px] font-bold text-paper-50">
-                {initial}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-forest-950">{workspaceLabel}</span>
-              </span>
-            </Link>
+        <div className="vendor-main">
+          <header className="vendor-topbar">
+            {inWorkspace ? (
+              <Link href="/vendor/projects" className="text-[13.5px] font-semibold text-[color:var(--muted)]">
+                ‹ Projects
+              </Link>
+            ) : (
+              <>
+                <span className="num text-[13px] text-[color:var(--muted)]">{formatTopbarDate()}</span>
+                <input
+                  type="search"
+                  className="vendor-topbar__search"
+                  placeholder="Search projects & clients"
+                  aria-label="Search projects and clients"
+                />
+                <button
+                  type="button"
+                  className="btn btn-forest ml-auto"
+                  onClick={openNewProject}
+                >
+                  ＋ New project
+                </button>
+              </>
+            )}
           </header>
 
-          <main className={`flex-1 ${inWorkspace ? '' : 'pb-20 md:pb-8'}`}>
+          <main className={`vendor-body${inWorkspace ? ' vendor-body--workspace' : ''}`}>
             {children}
           </main>
 
-          {/* Mobile bottom nav */}
           {!inWorkspace && (
-            <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t border-forest-100 bg-white/95 backdrop-blur px-2 py-2">
-              <div className="grid grid-cols-4 gap-1">
-                {NAV.map(item => {
-                  const active = isActive(pathname, item.href, 'exact' in item ? item.exact : undefined)
-                  const Icon = item.icon
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? 'page' : undefined}
-                      className={`flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium transition-colors ${
-                        active ? 'bg-forest-50 text-forest-900' : 'text-forest-400'
-                      }`}
-                    >
-                      <Icon size={18} strokeWidth={active ? 2.25 : 1.75} />
-                      {item.label}
-                    </Link>
-                  )
-                })}
-              </div>
+            <nav className="vendor-tabbar" aria-label="Primary mobile">
+              {NAV.map(item => {
+                const active = isActive(pathname, item.href, 'exact' in item ? item.exact : undefined)
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className="vendor-tabbar__link"
+                  >
+                    <Icon size={20} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+                    {item.label}
+                  </Link>
+                )
+              })}
             </nav>
           )}
         </div>
       </div>
-    </div>
+
+      {showCreate && (
+        <NewProjectModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => setShowCreate(false)}
+        />
+      )}
+    </VendorChromeContext.Provider>
   )
 }

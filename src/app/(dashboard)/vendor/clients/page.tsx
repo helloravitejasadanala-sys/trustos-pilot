@@ -6,6 +6,7 @@ import { Plus, Search, MoreVertical, Mail, Phone } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
 import { CardSkeleton, EmptyState } from '@/components/ui'
+import { PageHeader, PageLayout } from '@/components/layout'
 import { isTestClient } from '@/lib/vendor-phase1'
 import { parseJsonResponse } from '@/lib/safe-json'
 
@@ -70,13 +71,15 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-6">
-      <div className="flex items-center justify-between gap-4 border-b border-forest-100 pb-4 mb-4">
-        <h1 className="font-display text-xl text-forest-950">Clients</h1>
-        <button onClick={() => setModal({ mode: 'create' })} className="btn-primary shrink-0">
-          <Plus size={16} className="mr-1.5" />New client
-        </button>
-      </div>
+    <PageLayout>
+      <PageHeader
+        title="Clients"
+        actions={
+          <button onClick={() => setModal({ mode: 'create' })} className="btn-primary shrink-0">
+            <Plus size={16} className="mr-1.5" />New client
+          </button>
+        }
+      />
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
         <div className="inline-flex rounded-lg border border-forest-100 bg-white p-0.5 self-start">
@@ -140,6 +143,6 @@ export default function ClientsPage() {
 
       {modal?.mode === 'create' && <ClientFormModal onClose={() => setModal(null)} onSaved={load} />}
       {modal?.mode === 'edit' && <ClientFormModal initial={{ id: modal.client.id, name: modal.client.name, email: modal.client.email, phone: modal.client.phone }} onClose={() => setModal(null)} onSaved={load} />}
-    </div>
+    </PageLayout>
   )
 }

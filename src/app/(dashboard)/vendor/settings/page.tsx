@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut, Loader2, Building2, User, Mail } from 'lucide-react'
 import { parseJsonResponse } from '@/lib/safe-json'
+import { PRODUCT_NAME } from '@/lib/brand'
+import { PageHeader, PageLayout } from '@/components/layout'
 
 type Me = {
   name: string
@@ -35,15 +37,15 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-6">
-      <div className="border-b border-forest-100 pb-4 mb-5">
-        <h1 className="font-display text-xl text-forest-950">Settings</h1>
-        <p className="text-[13px] text-forest-500">
-          {me?.vendorProfile?.businessName
-            ? `${me.vendorProfile.businessName} on TrustOS`
-            : 'Your account and workspace'}
-        </p>
-      </div>
+    <PageLayout>
+      <PageHeader
+        title="Settings"
+        description={
+          me?.vendorProfile?.businessName
+            ? `${me.vendorProfile.businessName} on ${PRODUCT_NAME}`
+            : 'Your account and workspace'
+        }
+      />
 
       <div className="max-w-lg space-y-4">
         <section className="rounded-xl border border-forest-100 bg-white">
@@ -61,7 +63,7 @@ export default function SettingsPage() {
 
         <section className="rounded-xl border border-forest-100 bg-white p-4">
           <p className="text-sm text-forest-600">
-            You are signed into your own TrustOS workspace. Sample journeys on the public demo page use separate sample data and do not replace this account after you sign in again.
+            You are signed into your own {PRODUCT_NAME} workspace. Sample journeys on the public demo page use separate sample data and do not replace this account after you sign in again.
           </p>
         </section>
 
@@ -69,7 +71,7 @@ export default function SettingsPage() {
           {signingOut ? <Loader2 size={16} className="mr-2 animate-spin" /> : <LogOut size={16} className="mr-2" />}Sign out
         </button>
       </div>
-    </div>
+    </PageLayout>
   )
 }
 

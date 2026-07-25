@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="border:1px solid var(--border); border-radius:20px; background:var(--surface2); box-shadow:var(--shadow-lg); overflow:hidden;">
+  <div style="height:44px; display:flex; align-items:center; gap:8px; padding:0 16px; border-bottom:1px solid var(--border2); background:var(--surface);">
+    <span style="width:11px; height:11px; border-radius:50%; background:var(--border);"></span>
+    <span style="width:11px; height:11px; border-radius:50%; background:var(--border);"></span>
+    <span style="width:11px; height:11px; border-radius:50%; background:var(--border);"></span>
+    <div style="margin:0 auto; padding:5px 16px; border-radius:7px; background:var(--surface2); border:1px solid var(--border2); font-size:12px; color:var(--muted); font-weight:450;">app.trustos.com</div>
+  </div>
+  <div style="display:grid; grid-template-columns:220px 1fr; min-height:500px;">
+
+    <aside style="border-right:1px solid var(--border2); padding:18px 14px; display:flex; flex-direction:column; gap:6px; background:var(--surface);">
+      <div style="display:flex; align-items:center; gap:9px; padding:0 8px 14px; font-weight:600; font-size:14px;">
+        <span style="width:22px; height:22px; border-radius:7px; background:var(--text); color:var(--bg); display:grid; place-items:center; font-size:12px; font-weight:700;">T</span>
+        Northlight Studio
+      </div>
+      <div style="font-size:11px; font-weight:600; color:var(--muted); padding:8px 8px 4px; letter-spacing:.03em;">PROJECTS</div>
+      <sc-for list="{{ projects }}" as="p" hint-placeholder-count="4">
+        <div style="display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:9px; background:{{ p.bg }}; cursor:pointer;">
+          <span style="width:7px; height:7px; border-radius:50%; background:{{ p.dot }}; flex-shrink:0;"></span>
+          <div style="min-width:0; flex:1;">
+            <div style="font-size:13px; font-weight:{{ p.weight }}; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.name }}</div>
+            <div style="font-size:11px; color:var(--muted);">{{ p.stage }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </aside>
+
+    <main style="padding:24px; display:flex; flex-direction:column; gap:18px; overflow:hidden;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div>
+          <div style="font-size:18px; font-weight:600; letter-spacing:-0.02em;">Amara &amp; Daniel · Wedding</div>
+          <div style="font-size:13px; color:var(--muted); margin-top:2px;">14 June 2026 · Full day coverage</div>
+        </div>
+        <span style="font-size:12px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:6px 12px; border-radius:8px;">Contract stage</span>
+      </div>
+
+      <div style="border:1px solid var(--accent); border-radius:14px; background:var(--accent-soft); padding:18px;">
+        <div style="font-size:11px; font-weight:600; color:var(--accent); letter-spacing:.03em; margin-bottom:8px;">YOUR NEXT ACTION</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+          <div style="font-size:16px; font-weight:600;">Send the contract for signature</div>
+          <div style="padding:9px 16px; border-radius:9px; background:var(--accent); color:var(--on-accent); font-size:13px; font-weight:550;">Review &amp; send</div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:12px;">TIMELINE</div>
+        <div style="position:relative; height:2px; background:var(--border); margin:14px 10px 0; border-radius:2px;">
+          <div style="position:absolute; left:0; top:0; height:100%; width:38%; background:var(--accent); border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:-9px;">
+          <sc-for list="{{ steps }}" as="s" hint-placeholder-count="6">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+              <span style="width:16px; height:16px; border-radius:50%; background:{{ s.dot }}; border:2px solid var(--surface2); box-shadow:{{ s.ring }};"></span>
+              <span style="font-size:11px; color:{{ s.color }}; font-weight:{{ s.weight }}; white-space:nowrap;">{{ s.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div style="border:1px solid var(--border); border-radius:14px; padding:16px; background:var(--surface);">
+          <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:10px;">PAYMENTS</div>
+          <div style="font-size:22px; font-weight:600; letter-spacing:-0.02em;">£1,400 <span style="font-size:13px; color:var(--muted); font-weight:450;">/ £3,500</span></div>
+          <div style="height:6px; border-radius:4px; background:var(--border); margin-top:10px; overflow:hidden;"><div style="width:40%; height:100%; background:var(--ok);"></div></div>
+          <div style="font-size:12px; color:var(--muted); margin-top:8px;">Deposit paid · balance due before shoot</div>
+        </div>
+        <div style="border:1px solid var(--border); border-radius:14px; padding:16px; background:var(--surface);">
+          <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:10px;">CLIENT PORTAL</div>
+          <sc-for list="{{ portal }}" as="row" hint-placeholder-count="3">
+            <div style="display:flex; align-items:center; gap:9px; padding:5px 0;">
+              <span dangerouslySetInnerHTML="{{ row.icon }}" style="flex-shrink:0;"></span>
+              <span style="font-size:12.5px; color:var(--text2);">{{ row.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;960px&quot;,&quot;height&quot;:&quot;560px&quot;}}">
+class Component extends DCLogic {
+  icon(p) { return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
+  renderVals() {
+    const projects = [
+      { name: 'Amara & Daniel', stage: 'Contract', active: true },
+      { name: 'Priya & Sam', stage: 'Delivery', active: false },
+      { name: 'Okafor 40th', stage: 'Enquiry', active: false },
+      { name: 'Verve Brand Shoot', stage: 'Review', active: false },
+    ].map(p => ({
+      name: p.name, stage: p.stage,
+      bg: p.active ? 'var(--accent-soft)' : 'transparent',
+      dot: p.active ? 'var(--accent)' : 'var(--muted)',
+      weight: p.active ? '600' : '450',
+    }));
+
+    const steps = ['Enquiry','Quote','Contract','Payment','Shoot','Delivery'].map((label, i) => {
+      const done = i < 2, now = i === 2;
+      return {
+        label,
+        dot: done || now ? 'var(--accent)' : 'var(--border)',
+        ring: now ? '0 0 0 4px var(--accent-soft)' : 'none',
+        color: done || now ? 'var(--text)' : 'var(--muted)',
+        weight: now ? '600' : '450',
+      };
+    });
+
+    const ok = '<span style="color:var(--ok)">' + this.icon('<path d="M20 6 9 17l-5-5"/>') + '</span>';
+    const clock = '<span style="color:var(--muted)">' + this.icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') + '</span>';
+    const portal = [
+      { label: 'Questionnaire submitted', icon: { __html: ok } },
+      { label: 'Quote accepted', icon: { __html: ok } },
+      { label: 'Awaiting signature', icon: { __html: clock } },
+    ];
+
+    return { projects, steps, portal };
+  }
+}
+</script>
+</body>
+</html>

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { Plus, BookOpen, FileText, Image as ImageIcon, Copy, Trash2, Loader2, Palette } from 'lucide-react'
 import { parseJsonResponse } from '@/lib/safe-json'
+import { PageHeader, PageLayout } from '@/components/layout'
+import { EmptyState } from '@/components/ui'
 
 type TemplateType = 'CLIENT_KIT' | 'MOOD_BOARD' | 'PLAYBOOK'
 
@@ -100,18 +102,26 @@ export default function VendorTemplatesPage() {
   const filtered = activeType === 'ALL' ? templates : templates.filter(t => t.type === activeType)
 
   if (loading) {
-    return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 size={28} className="animate-spin text-forest-500" /></div>
+    return (
+      <PageLayout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 size={28} className="animate-spin text-forest-500" />
+        </div>
+      </PageLayout>
+    )
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 md:py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="font-display text-3xl text-forest-950">Templates</h1>
-          <p className="text-sm text-forest-600 mt-1">Reusable client kits, mood boards and playbooks</p>
-        </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={16} className="mr-1.5" />New template</button>
-      </div>
+    <PageLayout>
+      <PageHeader
+        title="Templates"
+        description="Reusable client kits, mood boards and playbooks"
+        actions={
+          <button onClick={() => setShowCreate(true)} className="btn-primary">
+            <Plus size={16} className="mr-1.5" />New template
+          </button>
+        }
+      />
 
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         {(['ALL', 'CLIENT_KIT', 'MOOD_BOARD', 'PLAYBOOK'] as const).map(type => (
@@ -123,14 +133,16 @@ export default function VendorTemplatesPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="card text-center py-14">
-          <Palette size={32} className="mx-auto text-forest-300 mb-3" />
-          <p className="text-forest-900 font-medium">No templates yet</p>
-          <p className="text-sm text-forest-500 mt-1 max-w-sm mx-auto">
-            Create your first Client Kit to send preparation guides before every project — then reuse it whenever you like.
-          </p>
-          <button onClick={() => setShowCreate(true)} className="btn-primary mt-4"><Plus size={16} className="mr-1.5" />Create your first template</button>
-        </div>
+        <EmptyState
+          icon={<Palette size={32} />}
+          title="No templates yet"
+          description="Create your first Client Kit to send preparation guides before every project — then reuse it whenever you like."
+          action={
+            <button onClick={() => setShowCreate(true)} className="btn-primary">
+              <Plus size={16} className="mr-1.5" />Create your first template
+            </button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(t => {
@@ -185,6 +197,6 @@ export default function VendorTemplatesPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   )
 }
