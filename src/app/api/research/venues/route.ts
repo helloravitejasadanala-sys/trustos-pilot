@@ -47,24 +47,32 @@ export async function POST(req: NextRequest) {
       if (!venueName || venueName.length < 2) {
         return NextResponse.json({ error: 'Add a venue name to continue.' }, { status: 400 })
       }
+      if (!city || city.length < 2) {
+        return NextResponse.json({ error: 'Add the UK town or city.' }, { status: 400 })
+      }
       if (!role) {
         return NextResponse.json({ error: 'Pick your role on the day.' }, { status: 400 })
       }
       if (issues.length === 0) {
         return NextResponse.json({ error: 'Pick at least one real issue.' }, { status: 400 })
       }
+      if (advice.length < 12) {
+        return NextResponse.json(
+          { error: 'Add one concrete tip for the next vendor.' },
+          { status: 400 },
+        )
+      }
 
       answers.form = 'venue_experience'
-      answers.survey_version = '2.0.0'
+      answers.survey_version = '2.1.0'
       answers.contributor_role = role
       answers.issues = issues
       answers.primary_challenge = issues[0]
-      if (advice) answers.advice_for_next_professional = advice
+      answers.advice_for_next_professional = advice
 
-      // DB columns stay required — experience reports fill safe defaults.
-      address = address || 'Experience report (no street address)'
-      city = city || '—'
-      country = country || '—'
+      // UK pilot — no Maps / email / country picker on the form.
+      address = address || `${venueName}, ${city}`
+      country = 'United Kingdom'
       contributorName = contributorName || 'Anonymous contributor'
       contributorEmail =
         contributorEmail || `anon+${randomBytes(8).toString('hex')}@research.trustos.local`

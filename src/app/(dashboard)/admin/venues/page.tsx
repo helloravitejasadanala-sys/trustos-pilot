@@ -105,6 +105,10 @@ function AdminVenuesInner() {
                   <div className="font-semibold text-ink-900">{v.venueName}</div>
                   {v.source === 'venue_experience' ? (
                     <div className="mt-1 space-y-0.5 text-[13px] text-ink-600">
+                      <div>
+                        {v.city}
+                        {v.country ? `, ${v.country}` : ''}
+                      </div>
                       {v.answers?.contributor_role != null && (
                         <div>Role: {String(v.answers.contributor_role)}</div>
                       )}

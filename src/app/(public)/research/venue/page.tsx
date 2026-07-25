@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { parseJsonResponse } from '@/lib/safe-json'
 
-/** Who was on site — lets us filter intel per trade later. */
+/** Who was on site — filter intel per trade later. */
 const ROLES = [
   { value: 'PHOTOGRAPHY', label: 'Photographer' },
   { value: 'LIVE_STREAMING', label: 'Live stream' },
@@ -15,10 +15,7 @@ const ROLES = [
   { value: 'OTHER', label: 'Other' },
 ] as const
 
-/**
- * Real operational issues — what the next vendor needs to avoid.
- * Tap only; no essays.
- */
+/** Real problems the next vendor needs to know. */
 const ISSUES = [
   { value: 'Parking / drop-off', label: 'Parking' },
   { value: 'Load-in / access', label: 'Load-in' },
@@ -36,15 +33,17 @@ const ISSUES = [
 const PROGRESS_NOTES = [
   'Three quick steps',
   'Almost done',
-  'Last step',
+  'Last — the useful bit',
 ] as const
 
 const TIP_LIMIT = 200
+const TIP_MIN = 12
 const MAX_ISSUES = 3
 const TOTAL_STEPS = 3
 
 type FormState = {
   venue: string
+  city: string
   role: string
   issues: string[]
   tip: string
@@ -52,6 +51,7 @@ type FormState = {
 
 const EMPTY: FormState = {
   venue: '',
+  city: '',
   role: '',
   issues: [],
   tip: '',
@@ -78,10 +78,19 @@ export default function VenueResearchFormPage() {
   }
 
   function validateStep(n: number): string | null {
-    if (n === 1 && form.venue.trim().length < 2) return 'Add the venue name.'
+    if (n === 1) {
+      if (form.venue.trim().length < 2) return 'Add the venue name.'
+      if (form.city.trim().length < 2) return 'Add the UK town or city.'
+    }
     if (n === 2 && !form.role) return 'Tap what you do.'
     if (n === 2 && form.issues.length === 0) return 'Tap at least one real issue.'
-    if (n === 3 && form.tip.length > TIP_LIMIT) return 'Keep the tip under 200 characters.'
+    if (n === 3) {
+      const tip = form.tip.trim()
+      if (tip.length < TIP_MIN) {
+        return 'Add one concrete tip (gate, power, ban, quiet room…).'
+      }
+      if (tip.length > TIP_LIMIT) return `Keep the tip under ${TIP_LIMIT} characters.`
+    }
     return null
   }
 
@@ -96,9 +105,11 @@ export default function VenueResearchFormPage() {
           source: 'venue_experience',
           mode: 'experience',
           venueName: form.venue.trim(),
+          city: form.city.trim(),
+          country: 'United Kingdom',
           role: form.role,
           issues: form.issues,
-          advice: form.tip.trim() || undefined,
+          advice: form.tip.trim(),
         }),
       })
       const parsed = await parseJsonResponse<{ error?: string }>(res)
@@ -137,15 +148,6 @@ export default function VenueResearchFormPage() {
     setDone(false)
   }
 
-  const primaryLabel =
-    step === TOTAL_STEPS
-      ? submitting
-        ? 'Sending…'
-        : form.tip.trim()
-          ? 'Send tip'
-          : 'Send'
-      : 'Continue'
-
   return (
     <main className="min-h-screen bg-sand-50 px-4 pb-28 pt-10 text-ink-900">
       <div className="mx-auto w-full max-w-md">
@@ -162,10 +164,10 @@ export default function VenueResearchFormPage() {
           </h1>
           {step === 1 && (
             <div className="mt-3">
-              <p className="max-w-[32ch] text-[15px] leading-relaxed text-ink-500">
-                Under a minute. Help the next photographer, DJ, streamer, or planner avoid the same problems.
+              <p className="max-w-[34ch] text-[15px] leading-relaxed text-ink-500">
+                UK venues only. Under a minute. Your note helps the next photographer, DJ, streamer, or planner on site.
               </p>
-              <p className="mt-2 text-[13px] text-ink-400">Anonymous · No account</p>
+              <p className="mt-2 text-[13px] text-ink-400">Anonymous · No email · No Google Maps</p>
             </div>
           )}
         </header>
@@ -194,12 +196,14 @@ export default function VenueResearchFormPage() {
           <div className="mt-6 rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
             <p className="serif text-[26px] leading-tight text-ink-900">Saved — thank you.</p>
             <p className="mt-2 text-[14px] text-ink-500">
-              That note helps the next vendor at this venue.
+              That tip is now in the TrustOS research archive for this venue.
             </p>
             <dl className="mt-5 space-y-2.5 rounded-xl bg-sand-50 px-4 py-3 text-[13.5px]">
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-400">Venue</dt>
-                <dd className="text-right font-medium text-ink-900">{form.venue.trim()}</dd>
+                <dd className="text-right font-medium text-ink-900">
+                  {form.venue.trim()}, {form.city.trim()}
+                </dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-400">Role</dt>
@@ -210,11 +214,9 @@ export default function VenueResearchFormPage() {
                 <dd className="text-right font-medium text-ink-900">{form.issues.join(', ')}</dd>
               </div>
             </dl>
-            {form.tip.trim() ? (
-              <p className="mt-4 border-l-2 border-forest-200 pl-3 text-[14px] italic text-ink-600">
-                “{form.tip.trim()}”
-              </p>
-            ) : null}
+            <p className="mt-4 border-l-2 border-forest-200 pl-3 text-[14px] italic text-ink-600">
+              “{form.tip.trim()}”
+            </p>
             <button type="button" className="btn btn-ghost mt-6 w-full" onClick={reset}>
               Add another venue
             </button>
@@ -223,16 +225,19 @@ export default function VenueResearchFormPage() {
           <div className="rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm sm:p-6">
             {step > 1 && form.venue.trim() && (
               <div className="mb-3 inline-flex max-w-full items-center gap-1.5 rounded-full border border-neutral-200 bg-sand-50 px-3 py-1.5 text-[12.5px] font-medium text-ink-500">
-                <span className="truncate">{form.venue.trim()}</span>
+                <span className="truncate">
+                  {form.venue.trim()}
+                  {form.city.trim() ? ` · ${form.city.trim()}` : ''}
+                </span>
               </div>
             )}
 
             {step === 1 && (
               <fieldset className="min-w-0 border-0 p-0">
                 <legend className="serif text-[22px] leading-snug text-ink-900">
-                  Which venue?
+                  Which UK venue?
                 </legend>
-                <p className="mt-2 text-[13.5px] text-ink-500">Name is enough — under a minute total.</p>
+                <p className="mt-2 text-[13.5px] text-ink-500">Both fields required.</p>
                 <label className="label mt-5" htmlFor="venue">
                   Venue name
                 </label>
@@ -245,6 +250,18 @@ export default function VenueResearchFormPage() {
                   autoComplete="off"
                   enterKeyHint="next"
                   autoFocus
+                />
+                <label className="label mt-4" htmlFor="city">
+                  Town / city
+                </label>
+                <input
+                  id="city"
+                  className="w-full text-base"
+                  value={form.city}
+                  onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                  placeholder="e.g. Warwick"
+                  autoComplete="address-level2"
+                  enterKeyHint="next"
                   onKeyDown={e => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
@@ -260,7 +277,9 @@ export default function VenueResearchFormPage() {
                 <legend className="serif text-[22px] leading-snug text-ink-900">
                   What went wrong on site?
                 </legend>
-                <p className="mt-2 text-[13.5px] text-ink-500">Your role, then up to {MAX_ISSUES} real issues.</p>
+                <p className="mt-2 text-[13.5px] text-ink-500">
+                  Your role, then up to {MAX_ISSUES} issues — required.
+                </p>
 
                 <p className="label mt-5">I was there as</p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -286,7 +305,7 @@ export default function VenueResearchFormPage() {
                   })}
                 </div>
 
-                <p className="label mt-5">Issues to warn the next person</p>
+                <p className="label mt-5">Warn the next vendor about</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {ISSUES.map(issue => {
                     const active = form.issues.includes(issue.value)
@@ -320,7 +339,7 @@ export default function VenueResearchFormPage() {
                   One tip for the next vendor
                 </legend>
                 <p className="mt-2 text-[13.5px] text-ink-500">
-                  Optional. The useful detail — gate, power point, ban, quiet room…
+                  Required. Be specific — this is the data that helps them grow.
                 </p>
                 <label className="label mt-5" htmlFor="tip">
                   Tip
@@ -332,7 +351,7 @@ export default function VenueResearchFormPage() {
                   maxLength={TIP_LIMIT}
                   value={form.tip}
                   onChange={e => setForm(f => ({ ...f, tip: e.target.value }))}
-                  placeholder="e.g. Load in via rear gate — main door has a step, no ramp."
+                  placeholder="e.g. Load in via rear gate — main door has a step, no ramp. Power is behind the bar."
                   autoFocus
                 />
                 <p className="mt-1.5 text-right text-[12px] text-ink-400">
@@ -367,7 +386,7 @@ export default function VenueResearchFormPage() {
               onClick={goNext}
               disabled={submitting}
             >
-              {primaryLabel}
+              {step === TOTAL_STEPS ? (submitting ? 'Sending…' : 'Send tip') : 'Continue'}
             </button>
           </div>
         </div>
