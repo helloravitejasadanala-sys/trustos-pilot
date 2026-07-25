@@ -265,16 +265,28 @@ export default function TodayPage() {
       </div>
 
       {unreadProjects.length > 0 && (
-        <div className="banner banner-error mb-4" role="status">
+        <div
+          className="banner mb-4"
+          role="status"
+          style={{
+            borderColor: 'color-mix(in srgb, var(--coral-deep, #c45c3e) 40%, var(--line))',
+            background: 'color-mix(in srgb, var(--coral-soft, #f5e4dc) 55%, var(--panel))',
+          }}
+        >
           <span aria-hidden>✉</span>
           <div className="min-w-0 flex-1">
-            <strong>
+            <strong style={{ color: 'var(--coral-deep, #c45c3e)' }}>
               {unreadProjects.length} unread {unreadProjects.length === 1 ? 'message' : 'messages'}
             </strong>
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
               {unreadProjects.slice(0, 3).map(p => (
-                <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="underline underline-offset-2">
-                  Open {p.title}
+                <Link
+                  key={p.id}
+                  href={`/vendor/projects/${p.slug}`}
+                  className="font-semibold underline underline-offset-2"
+                  style={{ color: 'var(--forest)' }}
+                >
+                  Reply to {p.client?.name || p.title}
                 </Link>
               ))}
             </div>

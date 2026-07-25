@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, FolderKanban, Users, Settings } from 'lucide-react'
+import { CalendarDays, FolderKanban, Users, Settings, Bell } from 'lucide-react'
 import {
   createContext,
   ReactNode,
@@ -10,11 +10,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
+import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { getNextAction } from '@/lib/journey'
 import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
+import { hasUnread } from '@/lib/unread'
+import { playMessageChime } from '@/lib/notify'
 import NewProjectModal from '@/components/vendor/NewProjectModal'
 
 const NAV = [
@@ -67,7 +71,11 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [todayCount, setTodayCount] = useState(0)
   const [projectCount, setProjectCount] = useState(0)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [firstUnreadSlug, setFirstUnreadSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const lastInboundRef = useRef<Record<string, string>>({})
+  const inboundPrimedRef = useRef(false)
 
   // Identity loads once — never flash "Workspace" / "Account" placeholders.
   useEffect(() => {
@@ -96,18 +104,74 @@ export default function VendorShell({ children }: { children: ReactNode }) {
     return () => { cancelled = true }
   }, [])
 
+  // Counts + inbound message awareness — runs across the vendor app, not only Chat.
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      const projRes = await fetch('/api/vendor/projects')
-      const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
-      if (!cancelled && proj.ok) {
-        const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
-        setProjectCount(live.length)
-        setTodayCount(live.filter(p => getNextAction(p.status, primaryService).responsible === 'Vendor').length)
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    async function refresh() {
+      if (cancelled) return
+      if (typeof document !== 'undefined' && document.hidden) {
+        timer = setTimeout(refresh, 8000)
+        return
       }
-    })()
-    return () => { cancelled = true }
+      try {
+        const projRes = await fetch('/api/vendor/projects')
+        const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
+        if (!cancelled && proj.ok) {
+          const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
+          setProjectCount(live.length)
+          setTodayCount(live.filter(p => getNextAction(p.status, primaryService).responsible === 'Vendor').length)
+
+          const unread = live.filter(p => hasUnread(p.id, p.lastClientMessageAt))
+          setUnreadCount(unread.length)
+          setFirstUnreadSlug(unread[0]?.slug || null)
+
+          // Toast + soft when a client message lands while the vendor is elsewhere.
+          if (!inboundPrimedRef.current) {
+            inboundPrimedRef.current = true
+            const seed: Record<string, string> = {}
+            for (const p of live) {
+              if (p.lastClientMessageAt) seed[p.id] = p.lastClientMessageAt
+            }
+            lastInboundRef.current = seed
+          } else {
+            const inChat = pathname.includes('/vendor/projects/') && pathname.split('/').length > 3
+            for (const p of live) {
+              const at = p.lastClientMessageAt
+              if (!at) continue
+              const prev = lastInboundRef.current[p.id]
+              if (prev && new Date(at).getTime() > new Date(prev).getTime()) {
+                if (!inChat || !pathname.includes(p.slug)) {
+                  const from = p.client?.name || p.title || 'Client'
+                  toast(`New message from ${from}`, { id: `vendor-inbox-${p.id}` })
+                  playMessageChime()
+                }
+              }
+              lastInboundRef.current[p.id] = at
+            }
+          }
+        }
+      } catch {
+        /* keep polling */
+      }
+      if (!cancelled) timer = setTimeout(refresh, 8000)
+    }
+
+    refresh()
+
+    function onVisibility() {
+      if (cancelled || document.hidden) return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(refresh, 200)
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [pathname, primaryService])
 
   const openNewProject = useCallback(() => setShowCreate(true), [])
@@ -122,10 +186,19 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const profileInitial = (userName || businessName).charAt(0).toUpperCase()
   const profileLabel = userName.trim() || businessName.trim()
   const showIdentity = profileLoaded && !!workspaceLabel
+  const notifyHref = firstUnreadSlug
+    ? `/vendor/projects/${firstUnreadSlug}`
+    : '/vendor'
 
   const badgeFor = (href: string) => {
+    if (href === '/vendor' && unreadCount > 0) return unreadCount
     if (href === '/vendor' && todayCount > 0) return todayCount
     if (href === '/vendor/projects' && projectCount > 0) return projectCount
+    return null
+  }
+
+  const tabBadgeFor = (href: string) => {
+    if (href === '/vendor' && unreadCount > 0) return unreadCount
     return null
   }
 
@@ -201,16 +274,25 @@ export default function VendorShell({ children }: { children: ReactNode }) {
                 ‹ Projects
               </Link>
             ) : (
-              <>
-                <span className="num text-[13px] text-[color:var(--muted)]">{formatTopbarDate()}</span>
-                <button
-                  type="button"
-                  className="btn btn-forest ml-auto"
-                  onClick={openNewProject}
-                >
-                  ＋ New project
-                </button>
-              </>
+              <span className="num text-[13px] text-[color:var(--muted)]">{formatTopbarDate()}</span>
+            )}
+            <Link
+              href={notifyHref}
+              className="vendor-topbar__notify"
+              data-active={unreadCount > 0 ? 'true' : 'false'}
+              aria-label={unreadCount > 0 ? `${unreadCount} unread messages` : 'No unread messages'}
+            >
+              <Bell size={15} strokeWidth={unreadCount > 0 ? 2.4 : 1.8} aria-hidden />
+              {unreadCount > 0 ? `${unreadCount} new` : 'Inbox'}
+            </Link>
+            {!inWorkspace && (
+              <button
+                type="button"
+                className="btn btn-forest"
+                onClick={openNewProject}
+              >
+                ＋ New project
+              </button>
             )}
           </header>
 
@@ -223,6 +305,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
               {NAV.map(item => {
                 const active = isActive(pathname, item.href, 'exact' in item ? item.exact : undefined)
                 const Icon = item.icon
+                const badge = tabBadgeFor(item.href)
                 return (
                   <Link
                     key={item.href}
@@ -232,6 +315,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
                   >
                     <Icon size={20} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
                     {item.label}
+                    {badge != null && <span className="vendor-tabbar__bdg num">{badge}</span>}
                   </Link>
                 )
               })}

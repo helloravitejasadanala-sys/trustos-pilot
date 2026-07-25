@@ -31,7 +31,7 @@ export function ClientPortalLayout({
   if (centered) {
     return (
       <div
-        className={cn('flex min-h-screen items-center justify-center px-4 sm:px-6', className)}
+        className={cn('portal-app flex items-center justify-center', className)}
         style={{ background: 'var(--canvas-2)' }}
       >
         {children}
@@ -42,12 +42,9 @@ export function ClientPortalLayout({
   const letter = (brandLetter || brandName || '?').charAt(0).toUpperCase()
 
   return (
-    <div
-      className={cn('min-h-screen overflow-x-hidden px-2.5 py-3 sm:px-5 sm:py-8 md:py-10', className)}
-      style={{ background: 'var(--canvas)' }}
-    >
+    <div className={cn('portal-app', className)}>
       <div
-        className="portal-shell mx-auto max-w-full overflow-x-hidden"
+        className="portal-shell max-w-full"
         style={{
           maxWidth: 920,
           background: 'var(--canvas-2)',

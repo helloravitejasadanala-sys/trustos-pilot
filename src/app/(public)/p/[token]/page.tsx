@@ -11,6 +11,7 @@ import {
   sectionLabelForService,
 } from '@/lib/service-profiles'
 import { ClientPortalLayout } from '@/components/layout'
+import TypingPreview from '@/components/ui/TypingPreview'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
 
 /**
@@ -753,11 +754,18 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
   const [sending, setSending] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [sendError, setSendError] = useState('')
+  const [peerTyping, setPeerTyping] = useState<{ name: string } | null>(null)
 
   async function loadMessages() {
     const res = await fetch('/api/client/messages')
-    const parsed = await parseJsonResponse<{ messages?: any[] }>(res)
-    if (parsed.ok) setMessages((parsed.data as any).messages || [])
+    const parsed = await parseJsonResponse<{
+      messages?: any[]
+      peerTyping?: { name: string } | null
+    }>(res)
+    if (parsed.ok) {
+      setMessages((parsed.data as any).messages || [])
+      setPeerTyping(parsed.data.peerTyping || null)
+    }
     setLoaded(true)
   }
 
@@ -767,8 +775,12 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
     enabled: loaded,
     fetchMessages: async () => {
       const res = await fetch('/api/client/messages')
-      const parsed = await parseJsonResponse<{ messages?: any[] }>(res)
+      const parsed = await parseJsonResponse<{
+        messages?: any[]
+        peerTyping?: { name: string } | null
+      }>(res)
       if (!parsed.ok) return null
+      setPeerTyping(parsed.data.peerTyping || null)
       return (parsed.data as any).messages || []
     },
     onMessages: setMessages,
@@ -780,12 +792,36 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
     },
   })
 
+  useEffect(() => {
+    if (!loaded) return
+    const active = draft.trim().length > 0
+    const timer = setTimeout(() => {
+      fetch('/api/client/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active, draft }),
+      })
+        .then(r => parseJsonResponse<{ peerTyping?: { name: string } | null }>(r))
+        .then(parsed => {
+          if (parsed.ok) setPeerTyping(parsed.data.peerTyping || null)
+        })
+        .catch(() => {})
+    }, active ? 280 : 0)
+    return () => clearTimeout(timer)
+  }, [draft, loaded])
+
   async function send() {
     const content = draft.trim()
     if (!content || sending) return
     setSending(true)
     setSendError('')
     setDraft('')
+    setPeerTyping(null)
+    fetch('/api/client/typing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: false, draft: '' }),
+    }).catch(() => {})
     const res = await fetch('/api/client/messages', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
@@ -856,6 +892,7 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
               </div>
             )
           })}
+          {peerTyping ? <TypingPreview name={peerTyping.name || vendorName} /> : null}
         </div>
         {sendError && (
           <button type="button" className="banner banner-error" style={{ border: '1px solid #e0b8a8', cursor: 'pointer', width: '100%' }} onClick={send}>

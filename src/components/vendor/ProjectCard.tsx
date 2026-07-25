@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Calendar, MoreVertical } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { StatusChip } from '@/components/ui'
+import { hasUnread } from '@/lib/unread'
 import { isArchivedProject, isTestProject, projectNextAction, type VendorProject } from '@/lib/vendor-phase1'
 
 export default function ProjectCard({
@@ -19,6 +20,7 @@ export default function ProjectCard({
   const na = projectNextAction(project.status)
   const archived = isArchivedProject(project)
   const test = isTestProject(project)
+  const unread = hasUnread(project.id, project.lastClientMessageAt)
 
   async function patch(body: Record<string, unknown>) {
     if (busy) return
@@ -75,6 +77,19 @@ export default function ProjectCard({
             {project.title}
           </h3>
           <StatusChip status={project.status} />
+          {unread && (
+            <span
+              className="num shrink-0"
+              style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: 'var(--coral-deep, #c45c3e)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              NEW
+            </span>
+          )}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs" style={{ color: 'var(--muted)' }}>
           <span>{project.client?.name || project.invitation?.email || 'No client yet'}</span>

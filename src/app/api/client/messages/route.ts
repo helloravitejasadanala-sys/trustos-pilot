@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
+import { clearTyping, getPeerTyping } from '@/lib/typing'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,10 @@ export async function GET() {
       orderBy: { createdAt: 'asc' },
       include: { sender: { select: { name: true, role: true } } },
     })
-    return NextResponse.json({ messages })
+    return NextResponse.json({
+      messages,
+      peerTyping: getPeerTyping(projectId, 'client'),
+    })
   } catch (err: any) {
     return NextResponse.json({ error: 'Unauthorized', messages: [] }, { status: err.status ?? 401 })
   }
@@ -39,6 +43,7 @@ export async function POST(req: NextRequest) {
       data: { projectId, senderId: project.clientId, content, type: 'client' },
       include: { sender: { select: { name: true, role: true } } },
     })
+    clearTyping(projectId, 'client')
     return NextResponse.json({ message })
   } catch (err: any) {
     if (err?.name === 'ZodError') {

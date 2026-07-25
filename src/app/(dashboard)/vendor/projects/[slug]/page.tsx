@@ -11,7 +11,9 @@ import BackLink from '@/components/vendor/BackLink'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
 import ShareLink from '@/components/vendor/ShareLink'
 import { WorkspaceLayout, WorkspaceTabs } from '@/components/layout'
-import { markSeen } from '@/lib/unread'
+import { hasUnread, markSeen } from '@/lib/unread'
+import { playMessageChime } from '@/lib/notify'
+import TypingPreview from '@/components/ui/TypingPreview'
 import { getNextAction, isWaitingOnClient } from '@/lib/journey'
 import {
   ARCHIVED_PREFIX, isTestProject, journeyProgress,
@@ -64,6 +66,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const [quote, setQuote] = useState({ method: 'manual', title: '', price: '', deposit: '', description: '' })
   const [stripeConfigured, setStripeConfigured] = useState(false)
   const [draft, setDraft] = useState('')
+  const [peerTyping, setPeerTyping] = useState<{ name: string } | null>(null)
   // Preparation is edited as controlled state and saved with one button,
   // so values reliably persist and reload (no blur races / defaultValue drift).
   const [prep, setPrep] = useState({ eventDate: '', location: '', notes: '', moodboard: '' })
@@ -127,8 +130,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     fetchMessages: async () => {
       if (!projectId) return null
       const res = await fetch(`/api/vendor/projects/${projectId}/messages`)
-      const parsed = await parseJsonResponse<{ messages?: any[] }>(res)
+      const parsed = await parseJsonResponse<{
+        messages?: any[]
+        peerTyping?: { name: string } | null
+      }>(res)
       if (!parsed.ok) return null
+      setPeerTyping(parsed.data.peerTyping || null)
       return (parsed.data as any).messages || []
     },
     onMessages: messages => {
@@ -140,9 +147,29 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       const from = last.sender?.name || clientLabel
       const preview = (last.content || '').trim().slice(0, 80)
       toast(`New message from ${from}${preview ? `: ${preview}` : ''}`, { id: 'vendor-msg-poll' })
+      playMessageChime()
       if (projectId) markSeen(projectId)
     },
   })
+
+  // Heartbeat while composing — drives the client's "typing" preview.
+  useEffect(() => {
+    if (!projectId || tab !== 'Chat') return
+    const active = draft.trim().length > 0
+    const timer = setTimeout(() => {
+      fetch(`/api/vendor/projects/${projectId}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active, draft }),
+      })
+        .then(r => parseJsonResponse<{ peerTyping?: { name: string } | null }>(r))
+        .then(parsed => {
+          if (parsed.ok) setPeerTyping(parsed.data.peerTyping || null)
+        })
+        .catch(() => {})
+    }, active ? 280 : 0)
+    return () => clearTimeout(timer)
+  }, [draft, projectId, tab])
 
   async function run(label: string, fn: () => unknown) {
     if (busy) return // guards against double-clicks firing the same action twice
@@ -202,11 +229,25 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     const content = draft.trim()
     if (!content) return
     setDraft('')
+    setPeerTyping(null)
+    if (projectId) {
+      fetch(`/api/vendor/projects/${projectId}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: false, draft: '' }),
+      }).catch(() => {})
+    }
     await run('msg', async () => {
       await post('messages', { content })
       await load()
     })
   }
+
+  const lastClientMessageAt = (project?.messages || [])
+    .filter((m: any) => m.type === 'client' || m.sender?.role === 'CLIENT')
+    .map((m: any) => m.createdAt)
+    .pop() as string | undefined
+  const chatUnread = project?.id ? hasUnread(project.id, lastClientMessageAt) : false
 
   async function savePrep() {
     const rawDate = prepDateRef.current?.value || prep.eventDate
@@ -550,11 +591,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         tabs={tabs}
         active={tabs.includes(tab) ? tab : 'Overview'}
         onChange={t => setTab(t)}
-        badge={t =>
-          t === 'Chat' && project.messages?.length
-            ? `(${project.messages.length})`
-            : null
-        }
+        badge={t => {
+          if (t !== 'Chat') return null
+          if (chatUnread) return 'new'
+          if (project.messages?.length) return `(${project.messages.length})`
+          return null
+        }}
       />
 
       {/* OVERVIEW */}
@@ -1294,6 +1336,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                   )
                 })
               )}
+              {peerTyping ? <TypingPreview name={peerTyping.name || clientLabel} /> : null}
               <div ref={messagesEndRef} />
             </div>
             <div style={{ display: 'flex', gap: 10, paddingTop: 14, borderTop: '1px solid var(--line-soft)' }}>

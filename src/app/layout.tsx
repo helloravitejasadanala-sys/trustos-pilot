@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Hanken_Grotesk, Instrument_Serif } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import './globals.css'
@@ -20,6 +20,24 @@ const instrument = Instrument_Serif({
 export const metadata: Metadata = {
   title: 'TrustOS — For creative professionals',
   description: 'From first enquiry to final delivery. The calm way to run a creative business.',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TrustOS',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+}
+
+/** App-like mobile viewport — fits the device, reduces pinch-pan drift. */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#0d1b17',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
