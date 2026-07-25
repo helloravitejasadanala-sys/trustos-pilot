@@ -44,6 +44,40 @@ export async function GET() {
       map.set(p.client.id, entry)
     }
 
+    // Standalone clients created from the Clients page (no project yet) are
+    // tracked via activity so they do not disappear after refresh.
+    const orphanLogs = await prisma.activityLog.findMany({
+      where: {
+        userId: user.id,
+        event: 'client_directory_added',
+      },
+      select: { metadata: true },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    const orphanIds = Array.from(new Set(
+      orphanLogs
+        .map((l) => (l.metadata as any)?.clientId as string | undefined)
+        .filter((id): id is string => !!id && !map.has(id))
+    ))
+    if (orphanIds.length) {
+      const orphans = await prisma.user.findMany({
+        where: { id: { in: orphanIds }, role: 'CLIENT' },
+        select: { id: true, name: true, email: true, phone: true, avatar: true, createdAt: true },
+      })
+      for (const c of orphans) {
+        map.set(c.id, {
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          archived: c.avatar === 'archived',
+          createdAt: c.createdAt,
+          projects: [],
+        })
+      }
+    }
+
     return NextResponse.json({ clients: Array.from(map.values()) })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Error' }, { status: error.status || 500 })
@@ -58,7 +92,7 @@ const createSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAuth(['VENDOR'])
+    const user = await requireAuth(['VENDOR'])
     const body = createSchema.parse(await req.json())
     const email = body.email.toLowerCase()
 
@@ -85,6 +119,14 @@ export async function POST(req: NextRequest) {
         password: await bcrypt.hash(randomBytes(24).toString('hex'), 10),
       },
       select: { id: true, name: true, email: true, phone: true, avatar: true, createdAt: true },
+    })
+
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        event: 'client_directory_added',
+        metadata: { clientId: client.id, email: client.email },
+      },
     })
 
     return NextResponse.json({ client: { ...client, archived: client.avatar === 'archived', projects: [] } })

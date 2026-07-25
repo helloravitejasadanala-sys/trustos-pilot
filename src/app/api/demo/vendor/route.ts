@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { setSession } from '@/lib/auth'
+import { clearClientSession } from '@/lib/client-session'
 import { DEMO, isDemoKey, DEMO_VENDOR_EMAILS } from '@/lib/demo'
 import { ensureDemoInvitation } from '@/lib/invitations'
 import { trackEvent } from '@/lib/analytics'
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     await ensureDemoInvitation(key)
     await setSession(user.id, user.role)
+    await clearClientSession()
     await trackEvent('demo_open_vendor', { metadata: { key } })
 
     return NextResponse.json({ ok: true, redirect: `/vendor/projects/${target.projectSlug}` })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { setSession } from '@/lib/auth'
+import { clearClientSession } from '@/lib/client-session'
 import { z } from 'zod'
 
 const loginSchema = z.object({
@@ -30,6 +31,10 @@ export async function POST(req: NextRequest) {
     }
 
     await setSession(user.id, user.role, remember ?? true)
+    // Vendor/admin login should not keep a prior client-portal cookie around.
+    if (user.role === 'VENDOR' || user.role === 'ADMIN') {
+      await clearClientSession()
+    }
 
     return NextResponse.json({
       user: {

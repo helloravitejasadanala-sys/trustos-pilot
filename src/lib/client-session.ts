@@ -96,7 +96,13 @@ export async function createClientSession(invitationId: string, projectId: strin
 }
 
 export async function clearClientSession() {
-  cookies().delete(CLIENT_COOKIE)
+  cookies().set(CLIENT_COOKIE, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  })
 }
 
 export type ClientSession = { projectId: string; invitationId: string }

@@ -16,6 +16,7 @@ import { markSeen } from '@/lib/unread'
 import { getNextAction } from '@/lib/journey'
 import {
   ARCHIVED_PREFIX, SIMPLE_JOURNEY, isTestProject, journeyProgress,
+  projectProgressSummary, hasDeliverables, hasDeliveryApproval,
 } from '@/lib/vendor-phase1'
 import { projectTypeLabel, allDetailFields } from '@/lib/project-types'
 import { humanizeActivityEvent } from '@/lib/activity-labels'
@@ -43,7 +44,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   // Preparation is edited as controlled state and saved with one button,
   // so values reliably persist and reload (no blur races / defaultValue drift).
   const [prep, setPrep] = useState({ eventDate: '', location: '', notes: '', moodboard: '' })
-  const [gallery, setGallery] = useState({ name: 'Photo gallery', url: '' })
+  const [gallery, setGallery] = useState({ name: 'Files', url: '' })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   // Read the datetime-local's live DOM value at save time as a fallback:
   // some date pickers set the value without firing React onChange.
@@ -167,12 +168,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   }
 
   async function addGallery() {
-    const name = gallery.name.trim() || 'Photo gallery'
+    const name = gallery.name.trim() || 'Files'
     const url = gallery.url.trim()
     if (!/^https?:\/\//i.test(url)) return toast.error('Enter a link starting with http:// or https://')
     await post('link', { name, url, type: 'gallery' })
-    setGallery({ name: 'Photo gallery', url: '' })
-    toast.success('Delivery link added')
+    setGallery({ name: 'Files', url: '' })
+    toast.success('Deliverable link added')
     await load()
   }
 
@@ -190,14 +191,20 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   if (state === 'error' || !project) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12 text-center">
-        <p className="text-forest-700">Project not found.</p>
-        <div className="mt-4"><BackLink href="/vendor/projects" label="Back to Projects" /></div>
+        <h2 className="font-display text-xl text-forest-950">We couldn&apos;t find that project</h2>
+        <p className="mt-2 text-sm text-forest-600">
+          It may have been archived, cancelled, or opened from a different workspace. Check Projects for your active work.
+        </p>
+        <div className="mt-5"><BackLink href="/vendor/projects" label="Back to Projects" /></div>
       </div>
     )
   }
 
   const na = getNextAction(project.status)
   const progress = journeyProgress(project)
+  const summary = projectProgressSummary(project)
+  const deliverablesSent = hasDeliverables(project)
+  const deliveryApproved = hasDeliveryApproval(project)
   const method = normalizePaymentMethod(project.paymentMethod || quote.method)
   const deposit = (project.payments || []).find((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
   const test = isTestProject(project)
@@ -379,18 +386,45 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
             </div>
           </div>
 
-          {/* Journey */}
+          {/* Journey — completed / current / next */}
           <div className="card p-5">
-            <h2 className="text-lg font-semibold text-forest-950 mb-4">Project journey</h2>
+            <h2 className="text-lg font-semibold text-forest-950 mb-3">Project progress</h2>
+            <div className="mb-4 grid gap-2 sm:grid-cols-3 text-[13px]">
+              <div className="rounded-lg border border-forest-100 bg-forest-50/50 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-forest-500">Completed</p>
+                <p className="mt-1 text-forest-900">
+                  {summary.completedLabels.length
+                    ? summary.completedLabels[summary.completedLabels.length - 1]
+                    : 'Not started yet'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-forest-800 bg-forest-950 px-3 py-2 text-paper-50">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-forest-300">Current step</p>
+                <p className="mt-1 font-medium">{summary.currentLabel}</p>
+              </div>
+              <div className="rounded-lg border border-forest-100 bg-white px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-forest-500">Next step</p>
+                <p className="mt-1 text-forest-900">{summary.nextLabel || '—'}</p>
+              </div>
+            </div>
             <div className="space-y-3">
-              {SIMPLE_JOURNEY.map(step => (
-                <div key={step.key} className="flex items-center gap-3">
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${progress[step.key as keyof typeof progress] ? 'bg-forest-600 text-white' : 'bg-forest-100 text-forest-500'}`}>
-                    {progress[step.key as keyof typeof progress] ? '✓' : '·'}
+              {SIMPLE_JOURNEY.map(step => {
+                const done = progress[step.key as keyof typeof progress]
+                const isCurrent = step.label === summary.currentLabel && !summary.allDone
+                return (
+                  <div key={step.key} className="flex items-center gap-3">
+                    <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${
+                      done ? 'bg-forest-600 text-white' : isCurrent ? 'bg-forest-950 text-white' : 'bg-forest-100 text-forest-500'
+                    }`}>
+                      {done ? '✓' : isCurrent ? '→' : '·'}
+                    </div>
+                    <p className={`text-base ${done || isCurrent ? 'text-forest-900 font-medium' : 'text-forest-500'}`}>
+                      {step.label}
+                      {isCurrent ? <span className="ml-2 text-[11px] font-semibold uppercase tracking-wider text-forest-500">Current</span> : null}
+                    </p>
                   </div>
-                  <p className="text-base text-forest-900">{step.label}</p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
@@ -512,7 +546,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
           </div>
           <div>
             <label className="label">Notes</label>
-            <textarea value={prep.notes} onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))} rows={4} placeholder="Shoot notes, timings, anything to remember" />
+            <textarea value={prep.notes} onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))} rows={4} placeholder="Timings, access notes, anything to remember" />
           </div>
           <button className="btn-primary" disabled={busy === 'prep'} onClick={() => run('prep', savePrep)}>
             {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : 'Save preparation'}
@@ -523,18 +557,29 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       {/* DELIVERY */}
       {tab === 'Delivery' && (
         <div className="card p-5 space-y-5">
+          <div className="rounded-lg border border-forest-100 bg-forest-50/40 px-3 py-2 text-[13px] text-forest-700 space-y-1">
+            <p><span className="font-semibold text-forest-900">Service completed:</span> {progress.service ? 'Yes' : 'Not yet'}</p>
+            <p><span className="font-semibold text-forest-900">Deliverables sent:</span> {deliverablesSent ? 'Yes' : 'Not yet'}</p>
+            <p><span className="font-semibold text-forest-900">Client approved:</span> {deliveryApproved ? 'Yes' : 'Waiting'}</p>
+          </div>
+
           {project.status !== 'COMPLETED' && (
             <div>
               <button className="btn-primary" disabled={!!busy} onClick={() => run('complete', completeDelivery)}>Mark service complete</button>
-              <p className="mt-1.5 text-[13px] text-forest-500">Do this once the shoot or service has taken place.</p>
+              <p className="mt-1.5 text-[13px] text-forest-500">Do this once the service has taken place.</p>
             </div>
+          )}
+          {project.status === 'COMPLETED' && (
+            <p className="inline-flex items-center gap-1.5 text-sm font-medium text-forest-800">
+              <CheckCircle size={16} className="text-forest-600" /> Service marked complete
+            </p>
           )}
 
           <div className="border-t border-forest-100 pt-5">
-            <h2 className="text-lg font-semibold text-forest-950">Delivery / gallery link</h2>
-            <p className="text-[13px] text-forest-500 mb-3">Paste the external gallery or download link. Your client sees it on their secure page.</p>
+            <h2 className="text-lg font-semibold text-forest-950">Deliverables</h2>
+            <p className="text-[13px] text-forest-500 mb-3">Paste an external file or download link. Your client sees it on their secure page and can approve delivery.</p>
             <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
-              <input value={gallery.name} onChange={e => setGallery(g => ({ ...g, name: e.target.value }))} placeholder="Label (e.g. Photo gallery)" />
+              <input value={gallery.name} onChange={e => setGallery(g => ({ ...g, name: e.target.value }))} placeholder="Label (e.g. Files)" />
               <input value={gallery.url} onChange={e => setGallery(g => ({ ...g, url: e.target.value }))} placeholder="https://..." inputMode="url" />
               <button className="btn-primary shrink-0" disabled={busy === 'gallery' || !gallery.url.trim()} onClick={() => run('gallery', addGallery)}>
                 {busy === 'gallery' ? <Loader2 size={16} className="animate-spin" /> : <><LinkIcon size={16} className="mr-2" />Add link</>}
@@ -553,12 +598,14 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
           </div>
 
           <div className="border-t border-forest-100 pt-5">
-            {(project.approvals || []).length > 0 ? (
+            {deliveryApproved ? (
               <p className="inline-flex items-center gap-1.5 text-sm font-medium text-forest-800">
                 <CheckCircle size={16} className="text-forest-600" /> Client approved delivery
               </p>
+            ) : deliverablesSent ? (
+              <p className="text-[13px] text-forest-500">Deliverables are live. Your client can approve them from their secure page.</p>
             ) : (
-              <p className="text-[13px] text-forest-500">Once your client opens their gallery, they can approve delivery from their secure page.</p>
+              <p className="text-[13px] text-forest-500">Add a deliverable link above so your client can review and approve.</p>
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="btn-secondary" onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Project archived')))}>Archive project</button>

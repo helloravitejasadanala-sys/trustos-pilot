@@ -98,8 +98,10 @@ export default function ClientsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           title={tab === 'active' ? 'No clients yet' : 'No archived clients'}
-          description={tab === 'active' ? 'Add your first client so you can attach them to a project and share their secure link.' : 'Clients you archive will appear here.'}
-          action={tab === 'active' ? <button className="btn-primary" onClick={() => setModal({ mode: 'create' })}>New client</button> : undefined}
+          description={tab === 'active'
+            ? 'Add a client here, or create a project with their email — they’ll show up in this list and stay after refresh.'
+            : 'Clients you archive will appear here — you can restore them any time.'}
+          action={tab === 'active' ? <button className="btn-primary" onClick={() => setModal({ mode: 'create' })}>Add a client</button> : undefined}
         />
       ) : (
         <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-hidden">

@@ -38,7 +38,11 @@ export default function SettingsPage() {
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-6">
       <div className="border-b border-forest-100 pb-4 mb-5">
         <h1 className="font-display text-xl text-forest-950">Settings</h1>
-        <p className="text-[13px] text-forest-500">Your account and workspace</p>
+        <p className="text-[13px] text-forest-500">
+          {me?.vendorProfile?.businessName
+            ? `${me.vendorProfile.businessName} on TrustOS`
+            : 'Your account and workspace'}
+        </p>
       </div>
 
       <div className="max-w-lg space-y-4">
@@ -48,7 +52,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-center py-8"><Loader2 size={18} className="animate-spin text-forest-400" /></div>
           ) : (
             <dl className="divide-y divide-forest-50">
-              <Row icon={Building2} label="Business name" value={me?.vendorProfile?.businessName || '—'} />
+              <Row icon={Building2} label="Workspace" value={me?.vendorProfile?.businessName || '—'} />
               <Row icon={User} label="Owner" value={me?.name || '—'} />
               <Row icon={Mail} label="Email" value={me?.email || '—'} />
             </dl>
@@ -57,7 +61,7 @@ export default function SettingsPage() {
 
         <section className="rounded-xl border border-forest-100 bg-white p-4">
           <p className="text-sm text-forest-600">
-            Need to update your business details? Contact support and we&apos;ll take care of it while account editing is being finished.
+            You are signed into your own TrustOS workspace. Sample journeys on the public demo page use separate sample data and do not replace this account after you sign in again.
           </p>
         </section>
 

@@ -6,17 +6,36 @@ import { trackEvent } from '@/lib/analytics'
 export const dynamic = 'force-dynamic'
 
 /**
- * Client confirms receipt of the final deliverables. Only allowed once
- * the vendor has marked the project ready (status COMPLETED requires
- * the vendor's submit first — see vendor complete route).
+ * Client confirms receipt of deliverables.
+ *
+ * Source of truth:
+ * - Deliverables exist as File rows with type "gallery"
+ * - Approval is recorded as an Approval row (not project status, not Review)
+ * - Vendor "service completed" is independent (project.status COMPLETED)
  */
 export async function POST(_req: NextRequest) {
   try {
     const { projectId } = await requireClientSession()
-    const project = await prisma.project.findUnique({ where: { id: projectId } })
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        files: { where: { type: 'gallery' }, select: { id: true } },
+        approvals: { select: { id: true }, take: 1 },
+      },
+    })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    // Client confirmation is recorded as an approval on the project.
+    if (project.files.length === 0) {
+      return NextResponse.json(
+        { error: 'Your vendor has not shared deliverables yet.' },
+        { status: 400 }
+      )
+    }
+
+    if (project.approvals.length > 0) {
+      return NextResponse.json({ ok: true, alreadyApproved: true })
+    }
+
     await prisma.approval.create({
       data: { projectId, approvedBy: 'Client (receipt confirmed)' },
     })

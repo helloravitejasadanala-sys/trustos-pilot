@@ -31,12 +31,29 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const project = await ownedProject(params.id, user.id)
     const body = patchSchema.parse(await req.json())
 
+    const wasArchived = (project.notes ?? '').trimStart().startsWith(ARCHIVED_PREFIX)
     let notes = project.notes
+
+    // When the vendor edits notes (e.g. Preparation), keep the archive marker
+    // unless they explicitly unarchive.
+    if (body.notes !== undefined && body.notes !== null && !body.archive && !body.unarchive) {
+      const trimmed = body.notes.trim()
+      notes = wasArchived
+        ? `${ARCHIVED_PREFIX} ${trimmed}`.trim()
+        : (trimmed || null)
+    }
+
     if (body.archive) {
-      notes = notes?.trimStart().startsWith(ARCHIVED_PREFIX) ? notes : `${ARCHIVED_PREFIX} ${notes ?? ''}`.trim()
+      const base = (body.notes !== undefined ? (body.notes ?? '') : (notes ?? ''))
+        .replace(new RegExp(`^\\${ARCHIVED_PREFIX}\\s*`), '')
+        .trim()
+      notes = `${ARCHIVED_PREFIX} ${base}`.trim()
     }
     if (body.unarchive) {
-      notes = (notes ?? '').replace(new RegExp(`^\\${ARCHIVED_PREFIX}\\s*`), '').trim() || null
+      const base = (body.notes !== undefined ? (body.notes ?? '') : (notes ?? ''))
+        .replace(new RegExp(`^\\${ARCHIVED_PREFIX}\\s*`), '')
+        .trim()
+      notes = base || null
     }
 
     const updated = await prisma.project.update({
@@ -45,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         title: body.title,
         eventDate: body.eventDate === null ? null : body.eventDate ? new Date(body.eventDate) : undefined,
         location: body.location === null ? null : body.location,
-        notes: body.notes ?? notes,
+        notes: (body.notes !== undefined || body.archive || body.unarchive) ? notes : undefined,
         clientId: body.clientId === null ? null : body.clientId,
         status: body.cancel ? 'CANCELLED' : undefined,
       },

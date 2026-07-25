@@ -395,7 +395,10 @@ model Invitation {
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([vendorId, email])
+  // One invitation row per project (reissue revokes the previous). Email is
+  // not unique — the same client may have many projects with this vendor.
+  @@index([vendorId, email])
+  @@index([projectId])
   @@map("invitations")
 }
 

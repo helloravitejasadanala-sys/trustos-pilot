@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { setSession } from '@/lib/auth'
+import { clearClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { z } from 'zod'
 
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     })
 
     await setSession(user.id, user.role)
+    await clearClientSession()
     await trackEvent('user_registered', { userId: user.id, metadata: { slug } })
 
     return NextResponse.json({

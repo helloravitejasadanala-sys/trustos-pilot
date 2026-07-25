@@ -119,5 +119,13 @@ export async function setSession(userId: string, role: string, remember: boolean
 
 export async function clearSession() {
   const cookieStore = cookies()
-  cookieStore.delete('trustos_session')
+  // Match the attributes used in setSession so the cookie is actually cleared
+  // across browsers (path-scoped delete is required).
+  cookieStore.set('trustos_session', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  })
 }

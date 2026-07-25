@@ -189,7 +189,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
         {/* Files — shared galleries and deliverables */}
         {Array.isArray(project.files) && project.files.some((f: any) => f.type === 'gallery') && (
           <div className="mt-4 border border-forest-200 rounded-2xl bg-white p-5">
-            <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Your gallery</p>
+            <p className="text-xs uppercase tracking-wide text-forest-500 mb-3">Your files</p>
             <ul className="space-y-2">
               {project.files.filter((f: any) => f.type === 'gallery').map((f: any) => (
                 <li key={f.id}>
@@ -471,7 +471,7 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
   }
   return (
     <div className="mt-4 border-t border-forest-100 pt-4">
-      <p className="text-sm text-forest-600 mb-3">Happy with everything? Let your vendor know your gallery is approved.</p>
+      <p className="text-sm text-forest-600 mb-3">Happy with everything? Let your vendor know the deliverables are approved.</p>
       {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
       <Primary onClick={approve} busy={busy}>Approve delivery</Primary>
     </div>

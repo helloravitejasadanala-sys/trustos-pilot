@@ -3,11 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, FolderKanban, Users, Settings } from 'lucide-react'
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
+import { parseJsonResponse } from '@/lib/safe-json'
 
-// Phase 1 primary navigation only. Templates and Analytics are
-// intentionally hidden from both desktop and mobile nav (their routes
-// still exist); they are out of scope for the MiniMomentz pilot.
+// Phase 1 primary navigation only. Templates and Analytics routes still
+// exist but stay out of the pilot nav.
 const NAV = [
   { href: '/vendor', label: 'Today', icon: CalendarDays, exact: true },
   { href: '/vendor/projects', label: 'Projects', icon: FolderKanban },
@@ -23,16 +23,43 @@ function isActive(pathname: string, href: string, exact?: boolean) {
 export default function VendorShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const inWorkspace = pathname.startsWith('/vendor/projects/') && pathname.split('/').length > 3
+  const [businessName, setBusinessName] = useState<string>('')
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const res = await fetch('/api/auth/me')
+      const { ok, data } = await parseJsonResponse<{
+        user?: { vendorProfile?: { businessName?: string | null } | null }
+      }>(res)
+      if (!cancelled && ok) {
+        setBusinessName(data.user?.vendorProfile?.businessName?.trim() || '')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const workspaceLabel = businessName || 'Your workspace'
+  const initial = (businessName || 'T').charAt(0).toUpperCase()
 
   return (
     <div className="min-h-screen bg-paper text-ink-900">
       <div className="flex min-h-screen">
         {/* Desktop sidebar */}
-        <aside className="hidden md:flex md:w-52 md:flex-col md:border-r md:border-forest-100 md:bg-white">
-          <div className="flex h-14 items-center border-b border-forest-100 px-4">
-            <Link href="/vendor" className="flex items-center gap-2 hover:opacity-80">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-forest-950 text-[11px] font-bold text-paper-50">T</span>
-              <span className="text-sm font-semibold tracking-tight text-forest-950">TrustOS</span>
+        <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-forest-100 md:bg-white">
+          <div className="border-b border-forest-100 px-4 py-3">
+            <Link href="/vendor" className="flex items-center gap-2.5 hover:opacity-80">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-forest-950 text-[12px] font-bold text-paper-50">
+                {initial}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold tracking-tight text-forest-950">
+                  {workspaceLabel}
+                </span>
+                <span className="block text-[10px] font-medium uppercase tracking-[0.12em] text-forest-400">
+                  TrustOS
+                </span>
+              </span>
             </Link>
           </div>
           <nav className="flex-1 px-2 py-3 space-y-0.5">
@@ -57,11 +84,15 @@ export default function VendorShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="flex min-h-screen flex-1 flex-col">
-          {/* Mobile header */}
+          {/* Mobile header — workspace brand first */}
           <header className="md:hidden sticky top-0 z-20 flex h-12 items-center border-b border-forest-100 bg-white/95 px-4 backdrop-blur">
-            <Link href="/vendor" className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-forest-950 text-[10px] font-bold text-paper-50">T</span>
-              <span className="text-sm font-semibold text-forest-950">TrustOS</span>
+            <Link href="/vendor" className="flex min-w-0 items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-forest-950 text-[10px] font-bold text-paper-50">
+                {initial}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-forest-950">{workspaceLabel}</span>
+              </span>
             </Link>
           </header>
 

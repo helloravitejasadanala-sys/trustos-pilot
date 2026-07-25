@@ -71,8 +71,12 @@ export default function ProjectCard({
             <span className="inline-flex items-center gap-1"><Calendar size={12} />{new Date(project.eventDate).toLocaleDateString('en-GB')}</span>
           )}
           {project.location && <span className="truncate">{project.location}</span>}
-          <span className="text-forest-400">· {na.nextAction}</span>
         </div>
+        <p className="mt-1 text-[11px] text-forest-500">
+          <span className="font-medium text-forest-700">Current:</span> {na.label}
+          <span className="mx-1.5 text-forest-300">·</span>
+          <span className="font-medium text-forest-700">Next:</span> {na.nextAction}
+        </p>
       </Link>
       <div className="relative shrink-0">
         <button

@@ -16,9 +16,8 @@ async function ownedProject(idOrSlug: string, userId: string) {
 }
 
 /**
- * Vendor adds a deliverable link — a gallery (Mini Momentz) or a
- * recording (Agara Live). Stored as a File row so the client sees it
- * on their journey. One real feature serving both journeys.
+ * Vendor adds a deliverable link (files, download pack, recording, etc.).
+ * Stored as a File row so the client sees it on their secure journey.
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {

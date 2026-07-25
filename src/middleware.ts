@@ -69,18 +69,17 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // 4.6 — a VENDOR must never reach /admin.
+    // Role mismatch → login (never bounce CLIENT between /vendor and /admin).
     if (isAdminPage && role !== 'ADMIN') {
       const url = request.nextUrl.clone()
-      url.pathname = '/vendor'
+      url.pathname = role === 'VENDOR' ? '/vendor' : '/login'
       url.search = ''
       return NextResponse.redirect(url)
     }
 
-    // An ADMIN hitting the vendor workspace goes to their own area.
     if (isVendorPage && role !== 'VENDOR') {
       const url = request.nextUrl.clone()
-      url.pathname = '/admin'
+      url.pathname = role === 'ADMIN' ? '/admin' : '/login'
       url.search = ''
       return NextResponse.redirect(url)
     }

@@ -67,9 +67,11 @@ export default function ProjectsPage() {
         <div className="space-y-2.5"><CardSkeleton /><CardSkeleton /></div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={tab === 'active' ? 'No active projects' : 'No archived projects'}
-          description={tab === 'active' ? 'Create your first project to invite a client and start the journey.' : 'Projects you archive will appear here.'}
-          action={tab === 'active' ? <button className="btn-primary" onClick={() => setShowCreate(true)}>New project</button> : undefined}
+          title={tab === 'active' ? 'No active projects yet' : 'No archived projects'}
+          description={tab === 'active'
+            ? "Create a project with your client's name and email. We'll open it straight away and keep it here after refresh."
+            : 'Projects you archive will appear here — nothing is deleted.'}
+          action={tab === 'active' ? <button className="btn-primary" onClick={() => setShowCreate(true)}>Create a project</button> : undefined}
         />
       ) : (
         <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-hidden">

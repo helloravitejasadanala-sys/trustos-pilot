@@ -28,13 +28,13 @@ export type ProjectTypeInfo = {
 
 /** Every selectable type, grouped for a tidy dropdown. */
 export const PROJECT_TYPES: ProjectTypeInfo[] = [
-  { value: 'FAMILY_SESSION', label: 'Family session', group: 'Photography' },
-  { value: 'MATERNITY', label: 'Maternity', group: 'Photography' },
-  { value: 'NEWBORN', label: 'Newborn', group: 'Photography' },
-  { value: 'CAKE_SMASH', label: 'Cake smash', group: 'Photography' },
-  { value: 'FIRST_BIRTHDAY', label: 'First birthday', group: 'Photography' },
-  { value: 'MOTHERHOOD_JOURNEY', label: 'Motherhood journey', group: 'Photography' },
-  { value: 'PORTRAIT', label: 'Portrait', group: 'Photography' },
+  { value: 'FAMILY_SESSION', label: 'Family session', group: 'Sessions' },
+  { value: 'MATERNITY', label: 'Maternity', group: 'Sessions' },
+  { value: 'NEWBORN', label: 'Newborn', group: 'Sessions' },
+  { value: 'CAKE_SMASH', label: 'Cake smash', group: 'Sessions' },
+  { value: 'FIRST_BIRTHDAY', label: 'First birthday', group: 'Sessions' },
+  { value: 'MOTHERHOOD_JOURNEY', label: 'Motherhood journey', group: 'Sessions' },
+  { value: 'PORTRAIT', label: 'Portrait', group: 'Sessions' },
   { value: 'WEDDING', label: 'Wedding', group: 'Weddings & ceremonies' },
   { value: 'INDIAN_CEREMONY', label: 'Indian ceremony', group: 'Weddings & ceremonies' },
   { value: 'VIDEOGRAPHY', label: 'Videography', group: 'Video' },
@@ -86,7 +86,7 @@ const WEDDING: DetailField[] = [
   { key: 'ceremonyReception', label: 'Ceremony and reception details', type: 'textarea', placeholder: 'Where and when each part happens' },
   { key: 'groups', label: 'Important family or group photo combinations', type: 'textarea' },
   { key: 'cultural', label: "Cultural, religious or key moments we shouldn't miss", type: 'textarea' },
-  { key: 'restrictions', label: 'Any restrictions we should know about?', type: 'textarea', placeholder: 'Photography limits, quiet moments' },
+  { key: 'restrictions', label: 'Any restrictions we should know about?', type: 'textarea', placeholder: 'Access limits, quiet moments, timing constraints' },
 ]
 
 const VIDEOGRAPHY: DetailField[] = [
@@ -112,7 +112,7 @@ const DECOR: DetailField[] = [
 ]
 
 const MAKEUP: DetailField[] = [
-  { key: 'serviceType', label: 'What service do you need?', type: 'select', options: ['Bridal', 'Special occasion', 'Editorial / photoshoot', 'Everyday glam', 'Other'] },
+  { key: 'serviceType', label: 'What service do you need?', type: 'select', options: ['Bridal', 'Special occasion', 'Editorial', 'Everyday glam', 'Other'] },
   { key: 'people', label: 'How many people?', type: 'number' },
   { key: 'readyBy', label: 'What time do you need to be ready by?', type: 'time' },
   { key: 'sensitivities', label: 'Any skin sensitivities or allergies?', type: 'textarea' },

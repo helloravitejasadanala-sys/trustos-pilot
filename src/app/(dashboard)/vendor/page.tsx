@@ -27,18 +27,28 @@ export default function TodayPage() {
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [business, setBusiness] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
 
   async function load() {
+    setLoadError(null)
     try {
       const [res, actRes, meRes] = await Promise.all([
         fetch('/api/vendor/projects'),
         fetch('/api/vendor/activity'),
         fetch('/api/auth/me'),
       ])
+      if (res.status === 401 || meRes.status === 401) {
+        setLoadError('Your session expired. Please sign in again.')
+        return
+      }
+      if (res.status === 403) {
+        setLoadError('This workspace is suspended. Contact support if you need access restored.')
+        return
+      }
       const { ok, data } = await parseJsonResponse<{ projects?: VendorProject[]; error?: string }>(res)
       if (!ok) {
-        console.error(data.error || 'Failed to load projects')
+        setLoadError(data.error || 'Could not load your projects. Please refresh and try again.')
         return
       }
       setProjects((data.projects || []).filter((p: VendorProject) => !isArchivedProject(p)))
@@ -46,6 +56,8 @@ export default function TodayPage() {
       if (act.ok) setActivity(act.data.activity || [])
       const me = await parseJsonResponse<{ user?: { vendorProfile?: { businessName?: string } } }>(meRes)
       if (me.ok) setBusiness(me.data.user?.vendorProfile?.businessName || '')
+    } catch {
+      setLoadError('Could not reach the server. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -54,7 +66,7 @@ export default function TodayPage() {
   useEffect(() => { load() }, [])
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const todaysShoots = projects.filter(p => p.eventDate?.startsWith(todayStr))
+  const todaysWork = projects.filter(p => p.eventDate?.startsWith(todayStr))
   const waitingVendor = projects.filter(p => getNextAction(p.status).responsible === 'Vendor')
   const waitingClient = projects.filter(p => getNextAction(p.status).responsible === 'Client')
   const vendorActionable = waitingVendor
@@ -85,6 +97,21 @@ export default function TodayPage() {
     )
   }
 
+  if (loadError) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-6">
+        <div className="mx-auto max-w-lg rounded-xl border border-amber-200 bg-amber-50 px-6 py-10 text-center">
+          <h2 className="font-display text-xl text-forest-950">We couldn&apos;t open your workspace</h2>
+          <p className="mt-2 text-[14px] text-forest-700">{loadError}</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <button onClick={() => { setLoading(true); load() }} className="btn-primary">Try again</button>
+            <Link href="/login" className="btn-secondary">Sign in again</Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // First run — an empty real workspace greets the owner and points at the
   // single next action, rather than showing five empty lists (Section C/D).
   if (projects.length === 0) {
@@ -93,14 +120,21 @@ export default function TodayPage() {
         <div className="flex items-center justify-between gap-4 border-b border-forest-100 pb-4 mb-8">
           <div>
             <h1 className="font-display text-xl text-forest-950">Today</h1>
-            <p className="text-[13px] text-forest-500">Your clear next steps</p>
+            <p className="text-[13px] text-forest-500">
+              {business ? `${business} · your clear next steps` : 'Your clear next steps'}
+            </p>
           </div>
         </div>
         <div className="mx-auto max-w-lg rounded-xl border border-forest-200 bg-white px-6 py-10 text-center">
           <h2 className="font-display text-2xl text-forest-950">Welcome{business ? ` to ${business}` : ''}.</h2>
           <p className="mt-2 text-[14px] text-forest-600">
-            This is your workspace. Create your first project to invite a client and start the journey.
+            This is your TrustOS workspace. Create a project, invite your client with a secure link, and we&apos;ll keep the next step obvious.
           </p>
+          <ol className="mt-5 text-left text-[13px] text-forest-600 space-y-2 mx-auto max-w-sm">
+            <li>1. Create a project with your client&apos;s name and email</li>
+            <li>2. Copy their secure link from the project page</li>
+            <li>3. Come back here — Today will show what needs you next</li>
+          </ol>
           <button onClick={() => setShowCreate(true)} className="btn-primary mt-5">
             <Plus size={16} className="mr-1.5" />Create your first project
           </button>
@@ -116,7 +150,9 @@ export default function TodayPage() {
       <div className="flex items-center justify-between gap-4 border-b border-forest-100 pb-4 mb-5">
         <div>
           <h1 className="font-display text-xl text-forest-950">Today</h1>
-          <p className="text-[13px] text-forest-500">Your clear next steps</p>
+          <p className="text-[13px] text-forest-500">
+            {business ? `${business} · your clear next steps` : 'Your clear next steps'}
+          </p>
         </div>
         <button onClick={() => setShowCreate(true)} className="btn-primary shrink-0">
           <Plus size={16} className="mr-1.5" />New project
@@ -170,8 +206,8 @@ export default function TodayPage() {
 
       {/* Dense two-column work lists */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Section title="Today's shoots" empty="Nothing scheduled for today.">
-          {todaysShoots.map(p => <ProjectLine key={p.id} project={p} />)}
+        <Section title="Today's work" empty="Nothing scheduled for today.">
+          {todaysWork.map(p => <ProjectLine key={p.id} project={p} />)}
         </Section>
         <Section title="Waiting for you" empty="Nothing needs your action right now.">
           {waitingVendor.slice(0, 6).map(p => <ProjectLine key={p.id} project={p} />)}
