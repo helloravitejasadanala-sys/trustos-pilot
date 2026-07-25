@@ -68,8 +68,10 @@ export default function SignUpPage() {
       nav={[{ href: '/login', label: 'Sign in' }]}
     >
       <AuthCard>
-        <div className="mb-7 text-center">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink-900">Create your workspace</h1>
+        <div className="mb-7 text-center px-0.5">
+          <h1 className="font-display text-[1.35rem] font-semibold tracking-tight text-ink-900 break-words sm:text-2xl">
+            Create your workspace
+          </h1>
           <p className="mt-2 text-sm text-ink-400">Set up your studio in under a minute. No card required.</p>
         </div>
 
@@ -84,7 +86,7 @@ export default function SignUpPage() {
                 placeholder="e.g. Mini Momentz"
                 required
                 autoFocus
-                className="w-full border-ink-200/50 bg-white/80 pl-10 focus:border-forest-300 focus:ring-0"
+                className="auth-input-with-icon w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
               />
             </div>
           </div>
@@ -98,7 +100,7 @@ export default function SignUpPage() {
                 onChange={e => set('ownerName', e.target.value)}
                 placeholder="e.g. Ravi Sadanala"
                 required
-                className="w-full border-ink-200/50 bg-white/80 pl-10 focus:border-forest-300 focus:ring-0"
+                className="auth-input-with-icon w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
               />
             </div>
           </div>
@@ -113,7 +115,7 @@ export default function SignUpPage() {
                 onChange={e => set('email', e.target.value)}
                 placeholder="you@studio.com"
                 required
-                className="w-full border-ink-200/50 bg-white/80 pl-10 focus:border-forest-300 focus:ring-0"
+                className="auth-input-with-icon w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
               />
             </div>
           </div>
@@ -128,7 +130,7 @@ export default function SignUpPage() {
                 onChange={e => set('password', e.target.value)}
                 placeholder="At least 8 characters"
                 required
-                className="w-full border-ink-200/50 bg-white/80 pl-10 focus:border-forest-300 focus:ring-0"
+                className="auth-input-with-icon w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
               />
             </div>
             {passwordTooShort && <p className="mt-1 text-xs text-red-600">Use at least 8 characters.</p>}
@@ -144,7 +146,7 @@ export default function SignUpPage() {
                 onChange={e => set('confirm', e.target.value)}
                 placeholder="Re-enter your password"
                 required
-                className="w-full border-ink-200/50 bg-white/80 pl-10 focus:border-forest-300 focus:ring-0"
+                className="auth-input-with-icon w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
               />
             </div>
             {mismatch && <p className="mt-1 text-xs text-red-600">Passwords do not match.</p>}

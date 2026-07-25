@@ -5,8 +5,15 @@ import { DEMO, type DemoKey } from './demo'
 const INVITATION_TTL_DAYS = 30
 const DEMO_TTL_DAYS = 3650
 
+/**
+ * Public origin used in client invitation links.
+ * Production must never fall back to localhost — that mints unusable links.
+ */
 export function appUrl() {
-  return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const explicit = (process.env.APP_URL || '').replace(/\/$/, '')
+  if (explicit) return explicit
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`
+  return 'http://localhost:3000'
 }
 
 type InvitationRow = {

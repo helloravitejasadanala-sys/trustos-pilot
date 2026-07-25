@@ -28,6 +28,8 @@ type VendorChromeValue = {
   openNewProject: () => void
   businessName: string
   userName: string
+  /** False until /api/auth/me has resolved (success or failure). */
+  profileLoaded: boolean
 }
 
 const VendorChromeContext = createContext<VendorChromeValue | null>(null)
@@ -39,6 +41,7 @@ export function useVendorChrome() {
       openNewProject: () => {},
       businessName: '',
       userName: '',
+      profileLoaded: false,
     }
   }
   return ctx
@@ -58,6 +61,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const inWorkspace = pathname.startsWith('/vendor/projects/') && pathname.split('/').length > 3
   const [businessName, setBusinessName] = useState('')
   const [userName, setUserName] = useState('')
+  const [profileLoaded, setProfileLoaded] = useState(false)
   const [todayCount, setTodayCount] = useState(0)
   const [projectCount, setProjectCount] = useState(0)
   const [showCreate, setShowCreate] = useState(false)
@@ -65,22 +69,26 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const [meRes, projRes] = await Promise.all([
-        fetch('/api/auth/me'),
-        fetch('/api/vendor/projects'),
-      ])
-      const me = await parseJsonResponse<{
-        user?: { name?: string; vendorProfile?: { businessName?: string | null } | null }
-      }>(meRes)
-      if (!cancelled && me.ok) {
-        setBusinessName(me.data.user?.vendorProfile?.businessName?.trim() || '')
-        setUserName(me.data.user?.name?.trim() || '')
-      }
-      const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
-      if (!cancelled && proj.ok) {
-        const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
-        setProjectCount(live.length)
-        setTodayCount(live.filter(p => getNextAction(p.status).responsible === 'Vendor').length)
+      try {
+        const [meRes, projRes] = await Promise.all([
+          fetch('/api/auth/me'),
+          fetch('/api/vendor/projects'),
+        ])
+        const me = await parseJsonResponse<{
+          user?: { name?: string; vendorProfile?: { businessName?: string | null } | null }
+        }>(meRes)
+        if (!cancelled && me.ok) {
+          setBusinessName(me.data.user?.vendorProfile?.businessName?.trim() || '')
+          setUserName(me.data.user?.name?.trim() || '')
+        }
+        const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
+        if (!cancelled && proj.ok) {
+          const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
+          setProjectCount(live.length)
+          setTodayCount(live.filter(p => getNextAction(p.status).responsible === 'Vendor').length)
+        }
+      } finally {
+        if (!cancelled) setProfileLoaded(true)
       }
     })()
     return () => { cancelled = true }
@@ -89,14 +97,14 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const openNewProject = useCallback(() => setShowCreate(true), [])
 
   const chrome = useMemo(
-    () => ({ openNewProject, businessName, userName }),
-    [openNewProject, businessName, userName],
+    () => ({ openNewProject, businessName, userName, profileLoaded }),
+    [openNewProject, businessName, userName, profileLoaded],
   )
 
-  const workspaceLabel = businessName || 'Your workspace'
-  const workspaceInitial = workspaceLabel.charAt(0).toUpperCase()
-  const profileInitial = (userName || workspaceLabel).charAt(0).toUpperCase()
-  const firstName = userName.split(' ')[0] || 'there'
+  const workspaceLabel = businessName.trim() || userName.trim() || 'Workspace'
+  const workspaceInitial = (businessName || userName || 'W').charAt(0).toUpperCase()
+  const profileInitial = (userName || businessName || '·').charAt(0).toUpperCase()
+  const profileLabel = userName.trim() || businessName.trim()
 
   const badgeFor = (href: string) => {
     if (href === '/vendor' && todayCount > 0) return todayCount
@@ -109,10 +117,22 @@ export default function VendorShell({ children }: { children: ReactNode }) {
       <div className="vendor-shell">
         <aside className="vendor-rail" aria-label="Workspace">
           <Link href="/vendor" className="vendor-rail__brand">
-            <span className="vendor-rail__mark" aria-hidden>{workspaceInitial}</span>
+            <span className="vendor-rail__mark" aria-hidden>
+              {profileLoaded ? workspaceInitial : '·'}
+            </span>
             <span className="min-w-0">
-              <span className="block truncate text-[14px] font-bold leading-tight">{workspaceLabel}</span>
-              <span className="block text-[11px] text-[color:var(--on-dark-mut)]">Workspace</span>
+              {profileLoaded ? (
+                <>
+                  <span className="block truncate text-[14px] font-bold leading-tight">{workspaceLabel}</span>
+                  <span className="block text-[12px] text-[color:var(--on-dark-mut)]">Workspace</span>
+                </>
+              ) : (
+                <>
+                  <span className="mb-1.5 block h-3.5 w-28 animate-pulse rounded bg-[color:var(--nav-2)]" aria-hidden />
+                  <span className="block h-2.5 w-16 animate-pulse rounded bg-[color:var(--nav-2)]" aria-hidden />
+                  <span className="sr-only">Loading workspace</span>
+                </>
+              )}
             </span>
           </Link>
 
@@ -137,10 +157,24 @@ export default function VendorShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="vendor-rail__profile">
-            <span className="vendor-rail__avatar" aria-hidden>{profileInitial}</span>
+            <span className="vendor-rail__avatar" aria-hidden>
+              {profileLoaded ? profileInitial : '·'}
+            </span>
             <div className="min-w-0">
-              <div className="truncate text-[13px] font-semibold">{userName || firstName}</div>
-              <div className="text-[11px] text-[color:var(--on-dark-mut)]">Owner</div>
+              {profileLoaded ? (
+                <>
+                  <div className="truncate text-[13px] font-semibold">
+                    {profileLabel || 'Account'}
+                  </div>
+                  <div className="text-[12px] text-[color:var(--on-dark-mut)]">Owner</div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-1.5 h-3 w-24 animate-pulse rounded bg-[color:var(--nav-2)]" aria-hidden />
+                  <div className="h-2.5 w-12 animate-pulse rounded bg-[color:var(--nav-2)]" aria-hidden />
+                  <span className="sr-only">Loading profile</span>
+                </>
+              )}
             </div>
           </div>
         </aside>

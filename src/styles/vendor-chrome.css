@@ -6,6 +6,8 @@
   background: var(--canvas);
   color: var(--ink);
   font: var(--t-body);
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .vendor-rail {
@@ -152,8 +154,11 @@
 
 .vendor-body {
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: 16px 16px 90px;
+  padding: 12px 12px 90px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 768px) {
@@ -285,7 +290,9 @@
 .ws-grid {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (min-width: 900px) {
@@ -300,16 +307,32 @@
 .ws-stack {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .ws-grid { gap: 20px; }
+  .ws-stack { gap: 20px; }
 }
 
 .ws-handoff {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--nav-line);
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .ws-handoff {
+    gap: 14px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+  }
 }
 
 .ws-journey {
@@ -337,32 +360,45 @@
   margin: 0 2px;
 }
 
+.ws-msg-mine,
+.ws-msg-theirs {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
 .ws-msg-mine {
   background: var(--forest);
   color: #fff;
-  border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 13.5px;
 }
 
 .ws-msg-theirs {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 13.5px;
   color: var(--ink);
+}
+
+@media (min-width: 768px) {
+  .ws-msg-mine,
+  .ws-msg-theirs {
+    padding: 11px 14px;
+  }
 }
 
 /* Client portal — light & warm (forest CTA, never lime) */
 .portal-body {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 14px;
+  min-width: 0;
 }
 
 @media (min-width: 800px) {
   .portal-body {
+    gap: 22px;
     padding: 28px 40px 40px !important;
   }
 
@@ -377,27 +413,71 @@
 .portal-grid {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 14px;
+  min-width: 0;
+}
+
+@media (min-width: 800px) {
+  .portal-grid { gap: 22px; }
 }
 
 .portal-status {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .portal-status-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 15px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .portal-status { gap: 10px; }
+  .portal-status-row {
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+  }
 }
 
 .portal-quote {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
   background: var(--sand);
   border-radius: var(--r-lg);
+  min-width: 0;
+}
+
+.portal-quote > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 768px) {
+  .portal-quote {
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+  }
+}
+
+.portal-detail-chips {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+.portal-detail-chips .chip {
+  white-space: normal;
+  line-height: 1.25;
+  max-width: 100%;
 }

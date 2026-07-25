@@ -25,7 +25,7 @@ export function AuthLayout({
   className?: string
 }) {
   return (
-    <div className={cn('relative min-h-screen overflow-hidden bg-paper text-ink-900', className)}>
+    <div className={cn('relative min-h-screen overflow-x-hidden bg-paper text-ink-900', className)}>
       <AuthAtmosphere />
 
       <header className="sticky top-0 z-40 border-b border-ink-200/40 bg-paper/75 backdrop-blur-xl">
@@ -66,7 +66,7 @@ export function AuthCard({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-2xl border border-ink-200/40 bg-white/70 p-6 shadow-soft backdrop-blur-sm sm:p-8',
+        'overflow-x-hidden rounded-2xl border border-ink-200/40 bg-white/70 p-5 shadow-soft backdrop-blur-sm sm:p-8',
         className,
       )}
     >

@@ -31,19 +31,22 @@ const DETAIL_CHIPS = [
 ] as const
 
 export default function ClientJourney({ params }: { params: { token: string } }) {
-  const [state, setState] = useState<'loading' | 'invalid' | 'ready'>('loading')
+  const [state, setState] = useState<'loading' | 'invalid' | 'session' | 'ready'>('loading')
   const [d, setD] = useState<Data | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function refresh() {
+  async function refresh(): Promise<'ok' | 'session' | 'error'> {
     const [project, questionnaire, proposal, contract, payment] = await Promise.all([
-      fetch('/api/client/project').then(r => parseJsonResponse(r)),
-      fetch('/api/client/questionnaire').then(r => parseJsonResponse(r)),
-      fetch('/api/client/proposal').then(r => parseJsonResponse(r)),
-      fetch('/api/client/contract').then(r => parseJsonResponse(r)),
-      fetch('/api/client/payment').then(r => parseJsonResponse(r)),
+      fetch('/api/client/project', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+      fetch('/api/client/questionnaire', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+      fetch('/api/client/proposal', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+      fetch('/api/client/contract', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+      fetch('/api/client/payment', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
     ])
-    if (!project.ok) { setState('invalid'); return }
+    if (!project.ok) {
+      return project.status === 401 ? 'session' : 'error'
+    }
+    if (!(project.data as any).project) return 'error'
     setD({
       project: (project.data as any).project,
       questionnaire: questionnaire.ok ? (questionnaire.data as any).questionnaire ?? null : null,
@@ -51,16 +54,53 @@ export default function ClientJourney({ params }: { params: { token: string } })
       contract: contract.ok ? (contract.data as any).contract ?? null : null,
       payment: payment.ok ? (payment.data as any).payment ?? null : null,
     })
-    setState('ready')
+    return 'ok'
   }
 
   useEffect(() => {
-    (async () => {
-      const res = await fetch(`/api/client/invite/${params.token}`, { method: 'POST' })
-      const parsed = await parseJsonResponse(res)
-      if (!parsed.ok) { setState('invalid'); return }
-      await refresh()
+    let cancelled = false
+    ;(async () => {
+      const token = params.token
+      if (!token || token.length < 20) {
+        setState('invalid')
+        return
+      }
+
+      async function exchange(): Promise<boolean> {
+        const res = await fetch(`/api/client/invite/${encodeURIComponent(token)}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+        })
+        const parsed = await parseJsonResponse(res)
+        return parsed.ok
+      }
+
+      try {
+        // One retry covers Neon/Vercel cold-start blips that otherwise surface as "invalid".
+        let invited = await exchange()
+        if (!invited) {
+          await new Promise(r => setTimeout(r, 600))
+          invited = await exchange()
+        }
+        if (cancelled) return
+        if (!invited) { setState('invalid'); return }
+
+        let result = await refresh()
+        if (result === 'session') {
+          // Cookie may not have landed — re-exchange once, then reload project.
+          await exchange()
+          if (cancelled) return
+          result = await refresh()
+        }
+        if (cancelled) return
+        if (result === 'ok') setState('ready')
+        else if (result === 'session') setState('session')
+        else setState('invalid')
+      } catch {
+        if (!cancelled) setState('session')
+      }
     })()
+    return () => { cancelled = true }
   }, [params.token])
 
   if (state === 'loading') {
@@ -76,19 +116,32 @@ export default function ClientJourney({ params }: { params: { token: string } })
     )
   }
 
-  if (state === 'invalid' || !d) {
+  if (state === 'invalid' || state === 'session' || !d) {
+    const isSession = state === 'session'
     return (
       <ClientPortalLayout centered>
         <div className="max-w-md text-center">
           <div className="banner banner-error mb-4" style={{ justifyContent: 'center' }}>
-            This link isn&apos;t valid
+            {isSession ? "Couldn't start your session" : "This link isn't valid"}
           </div>
           <h1 className="serif" style={{ fontSize: 28, margin: '0 0 10px', color: 'var(--ink)' }}>
             We couldn&apos;t open this page
           </h1>
           <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
-            It may have expired or been replaced. Ask your vendor for a new link.
+            {isSession
+              ? 'Please refresh this page. If it still fails, ask your vendor for a new link.'
+              : 'It may have expired or been replaced. Ask your vendor for a new link.'}
           </p>
+          {isSession && (
+            <button
+              type="button"
+              className="btn btn-forest"
+              style={{ marginTop: 18, minHeight: 44 }}
+              onClick={() => window.location.reload()}
+            >
+              Refresh
+            </button>
+          )}
         </div>
       </ClientPortalLayout>
     )
@@ -160,30 +213,23 @@ export default function ClientJourney({ params }: { params: { token: string } })
       progressPct={progressPct}
     >
       <div className="portal-grid">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        <div className="flex min-w-0 flex-col gap-3.5 md:gap-[22px]">
           {/* One current action — forest CTA, never lime */}
           {current !== 'done' && currentStep ? (
-            <div>
+            <div className="min-w-0">
               <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
                 What we need from you
               </div>
-              <div className="action-outline" style={{ padding: '22px 20px' }}>
-                <div className="serif" style={{ fontSize: 'clamp(22px, 3vw, 25px)', lineHeight: 1.1, marginBottom: 6 }}>
+              <div className="action-outline" style={{ padding: '16px 14px' }}>
+                <div className="serif break-words" style={{ fontSize: 'clamp(20px, 5.5vw, 25px)', lineHeight: 1.1, marginBottom: 6 }}>
                   {currentStep.label}
                 </div>
-                <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 18px' }}>
+                <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
                   {currentStep.why}
                 </p>
 
                 {current === 'questionnaire' && (
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: 9,
-                      marginBottom: 18,
-                    }}
-                  >
+                  <div className="portal-detail-chips">
                     {DETAIL_CHIPS.map(chip => {
                       const filled = !!(answers[chip.key] || (chip.key === 'venue' && project.location) || (chip.key === 'time' && answers.time))
                       return (
@@ -220,8 +266,8 @@ export default function ClientJourney({ params }: { params: { token: string } })
               </div>
             </div>
           ) : (
-            <div className="action-outline" style={{ padding: 24 }}>
-              <div className="serif" style={{ fontSize: 25, lineHeight: 1.15, marginBottom: 8 }}>
+            <div className="action-outline" style={{ padding: '16px 14px' }}>
+              <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
                 You&apos;re all set
               </div>
               <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
@@ -258,7 +304,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your project</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
                 {[typeLabel, eventDate].filter(Boolean).join(' · ') || 'Details coming'}
               </div>
             </div>
@@ -271,7 +317,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
             <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--success-soft)', color: 'var(--success)' }}>£</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your quote</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
                 {proposal
                   ? `£${Number(proposal.price).toFixed(0)}${proposal.title ? ` · ${proposal.title}` : ''}`
                   : 'Waiting for your studio'}
@@ -284,7 +330,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
             <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--amber-soft)', color: 'var(--amber)' }}>⇄</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>Payment</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
                 {!payment
                   ? 'Opens after the agreement'
                   : Number(payment.total) === 0
@@ -303,7 +349,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
             <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--recessed)', color: 'var(--faint)' }}>⬇</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your delivery</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
                 {hasGallery ? 'Files are ready below' : 'Ready a few days after'}
               </div>
             </div>
@@ -736,9 +782,9 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
                 >
                   {mine ? 'Y' : vendorName.charAt(0).toUpperCase()}
                 </span>
-                <div style={{ maxWidth: '74%' }}>
+                <div style={{ maxWidth: 'min(74%, 100%)', minWidth: 0 }}>
                   <div className={mine ? 'ws-msg-mine' : 'ws-msg-theirs'}>
-                    <p className="whitespace-pre-wrap" style={{ margin: 0 }}>{m.content}</p>
+                    <p className="whitespace-pre-wrap break-words" style={{ margin: 0 }}>{m.content}</p>
                   </div>
                   <div
                     className="num"

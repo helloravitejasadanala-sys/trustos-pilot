@@ -68,29 +68,30 @@ export default function NewProjectModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-float max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-forest-100 px-5 py-4">
-          <h2 className="text-lg font-semibold text-forest-950">New project</h2>
-          <button onClick={onClose} className="rounded-lg p-2 text-forest-500 hover:bg-forest-50" aria-label="Close">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-x-hidden bg-black/30 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="max-h-[90vh] w-full max-w-lg min-w-0 overflow-x-hidden overflow-y-auto rounded-2xl bg-white shadow-float">
+        <div className="flex items-center justify-between gap-3 border-b border-forest-100 px-4 py-3.5 sm:px-5 sm:py-4">
+          <h2 className="min-w-0 break-words text-lg font-semibold text-forest-950">New project</h2>
+          <button onClick={onClose} className="shrink-0 rounded-lg p-2 text-forest-500 hover:bg-forest-50" aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
-        <div className="space-y-4 p-5">
-          <div>
+        <div className="min-w-0 space-y-4 p-4 sm:p-5">
+          <div className="min-w-0">
             <label className="label">Project name <span className="text-red-400">*</span></label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Priya — First birthday"
               autoFocus
+              className="w-full max-w-full"
             />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="label">Project type</label>
-            <select value={type} onChange={e => setType(e.target.value)} className="w-full">
+            <select value={type} onChange={e => setType(e.target.value)} className="w-full max-w-full">
               {Object.entries(grouped).map(([group, items]) => (
                 <optgroup key={group} label={group}>
                   {items.map(t => (
@@ -101,35 +102,35 @@ export default function NewProjectModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0">
               <label className="label">Event date</label>
-              <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
+              <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full max-w-full" />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="label">Location</label>
-              <input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. City or venue" />
+              <input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. City or venue" className="w-full max-w-full" />
             </div>
           </div>
 
-          <div className="rounded-xl border border-forest-100 bg-forest-50/40 p-4 space-y-4">
+          <div className="min-w-0 space-y-4 rounded-xl border border-forest-100 bg-forest-50/40 p-3.5 sm:p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-forest-600">Your client</p>
-            <p className="text-xs text-forest-500 -mt-2">
+            <p className="text-xs text-forest-500 -mt-2 break-words">
               Add a name and email so this project also appears under Clients after you create it.
             </p>
-            <div>
+            <div className="min-w-0">
               <label className="label">Client name</label>
-              <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Priya Sharma" />
+              <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Priya Sharma" className="w-full max-w-full" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0">
                 <label className="label">Client email</label>
-                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="client@example.com" />
+                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="client@example.com" className="w-full max-w-full" />
                 {clientEmail.length > 0 && !emailValid && <p className="mt-1 text-xs text-red-600">Enter a valid email address</p>}
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="label">Phone <span className="text-forest-300">(optional)</span></label>
-                <input type="tel" inputMode="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="07400 123456" />
+                <input type="tel" inputMode="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="07400 123456" className="w-full max-w-full" />
               </div>
             </div>
           </div>

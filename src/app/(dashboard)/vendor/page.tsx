@@ -71,7 +71,7 @@ function setSnoozed(projectId: string) {
 }
 
 export default function TodayPage() {
-  const { openNewProject, userName, businessName } = useVendorChrome()
+  const { openNewProject, userName, businessName, profileLoaded } = useVendorChrome()
   const [projects, setProjects] = useState<VendorProject[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [business, setBusiness] = useState('')
@@ -153,10 +153,13 @@ export default function TodayPage() {
   }, [projects])
 
   const unreadProjects = projects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
-  const firstName = (ownerName || userName).split(' ')[0] || 'there'
+  const firstName = (ownerName || userName).split(' ')[0] || ''
   const studio = business || businessName
+  const greeting = greetingFor(new Date().getHours())
+  const greetingLine = firstName ? `${greeting}, ${firstName}` : greeting
+  const avatarLetter = firstName ? firstName.charAt(0).toUpperCase() : (studio ? studio.charAt(0).toUpperCase() : '')
 
-  if (loading) {
+  if (loading || !profileLoaded) {
     return (
       <div>
         <div className="skeleton mb-3 h-8 w-56" />
@@ -196,7 +199,7 @@ export default function TodayPage() {
     return (
       <div>
         <h1 className="serif" style={{ fontSize: 32, lineHeight: 1 }}>
-          Welcome{studio ? `, ${firstName}` : ''}
+          Welcome{firstName ? `, ${firstName}` : ''}
         </h1>
         <p className="mt-1 mb-6 text-[color:var(--muted)]">
           Your studio&apos;s ready. Start with one real job — everything else follows from there.
@@ -240,7 +243,7 @@ export default function TodayPage() {
             {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
           <h1 className="serif" style={{ fontSize: 26, lineHeight: 1.05 }}>
-            {greetingFor(new Date().getHours())}, {firstName}
+            {greetingLine}
           </h1>
         </div>
         <span
@@ -248,14 +251,14 @@ export default function TodayPage() {
           style={{ width: 40, height: 40, borderRadius: 11, background: 'var(--forest)', color: '#fff' }}
           aria-hidden
         >
-          {firstName.charAt(0).toUpperCase()}
+          {avatarLetter || '·'}
         </span>
       </div>
 
       {/* Desktop greeting */}
       <div className="mb-5 hidden md:block">
         <h1 className="serif" style={{ fontSize: 32, lineHeight: 1 }}>
-          {greetingFor(new Date().getHours())}, {firstName}
+          {greetingLine}
         </h1>
         <p className="mt-1 text-[color:var(--muted)]">
           You have{' '}

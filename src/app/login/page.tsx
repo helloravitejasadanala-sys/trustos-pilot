@@ -15,10 +15,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
+  const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setError('')
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -28,7 +30,12 @@ export default function LoginPage() {
       })
 
       const { ok, data } = await parseJsonResponse<{ user?: any; error?: string }>(res)
-      if (!ok) throw new Error(data.error || 'Sign in failed')
+      if (!ok) {
+        const message = data.error || "That email or password didn't match"
+        setError(message)
+        toast.error(message)
+        return
+      }
 
       toast.success(`Welcome, ${data.user.name}`)
 
@@ -37,14 +44,18 @@ export default function LoginPage() {
       if (data.user.role === 'ADMIN') router.push('/admin')
       else if (data.user.role === 'VENDOR') router.push('/vendor')
       else {
-        toast.error('Clients should open the secure link from your vendor.')
+        const message = 'Clients should open the secure link from your vendor.'
+        setError(message)
+        toast.error(message)
         await fetch('/api/auth/logout', { method: 'POST' })
         return
       }
 
       router.refresh()
     } catch (err: any) {
-      toast.error(err.message)
+      const message = err.message || "That email or password didn't match"
+      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -69,7 +80,12 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-describedby={error ? 'login-error' : undefined}>
+          {error ? (
+            <div id="login-error" role="alert" className="banner banner-error">
+              {error}
+            </div>
+          ) : null}
           <div className="relative">
             <Mail
               size={16}
@@ -79,11 +95,11 @@ export default function LoginPage() {
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => { setEmail(e.target.value); if (error) setError('') }}
               placeholder="Email"
               required
-              className="w-full border-[color:var(--line)] bg-[color:var(--panel)] focus:border-[color:var(--forest)]"
-              style={{ paddingLeft: 44 }}
+              autoComplete="email"
+              className="auth-input-with-icon w-full border-[color:var(--line)] bg-[color:var(--panel)] focus:border-[color:var(--forest)]"
             />
           </div>
           <div className="relative">
@@ -95,21 +111,21 @@ export default function LoginPage() {
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={e => { setPassword(e.target.value); if (error) setError('') }}
               placeholder="Password"
               required
-              className="w-full border-[color:var(--line)] bg-[color:var(--panel)] focus:border-[color:var(--forest)]"
-              style={{ paddingLeft: 44 }}
+              autoComplete="current-password"
+              className="auth-input-with-icon w-full border-[color:var(--line)] bg-[color:var(--panel)] focus:border-[color:var(--forest)]"
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-ink-500">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-[color:var(--muted)]">
               <input
                 type="checkbox"
                 checked={remember}
                 onChange={e => setRemember(e.target.checked)}
-                className="h-4 w-4 rounded border-ink-300 text-forest-700 focus:ring-0"
+                className="h-4 w-4 rounded border-[color:var(--line)] text-forest-700 focus:ring-0 accent-[color:var(--forest)]"
                 style={{ minHeight: 'auto' }}
               />
               Remember me
@@ -126,20 +142,20 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-ink-400">
+        <p className="mt-6 text-center text-sm text-[color:var(--muted)]">
           New to {PRODUCT_NAME}?{' '}
           <Link href="/signup" className="font-medium text-forest-700 hover:text-forest-900">Create your workspace</Link>
         </p>
 
-        <div className="mt-6 space-y-3 border-t border-ink-200/40 pt-6 text-center">
-          <p className="text-xs text-ink-300">
+        <div className="mt-6 space-y-3 border-t border-[color:var(--line-soft)] pt-6 text-center">
+          <p className="text-[13px] text-[color:var(--muted)]">
             Client with a project invitation?<br />
             Open the secure link from your vendor
           </p>
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/" className="text-xs text-ink-300 transition hover:text-ink-500">
+          <Link href="/" className="text-[13px] text-[color:var(--muted)] transition hover:text-[color:var(--ink)]">
             ← Back to {PRODUCT_NAME}
           </Link>
         </div>

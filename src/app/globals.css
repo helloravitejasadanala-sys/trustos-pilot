@@ -54,6 +54,11 @@ html {
     border-color: var(--forest);
     box-shadow: 0 0 0 2px rgba(30, 110, 104, 0.15);
   }
+
+  /* Icon + text inputs: beat the shorthand padding above on all viewports */
+  input.auth-input-with-icon {
+    padding-left: 3rem !important; /* 48px — clears 16px icon at left 14px */
+  }
 }
 
 @layer components {

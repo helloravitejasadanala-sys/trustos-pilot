@@ -43,11 +43,11 @@ export function ClientPortalLayout({
 
   return (
     <div
-      className={cn('min-h-screen px-3 py-5 sm:px-5 sm:py-8 md:py-10', className)}
+      className={cn('min-h-screen overflow-x-hidden px-2.5 py-3 sm:px-5 sm:py-8 md:py-10', className)}
       style={{ background: 'var(--canvas)' }}
     >
       <div
-        className="portal-shell mx-auto overflow-hidden"
+        className="portal-shell mx-auto max-w-full overflow-x-hidden"
         style={{
           maxWidth: 920,
           background: 'var(--canvas-2)',
@@ -60,7 +60,7 @@ export function ClientPortalLayout({
           style={{
             background: 'var(--forest-deep)',
             color: '#fff',
-            padding: '26px 22px 28px',
+            padding: '16px 14px 18px',
           }}
           className="sm:!px-10 sm:!pt-[30px] sm:!pb-[34px]"
         >
@@ -69,8 +69,11 @@ export function ClientPortalLayout({
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              marginBottom: 22,
+              marginBottom: 14,
+              minWidth: 0,
+              flexWrap: 'wrap',
             }}
+            className="sm:!mb-[22px]"
           >
             <span
               aria-hidden
@@ -83,18 +86,21 @@ export function ClientPortalLayout({
                 placeItems: 'center',
                 fontWeight: 800,
                 fontSize: 13,
+                flexShrink: 0,
               }}
             >
               {letter}
             </span>
-            <b style={{ fontSize: 14.5 }}>{brandName}</b>
+            <b style={{ fontSize: 14.5, minWidth: 0, overflowWrap: 'anywhere' }}>{brandName}</b>
             <span
               style={{
                 marginLeft: 'auto',
-                fontSize: 12,
+                fontSize: 11.5,
                 color: 'rgba(255,255,255,.6)',
                 textAlign: 'right',
+                maxWidth: '100%',
               }}
+              className="basis-full sm:basis-auto sm:!text-[12px]"
             >
               Private secure link · no account needed
             </span>
@@ -105,22 +111,25 @@ export function ClientPortalLayout({
               display: 'flex',
               alignItems: 'flex-end',
               justifyContent: 'space-between',
-              gap: 20,
+              gap: 12,
               flexWrap: 'wrap',
+              minWidth: 0,
             }}
           >
-            <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ minWidth: 0, flex: '1 1 160px' }}>
               {forLine ? (
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)' }}>{forLine}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', overflowWrap: 'anywhere' }}>{forLine}</div>
               ) : null}
               {title ? (
                 <h1
                   className="serif"
                   style={{
-                    fontSize: 'clamp(26px, 4vw, 38px)',
+                    fontSize: 'clamp(24px, 7vw, 38px)',
                     lineHeight: 1.05,
                     margin: forLine ? '4px 0 0' : 0,
                     fontWeight: 400,
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
                   }}
                 >
                   {title}
@@ -128,7 +137,7 @@ export function ClientPortalLayout({
               ) : null}
             </div>
             {stepLabel ? (
-              <div style={{ textAlign: 'right', minWidth: 140 }}>
+              <div style={{ textAlign: 'left', minWidth: 0, flex: '1 1 120px' }} className="sm:!text-right">
                 <div className="num" style={{ fontSize: 13, color: 'rgba(255,255,255,.75)' }}>
                   {stepLabel}
                 </div>
@@ -139,15 +148,15 @@ export function ClientPortalLayout({
                   aria-valuemax={100}
                   aria-label={stepLabel}
                   style={{
-                    width: 200,
-                    maxWidth: '100%',
+                    width: '100%',
+                    maxWidth: 200,
                     height: 6,
                     borderRadius: 3,
                     background: 'rgba(255,255,255,.18)',
                     overflow: 'hidden',
                     marginTop: 7,
-                    marginLeft: 'auto',
                   }}
+                  className="sm:!ml-auto"
                 >
                   <i
                     style={{
@@ -163,7 +172,7 @@ export function ClientPortalLayout({
           </div>
         </header>
 
-        <div className="portal-body" style={{ padding: '22px 18px 32px' }}>
+        <div className="portal-body" style={{ padding: '14px 12px 22px' }}>
           {children}
         </div>
       </div>

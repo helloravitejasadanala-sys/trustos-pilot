@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
+import type { NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { prisma } from './prisma'
 
@@ -69,30 +70,50 @@ export async function validateInvitationToken(token: string): Promise<Invitation
   })
 
   if (!invitation) return { ok: false, reason: 'not_found' }
+  // Older rows could theoretically lack a project — never mint a session for those.
+  if (!invitation.projectId) return { ok: false, reason: 'not_found' }
   if (invitation.revokedAt) return { ok: false, reason: 'revoked' }
   if (invitation.expiresAt.getTime() <= Date.now()) return { ok: false, reason: 'expired' }
 
   return { ok: true, invitationId: invitation.id, projectId: invitation.projectId }
 }
 
-/**
- * Issue the scoped session. The cookie carries the projectId; the
- * browser never sees it and cannot choose it.
- */
-export async function createClientSession(invitationId: string, projectId: string) {
-  const token = await new SignJWT({ pid: projectId, iid: invitationId, typ: 'client' })
+const clientCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: SESSION_MAX_AGE_S,
+  path: '/',
+}
+
+async function signClientSessionToken(invitationId: string, projectId: string) {
+  return new SignJWT({ pid: projectId, iid: invitationId, typ: 'client' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
     .sign(getSecret())
+}
 
-  cookies().set(CLIENT_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: SESSION_MAX_AGE_S,
-    path: '/',
-  })
+/**
+ * Issue the scoped session. The cookie carries the projectId; the
+ * browser never sees it and cannot choose it.
+ *
+ * Prefer passing the Route Handler `NextResponse` so Set-Cookie is
+ * attached to that response (reliable on Vercel). Falls back to
+ * `cookies().set` when no response is provided.
+ */
+export async function createClientSession(
+  invitationId: string,
+  projectId: string,
+  res?: NextResponse,
+) {
+  const token = await signClientSessionToken(invitationId, projectId)
+
+  if (res) {
+    res.cookies.set(CLIENT_COOKIE, token, clientCookieOptions)
+  } else {
+    cookies().set(CLIENT_COOKIE, token, clientCookieOptions)
+  }
 }
 
 export async function clearClientSession() {

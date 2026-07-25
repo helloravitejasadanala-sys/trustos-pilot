@@ -144,7 +144,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <p className="mt-6 text-xs text-ink-400">
+          <p className="mt-6 text-sm text-ink-400">
             No credit card. No commitment. Built for creative businesses.
           </p>
         </div>
@@ -258,7 +258,7 @@ export default function LandingPage() {
             <span className="font-display text-sm font-semibold text-ink-600">
               TrustOS
             </span>
-            <span className="text-xs text-ink-400">© 2026</span>
+            <span className="text-sm text-ink-400">© 2026</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-5 text-xs text-ink-500">
             <Link href="/privacy" className="transition-colors hover:text-forest-700">

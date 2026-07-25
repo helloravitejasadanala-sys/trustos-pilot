@@ -339,29 +339,32 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   return (
     <WorkspaceLayout>
       {/* Project header */}
-      <div className="mb-5 flex flex-wrap items-start gap-3.5">
+      <div className="mb-3 flex max-w-full flex-wrap items-start gap-3 md:mb-5 md:gap-3.5">
         <span
           className={markerClass(project.type)}
-          style={{ width: 52, height: 52, fontSize: 19 }}
+          style={{ width: 44, height: 44, fontSize: 17 }}
           aria-hidden
         >
           {markerLetter(project.type, project.title)}
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-[min(100%,12rem)]">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <span className="chip" style={{ background: 'var(--gold-soft)', color: '#7a4a1e' }}>{typeLabel}</span>
             <span className="num" style={{ fontSize: 12, color: 'var(--muted)' }}>
               Stage {stageNum} of {stageOf}
             </span>
           </div>
-          <h1 className="serif truncate" style={{ fontSize: 27, lineHeight: 1.05, margin: 0, color: 'var(--ink)' }}>
+          <h1
+            className="serif break-words"
+            style={{ fontSize: 'clamp(22px, 6.5vw, 27px)', lineHeight: 1.1, margin: 0, color: 'var(--ink)' }}
+          >
             {project.title}
           </h1>
           {eventMeta && (
-            <p style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 0' }}>{eventMeta}</p>
+            <p className="break-words" style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 0' }}>{eventMeta}</p>
           )}
         </div>
-        <div className="relative flex items-center gap-2">
+        <div className="relative flex shrink-0 items-center gap-2">
           <button
             type="button"
             className="btn btn-ghost"
@@ -869,13 +872,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <div className="panel" style={{ flex: 1, minWidth: 140, padding: 12, boxShadow: 'none' }}>
+                  <div className="panel" style={{ flex: '1 1 140px', minWidth: 0, padding: 12, boxShadow: 'none' }}>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>Client confirms sent</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, fontSize: 13.5, fontWeight: 700, color: clientConfirmedPending || deposit ? 'var(--success)' : 'var(--muted)' }}>
                       {clientConfirmedPending || deposit ? '✓ Yes' : 'Waiting'}
                     </div>
                   </div>
-                  <div className="panel" style={{ flex: 1, minWidth: 140, padding: 12, boxShadow: 'none' }}>
+                  <div className="panel" style={{ flex: '1 1 140px', minWidth: 0, padding: 12, boxShadow: 'none' }}>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>You confirm received</div>
                     {deposit ? (
                       <div style={{ marginTop: 5, fontSize: 13.5, fontWeight: 700, color: 'var(--success)' }}>✓ Received</div>
@@ -1106,9 +1109,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                       >
                         {mine ? 'V' : initials(m.sender?.name || project.client?.name)}
                       </span>
-                      <div style={{ maxWidth: '74%' }}>
+                      <div style={{ maxWidth: 'min(74%, 100%)', minWidth: 0 }}>
                         <div className={mine ? 'ws-msg-mine' : 'ws-msg-theirs'}>
-                          <p className="whitespace-pre-wrap" style={{ margin: 0 }}>{m.content}</p>
+                          <p className="whitespace-pre-wrap break-words" style={{ margin: 0 }}>{m.content}</p>
                         </div>
                         <div
                           className="num"

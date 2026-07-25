@@ -16,7 +16,7 @@ export function WorkspaceLayout({
   width?: PageWidth
 }) {
   return (
-    <PageLayout width={width} className={cn('py-5', className)}>
+    <PageLayout width={width} className={cn('min-w-0 px-0 py-2 md:py-5', className)}>
       {children}
     </PageLayout>
   )
@@ -56,7 +56,7 @@ export function WorkspaceTabs({
 }) {
   return (
     <div
-      className="mb-5 flex gap-0.5 overflow-x-auto rounded-[9px] border p-0.5"
+      className="mb-3 flex max-w-full flex-wrap gap-0.5 rounded-[9px] border p-0.5 md:mb-5"
       style={{ background: 'var(--panel)', borderColor: 'var(--line)' }}
       role="tablist"
     >
@@ -71,7 +71,7 @@ export function WorkspaceTabs({
             aria-selected={isActive}
             onClick={() => onChange(t)}
             className={cn(
-              'relative whitespace-nowrap rounded-[6px] px-3 py-2 text-[12.5px] font-semibold transition-colors',
+              'relative min-w-0 max-w-full shrink rounded-[6px] px-2.5 py-2 text-[12px] font-semibold transition-colors sm:px-3 sm:text-[12.5px]',
             )}
             style={
               isActive

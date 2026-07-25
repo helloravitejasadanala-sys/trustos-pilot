@@ -15,11 +15,12 @@
   --sand:        #EDE7D9;  /* Surface 4 warm — quotes, footers */
 
   /* ---- Text ---- */
+  /* Muted/faint tuned for WCAG AA on cream canvas (~#EAE4D6). */
   --ink:         #16150F;
-  --muted:       #636155;
-  --faint:       #918E7E;
+  --muted:       #4A483E;
+  --faint:       #5E5B50;
   --on-dark:     #ECE8DC;  /* text on --nav */
-  --on-dark-mut: #8DA298;  /* muted text on --nav */
+  --on-dark-mut: #A8B8B0;  /* muted text on --nav — slightly brighter for AA on dark */
 
   /* ---- Lines ---- */
   --line:        #D8D2C3;
@@ -64,11 +65,11 @@
   --t-serif-lg:400 32px/1.0  var(--font-serif);
   --t-serif-md:400 25px/1.05 var(--font-serif);
   --t-h1:  700 22px/1.15 var(--font-ui);
-  --t-h2:  700 15px/1.2  var(--font-ui);
-  --t-body:500 14px/1.5  var(--font-ui);
-  --t-sm:  500 13px/1.45 var(--font-ui);
-  --t-xs:  600 12px/1.3  var(--font-ui);
-  --t-kicker: 800 11px/1 var(--font-ui);
+  --t-h2:  700 16px/1.25 var(--font-ui);
+  --t-body:500 15px/1.55 var(--font-ui);
+  --t-sm:  500 14px/1.5  var(--font-ui);
+  --t-xs:  600 13px/1.4  var(--font-ui);
+  --t-kicker: 800 12px/1.2 var(--font-ui);
 
   /* Toast (app chrome) */
   --toast-bg: #0D1B17;
@@ -131,10 +132,13 @@
 .chip-success{ background:var(--success-soft);color:var(--success); }
 .chip-muted  { background:var(--recessed);    color:var(--faint); }
 
-.panel    { background:var(--panel);   border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-sm); }
-.context  { background:var(--recessed); border-radius:var(--r-lg); padding:var(--s5); }
-.action   { background:var(--nav); color:var(--on-dark); border-radius:var(--r-lg); padding:var(--s6); }
-.action-outline { background:var(--panel); border:2px solid var(--forest); border-radius:var(--r-lg); box-shadow:var(--sh); }
+.panel    { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-sm); min-width:0; max-width:100%; }
+.context  { background:var(--recessed); border-radius:var(--r-lg); padding:var(--s5); min-width:0; max-width:100%; }
+.action   { background:var(--nav); color:var(--on-dark); border-radius:var(--r-lg); padding:var(--s5); min-width:0; max-width:100%; }
+.action-outline { background:var(--panel); border:2px solid var(--forest); border-radius:var(--r-lg); box-shadow:var(--sh); min-width:0; max-width:100%; }
+@media (min-width: 768px) {
+  .action { padding: var(--s6); }
+}
 
 .marker { display:grid; place-items:center; border-radius:var(--r); font:800 15px/1 var(--font-ui); flex-shrink:0; }
 .marker-photo  { background:var(--gold-soft);   color:#7a4a1e; }

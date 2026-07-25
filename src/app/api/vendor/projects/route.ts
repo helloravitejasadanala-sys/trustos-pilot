@@ -5,18 +5,13 @@ import { generateInvitationToken } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
+import { appUrl, ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
 import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
 const INVITATION_TTL_DAYS = 30
-
-/** Absolute base URL used to build invitation links. */
-function appUrl() {
-  return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
-}
 
 export async function GET() {
   try {

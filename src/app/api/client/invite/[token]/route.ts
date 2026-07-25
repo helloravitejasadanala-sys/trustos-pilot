@@ -41,9 +41,13 @@ export async function POST(
       })
     }
 
-    await createClientSession(check.invitationId, check.projectId)
-
-    return NextResponse.json({ ok: true })
+    // Attach the session cookie to THIS response. Relying only on
+    // cookies().set can drop Set-Cookie on some Vercel/edge paths, which
+    // makes the next /api/client/project call 401 and the portal show
+    // "This link isn't valid" even though the token was good.
+    const res = NextResponse.json({ ok: true })
+    await createClientSession(check.invitationId, check.projectId, res)
+    return res
   } catch (error: any) {
     console.error('Client invite error:', error)
     return NextResponse.json(

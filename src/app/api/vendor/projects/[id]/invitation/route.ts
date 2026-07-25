@@ -2,15 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateInvitationToken } from '@/lib/client-session'
+import { appUrl } from '@/lib/invitations'
 import { trackEvent } from '@/lib/analytics'
 
 export const dynamic = 'force-dynamic'
 
 const INVITATION_TTL_DAYS = 30
-
-function appUrl() {
-  return (process.env.APP_URL || '').replace(/\/$/, '')
-}
 
 /**
  * Ownership check. A vendor may only touch invitations on their own

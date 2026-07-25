@@ -107,37 +107,83 @@ export default function ClientsPage() {
           action={tab === 'active' ? <button className="btn-primary" onClick={() => setModal({ mode: 'create' })}>Add a client</button> : undefined}
         />
       ) : (
-        <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-hidden">
-          {filtered.map(client => (
-            <div key={client.id} className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-forest-50/40 transition-colors">
+        <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-visible">
+          {filtered.map((client, index) => {
+            const menuOpen = menu === client.id
+            const openUp = index >= filtered.length - 2
+            return (
+            <div
+              key={client.id}
+              className={`flex items-start justify-between gap-3 px-4 py-3 hover:bg-forest-50/40 transition-colors ${menuOpen ? 'relative z-20' : 'relative z-0'}`}
+            >
               <div className="min-w-0">
                 <p className="text-[14px] font-semibold text-forest-950">{client.name}</p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-forest-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[13px] text-[color:var(--muted)]">
                   <span className="inline-flex items-center gap-1"><Mail size={12} />{client.email}</span>
                   {client.phone && <span className="inline-flex items-center gap-1"><Phone size={12} />{client.phone}</span>}
-                  <span className="text-forest-400">{client.projects.length} project{client.projects.length === 1 ? '' : 's'}</span>
+                  <span>{client.projects.length} project{client.projects.length === 1 ? '' : 's'}</span>
                 </div>
                 {client.projects.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
                     {client.projects.map(p => (
-                      <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="text-xs text-forest-700 hover:underline">{p.title}</Link>
+                      <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="text-[13px] text-forest-700 hover:underline">{p.title}</Link>
                     ))}
                   </div>
                 )}
               </div>
               <div className="relative shrink-0">
-                <button onClick={() => setMenu(menu === client.id ? null : client.id)} className="flex h-10 w-10 items-center justify-center rounded-lg text-forest-400 hover:bg-forest-100 hover:text-forest-700"><MoreVertical size={17} /></button>
-                {menu === client.id && (
-                  <div className="absolute right-0 mt-1 w-40 rounded-xl border border-forest-100 bg-white shadow-elevated z-10 py-1 text-sm">
-                    <button className="w-full text-left px-3 py-2 hover:bg-forest-50" onClick={() => { setModal({ mode: 'edit', client }); setMenu(null) }}>Edit</button>
-                    {!client.archived && <button className="w-full text-left px-3 py-2 hover:bg-forest-50" onClick={() => patchClient(client.id, { archive: true }).catch(e => toast.error(e.message))}>Archive</button>}
-                    {client.archived && <button className="w-full text-left px-3 py-2 hover:bg-forest-50" onClick={() => patchClient(client.id, { unarchive: true }).catch(e => toast.error(e.message))}>Restore</button>}
-                    {isTestClient(client) && <button className="w-full text-left px-3 py-2 text-red-700 hover:bg-red-50" onClick={() => deleteClient(client)}>Delete test client</button>}
+                <button
+                  type="button"
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setMenu(menuOpen ? null : client.id)}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--muted)] hover:bg-forest-100 hover:text-forest-700"
+                >
+                  <MoreVertical size={17} />
+                </button>
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    className={`absolute right-0 w-44 rounded-xl border border-forest-100 bg-white shadow-elevated z-50 py-1 text-sm ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}
+                  >
+                    <button type="button" role="menuitem" className="w-full text-left px-3 py-2.5 hover:bg-forest-50" onClick={() => { setModal({ mode: 'edit', client }); setMenu(null) }}>Edit</button>
+                    {!client.archived && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="w-full text-left px-3 py-2.5 hover:bg-forest-50"
+                        onClick={() => {
+                          setMenu(null)
+                          patchClient(client.id, { archive: true }).catch(e => toast.error(e.message))
+                        }}
+                      >
+                        Archive
+                      </button>
+                    )}
+                    {client.archived && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="w-full text-left px-3 py-2.5 hover:bg-forest-50"
+                        onClick={() => {
+                          setMenu(null)
+                          patchClient(client.id, { unarchive: true }).catch(e => toast.error(e.message))
+                        }}
+                      >
+                        Restore
+                      </button>
+                    )}
+                    {isTestClient(client) && (
+                      <button type="button" role="menuitem" className="w-full text-left px-3 py-2.5 text-red-700 hover:bg-red-50" onClick={() => { setMenu(null); deleteClient(client) }}>
+                        Delete test client
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
