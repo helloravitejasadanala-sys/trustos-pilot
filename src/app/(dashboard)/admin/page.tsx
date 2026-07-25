@@ -1,123 +1,225 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { 
-  Users, Briefcase, TrendingUp, LogOut, Loader2, ArrowUpRight
-} from 'lucide-react'
+import Link from 'next/link'
+import { parseJsonResponse } from '@/lib/safe-json'
 
-interface AnalyticsData {
-  kpi: {
-    totalUsers: number
-    totalVendors: number
+type Overview = {
+  cards: {
+    totalWorkspaces: number
+    activePilotVendors: number
+    totalClients: number
     totalProjects: number
-    totalRevenue: number
+    totalVenues: number
+    pendingVenueReviews: number
+    verifiedVenues: number
+    totalResearchContributors: number
+    feedbackWaiting: number
+    systemStatus: string
   }
-  funnel: Array<{ name: string; event: string; count: number }>
+  recentActivities: Array<{
+    id: string
+    event: string
+    createdAt: string
+    user?: { name: string | null; email: string | null } | null
+    project?: { title: string; slug: string } | null
+  }>
+  newestVenues: Array<{
+    id: string
+    venueName: string
+    city: string
+    country: string
+    contributorName: string
+    status: string
+    submittedAt: string
+  }>
+  newestPilotUsers: Array<{
+    id: string
+    name: string
+    email: string
+    createdAt: string
+    vendorProfile?: { businessName: string; isActive: boolean } | null
+  }>
 }
 
-export default function AdminDashboard() {
-  const router = useRouter()
-  const [data, setData] = useState<AnalyticsData | null>(null)
+const CARD_META: Array<{ key: keyof Overview['cards']; label: string; href?: string }> = [
+  { key: 'totalWorkspaces', label: 'Total Workspaces', href: '/admin/workspaces' },
+  { key: 'activePilotVendors', label: 'Active Pilot Vendors', href: '/admin/workspaces' },
+  { key: 'totalClients', label: 'Total Clients', href: '/admin/users' },
+  { key: 'totalProjects', label: 'Total Projects' },
+  { key: 'totalVenues', label: 'Total Venues', href: '/admin/venues' },
+  { key: 'pendingVenueReviews', label: 'Pending Venue Reviews', href: '/admin/venues?status=PENDING' },
+  { key: 'verifiedVenues', label: 'Verified Venues', href: '/admin/venues?status=VERIFIED' },
+  { key: 'totalResearchContributors', label: 'Research Contributors', href: '/admin/contributors' },
+  { key: 'feedbackWaiting', label: 'Feedback Waiting', href: '/admin/feedback?status=UNREAD' },
+  { key: 'systemStatus', label: 'System Status', href: '/admin/health' },
+]
+
+export default function AdminOverviewPage() {
+  const [data, setData] = useState<Overview | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/admin/analytics')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+    ;(async () => {
+      const res = await fetch('/api/admin/overview')
+      const parsed = await parseJsonResponse<Overview & { error?: string }>(res)
+      if (!parsed.ok) {
+        setError(parsed.data.error || 'Could not load overview')
+        setLoading(false)
+        return
+      }
+      setData(parsed.data as Overview)
+      setLoading(false)
+    })()
   }, [])
-
-  async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
-    router.refresh()
-  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-sand-50 flex items-center justify-center">
-        <div className="space-y-3 w-56">
-          <div className="skeleton h-6 w-24" />
-          <div className="skeleton h-20 w-full" />
-          <div className="skeleton h-32 w-full" />
+      <div className="space-y-3">
+        <div className="skeleton h-6 w-32" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="skeleton h-20 rounded-xl" />
+          ))}
         </div>
       </div>
     )
   }
 
-  if (!data) return null
-
-  const { kpi, funnel } = data
-  const maxFunnel = Math.max(...funnel.map(f => f.count), 1)
-
-  return (
-    <div className="min-h-screen bg-sand-50">
-      {/* Header */}
-      <header className="bg-white border-b border-neutral-100 px-5 py-4 sticky top-0 z-10">
-        <div className="max-w-xl mx-auto flex items-center justify-between">
-          <h1 className="text-base font-semibold text-ink-900 tracking-tight">Overview</h1>
-          <button onClick={logout} className="text-xs text-ink-400 hover:text-ink-600 transition">Sign out</button>
-        </div>
-      </header>
-
-      <main className="max-w-xl mx-auto px-5 py-5 space-y-5 pb-10">
-        {/* KPIs */}
-        <div className="grid grid-cols-2 gap-3">
-          <KpiCard icon={Users} value={kpi.totalUsers} label="Users" color="text-emerald-600" />
-          <KpiCard icon={Briefcase} value={kpi.totalProjects} label="Projects" color="text-blue-500" />
-          <KpiCard icon={Users} value={kpi.totalVendors} label="Vendors" color="text-amber-500" />
-          <KpiCard icon={TrendingUp} value={`£${kpi.totalRevenue.toFixed(0)}`} label="Revenue" color="text-emerald-600" />
-        </div>
-
-        {/* Funnel */}
-        <div className="card">
-          <h2 className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-5">Conversion</h2>
-          <div className="space-y-3">
-            {funnel.map((stage, i) => {
-              const prevCount = i > 0 ? funnel[i - 1].count : stage.count
-              const rate = prevCount > 0 ? Math.round((stage.count / prevCount) * 100) : 0
-              const width = (stage.count / maxFunnel) * 100
-
-              return (
-                <div key={stage.event} className="flex items-center gap-3">
-                  <div className="w-20 text-[11px] text-ink-400 truncate">{stage.name}</div>
-                  <div className="flex-1">
-                    <div className="h-7 bg-sand-100 rounded-lg overflow-hidden relative">
-                      <div 
-                        className="h-full bg-emerald-500 rounded-lg transition-all flex items-center px-2"
-                        style={{ width: `${Math.max(width, 6)}%` }}
-                      >
-                        {width > 15 && <span className="text-[11px] text-white font-medium">{stage.count}</span>}
-                      </div>
-                      {width <= 15 && (
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-ink-400">{stage.count}</span>
-                      )}
-                    </div>
-                  </div>
-                  {i > 0 && (
-                    <span className={`text-[11px] font-medium w-7 text-right ${
-                      rate >= 50 ? 'text-emerald-600' : rate >= 20 ? 'text-amber-500' : 'text-ink-300'
-                    }`}>{rate}%</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </main>
-    </div>
-  )
-}
-
-function KpiCard({ icon: Icon, value, label, color }: any) {
-  return (
-    <div className="card p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className={color} />
-        <span className="text-[11px] text-ink-400 font-medium">{label}</span>
+  if (error || !data) {
+    return (
+      <div className="rounded-xl border border-red-100 bg-white p-4 text-sm text-red-700">
+        {error || 'Overview unavailable'}
       </div>
-      <p className="text-xl font-semibold text-ink-900 tracking-tight">{value}</p>
+    )
+  }
+
+  const nextAction =
+    data.cards.pendingVenueReviews > 0
+      ? { label: `Review ${data.cards.pendingVenueReviews} pending venue${data.cards.pendingVenueReviews === 1 ? '' : 's'}`, href: '/admin/venues?status=PENDING' }
+      : data.cards.feedbackWaiting > 0
+        ? { label: `Read ${data.cards.feedbackWaiting} unread feedback`, href: '/admin/feedback?status=UNREAD' }
+        : null
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight text-ink-900">Overview</h1>
+        <p className="mt-1 text-sm text-ink-500">What needs TrustOS attention next.</p>
+      </div>
+
+      {nextAction && (
+        <Link
+          href={nextAction.href}
+          className="block rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+        >
+          Next: {nextAction.label} →
+        </Link>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        {CARD_META.map(card => {
+          const value = data.cards[card.key]
+          const display = card.key === 'systemStatus' ? String(value).toUpperCase() : value
+          const inner = (
+            <>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+                {card.label}
+              </div>
+              <div className="mt-2 text-xl font-semibold tabular-nums text-ink-900">{display}</div>
+            </>
+          )
+          return card.href ? (
+            <Link
+              key={card.key}
+              href={card.href}
+              className="rounded-xl border border-neutral-100 bg-white p-3.5 shadow-sm transition hover:border-neutral-200"
+            >
+              {inner}
+            </Link>
+          ) : (
+            <div
+              key={card.key}
+              className="rounded-xl border border-neutral-100 bg-white p-3.5 shadow-sm"
+            >
+              {inner}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="rounded-xl border border-neutral-100 bg-white p-4 lg:col-span-1">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-400">Latest activity</h2>
+          <ul className="mt-3 space-y-2.5">
+            {data.recentActivities.length === 0 ? (
+              <li className="text-sm text-ink-400">No recent activity.</li>
+            ) : (
+              data.recentActivities.slice(0, 8).map(a => (
+                <li key={a.id} className="border-t border-neutral-50 pt-2 first:border-0 first:pt-0">
+                  <div className="truncate text-[13px] font-medium text-ink-800">{a.event}</div>
+                  <div className="mt-0.5 text-[11px] text-ink-400">
+                    {a.project?.title ? `${a.project.title} · ` : ''}
+                    {new Date(a.createdAt).toLocaleString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+
+        <section className="rounded-xl border border-neutral-100 bg-white p-4 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-400">Newest venues</h2>
+            <Link href="/admin/venues" className="text-[12px] font-medium text-ink-600 hover:text-ink-900">
+              View all
+            </Link>
+          </div>
+          <ul className="mt-3 space-y-2.5">
+            {data.newestVenues.length === 0 ? (
+              <li className="text-sm text-ink-400">No venue submissions yet.</li>
+            ) : (
+              data.newestVenues.map(v => (
+                <li key={v.id} className="border-t border-neutral-50 pt-2 first:border-0 first:pt-0">
+                  <div className="truncate text-[13px] font-medium text-ink-800">{v.venueName}</div>
+                  <div className="mt-0.5 text-[11px] text-ink-400">
+                    {v.city}, {v.country} · {v.status}
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+
+        <section className="rounded-xl border border-neutral-100 bg-white p-4 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-400">Newest pilot users</h2>
+            <Link href="/admin/users" className="text-[12px] font-medium text-ink-600 hover:text-ink-900">
+              View all
+            </Link>
+          </div>
+          <ul className="mt-3 space-y-2.5">
+            {data.newestPilotUsers.length === 0 ? (
+              <li className="text-sm text-ink-400">No pilot vendors yet.</li>
+            ) : (
+              data.newestPilotUsers.map(u => (
+                <li key={u.id} className="border-t border-neutral-50 pt-2 first:border-0 first:pt-0">
+                  <div className="truncate text-[13px] font-medium text-ink-800">
+                    {u.vendorProfile?.businessName || u.name}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-ink-400">{u.email}</div>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      </div>
     </div>
   )
 }

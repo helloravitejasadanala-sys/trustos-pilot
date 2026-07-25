@@ -44,7 +44,12 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
   const ip = request.ip ?? request.headers.get('x-forwarded-for') ?? 'unknown'
 
-  if (path.startsWith('/api/auth/') || path.startsWith('/api/admin/')) {
+  if (
+    path.startsWith('/api/auth/') ||
+    path.startsWith('/api/admin/') ||
+    path.startsWith('/api/research/') ||
+    path === '/api/feedback'
+  ) {
     if (isRateLimited(ip)) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
@@ -99,6 +104,8 @@ export const config = {
     '/vendor/:path*',
     '/api/auth/:path*',
     '/api/admin/:path*',
+    '/api/research/:path*',
+    '/api/feedback',
     '/api/client/:path*',
     '/api/vendor/:path*',
     '/api/analytics/:path*',

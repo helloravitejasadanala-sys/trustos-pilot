@@ -192,6 +192,12 @@ export default function LandingPage() {
             <Link href="/cookies" className="transition-colors hover:text-forest-700">
               Cookies
             </Link>
+            <Link href="/feedback" className="transition-colors hover:text-forest-700">
+              Feedback
+            </Link>
+            <Link href="/research/venue" className="transition-colors hover:text-forest-700">
+              Venue research
+            </Link>
             <Link href="/request-demo" className="transition-colors hover:text-forest-700">
               Contact
             </Link>

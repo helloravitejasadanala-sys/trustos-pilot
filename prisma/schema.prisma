@@ -50,10 +50,12 @@ model VendorProfile {
   isActive     Boolean @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  projects    Project[]
-  packages    Package[]
-  templates   Template[]
-  invitations Invitation[]
+  projects         Project[]
+  packages         Package[]
+  templates        Template[]
+  invitations      Invitation[]
+  venueSubmissions VenueResearch[]
+  pilotFeedback    PilotFeedback[]
 
   @@map("vendor_profiles")
 }
@@ -421,4 +423,76 @@ model Learning {
   @@index([projectId])
   @@index([vendorId])
   @@map("learnings")
+}
+
+// ─── Company Dashboard: Venue Research (permanent store; never delete) ───
+
+enum VenueResearchStatus {
+  PENDING
+  VERIFIED
+  ARCHIVED
+}
+
+model VenueResearch {
+  id                String              @id @default(uuid())
+  venueName         String              @map("venue_name")
+  address           String
+  city              String
+  country           String
+  googleMapsUrl     String?             @map("google_maps_url")
+  contributorName   String              @map("contributor_name")
+  contributorEmail  String              @map("contributor_email")
+  source            String              @default("public_form")
+  workspaceId       String?             @map("workspace_id")
+  workspace         VendorProfile?      @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  submittedAt       DateTime            @default(now()) @map("submitted_at")
+  status            VenueResearchStatus @default(PENDING)
+  answers           Json                @default("{}")
+
+  // Future intelligence — admin-only later; never expose to vendors in Phase 1
+  parking           String?             @db.Text
+  power             String?             @db.Text
+  restrictions      String?             @db.Text
+  internet          String?             @db.Text
+  dronePolicy       String?             @map("drone_policy") @db.Text
+  bestCeremonyArea  String?             @map("best_ceremony_area") @db.Text
+  loadingArea       String?             @map("loading_area") @db.Text
+  accessibility     String?             @db.Text
+  preferredVendors  String?             @map("preferred_vendors") @db.Text
+  previousNotes     String?             @map("previous_notes") @db.Text
+  internalTeamNotes String?             @map("internal_team_notes") @db.Text
+  media             Json?
+  trustScore        Float?              @map("trust_score")
+
+  @@index([status])
+  @@index([contributorEmail])
+  @@index([submittedAt])
+  @@index([workspaceId])
+  @@map("venue_research")
+}
+
+enum PilotFeedbackStatus {
+  UNREAD
+  IN_REVIEW
+  RESOLVED
+  ARCHIVED
+}
+
+model PilotFeedback {
+  id          String              @id @default(uuid())
+  name        String?
+  email       String?
+  workspaceId String?             @map("workspace_id")
+  workspace   VendorProfile?      @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  message     String              @db.Text
+  page        String?
+  source      String              @default("public_form")
+  status      PilotFeedbackStatus @default(UNREAD)
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([workspaceId])
+  @@map("pilot_feedback")
 }
