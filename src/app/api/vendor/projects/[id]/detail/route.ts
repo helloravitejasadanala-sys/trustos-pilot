@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
-import { isStripeConfigured } from '@/lib/stripe-config'
+import { isStripeCheckoutReady } from '@/lib/stripe-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,9 +67,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         },
       },
       primaryService: vendor.primaryService,
-      // Section L — the browser learns only a boolean. The Stripe option is
-      // hidden in the Money tab when this is false; the key never leaves here.
-      stripeConfigured: isStripeConfigured(),
+      // Card checkout needs Stripe Elements. Hide the Stripe option until ready.
+      stripeConfigured: isStripeCheckoutReady(),
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error' }, { status: err.status || 500 })

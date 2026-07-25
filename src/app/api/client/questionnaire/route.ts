@@ -35,6 +35,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Answers too large' }, { status: 413 })
     }
 
+    if (complete) {
+      const filled = Object.values(answers as Record<string, unknown>).some(v => {
+        if (v == null) return false
+        if (typeof v === 'string') return v.trim().length > 0
+        if (typeof v === 'number') return !Number.isNaN(v)
+        return true
+      })
+      if (!filled) {
+        return NextResponse.json(
+          { error: 'Add at least one detail before confirming.' },
+          { status: 400 },
+        )
+      }
+    }
+
     const q = await prisma.questionnaire.upsert({
       where: { projectId },
       update: {

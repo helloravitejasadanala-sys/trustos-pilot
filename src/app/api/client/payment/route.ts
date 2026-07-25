@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { breakdown, amountForType } from '@/lib/payments'
-import { isStripeConfigured, normalizePaymentMethod } from '@/lib/stripe-config'
+import { isStripeCheckoutReady, isStripeConfigured, normalizePaymentMethod } from '@/lib/stripe-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +33,14 @@ export async function GET() {
     })
     return NextResponse.json({
       payment: b
-        ? { ...b, method, stripeConfigured: isStripeConfigured(), declared: !!declared }
+        ? {
+            ...b,
+            method,
+            // Only advertise card pay when Elements checkout is ready.
+            stripeConfigured: isStripeCheckoutReady(),
+            stripeKeysPresent: isStripeConfigured(),
+            declared: !!declared,
+          }
         : null,
     })
   } catch (err: any) {
@@ -85,6 +92,16 @@ export async function POST(req: NextRequest) {
 
     // Server computes the amount. Throws 409 if not payable.
     const amount = await amountForType(projectId, type)
+
+    if (!isStripeCheckoutReady()) {
+      return NextResponse.json(
+        {
+          error:
+            'Online card payment is not available yet. Pay by the method you agreed with your vendor, then tap “I’ve made the payment”.',
+        },
+        { status: 503 },
+      )
+    }
 
     const s = stripe()
     if (!s) {

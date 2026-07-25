@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { randomBytes } from 'crypto'
-import bcrypt from 'bcryptjs'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
+import { resolveOrCreateClient } from '@/lib/vendor-clients'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -44,8 +43,6 @@ export async function GET() {
       map.set(p.client.id, entry)
     }
 
-    // Standalone clients created from the Clients page (no project yet) are
-    // tracked via activity so they do not disappear after refresh.
     const orphanLogs = await prisma.activityLog.findMany({
       where: {
         userId: user.id,
@@ -93,43 +90,34 @@ const createSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const user = await requireAuth(['VENDOR'])
-    const body = createSchema.parse(await req.json())
-    const email = body.email.toLowerCase()
+    const vendor = await prisma.vendorProfile.findUnique({ where: { userId: user.id } })
+    if (!vendor) return NextResponse.json({ error: 'Vendor profile not found' }, { status: 404 })
 
-    // Guard: never downgrade an existing vendor/admin into a client.
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true, role: true },
+    const body = createSchema.parse(await req.json())
+    const { client, created, reused } = await resolveOrCreateClient({
+      vendorId: vendor.id,
+      vendorUserId: user.id,
+      vendorEmail: user.email,
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
     })
-    if (existingUser && existingUser.role !== 'CLIENT') {
-      return NextResponse.json(
-        { error: 'That email already belongs to another account. Use a different email for the client.' },
-        { status: 409 }
-      )
+
+    if (created || reused) {
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          event: 'client_directory_added',
+          metadata: { clientId: client.id, email: client.email, reused },
+        },
+      })
     }
 
-    const client = await prisma.user.upsert({
-      where: { email },
-      update: { name: body.name, role: 'CLIENT', phone: body.phone || undefined },
-      create: {
-        email,
-        name: body.name,
-        phone: body.phone || null,
-        role: 'CLIENT',
-        password: await bcrypt.hash(randomBytes(24).toString('hex'), 10),
-      },
-      select: { id: true, name: true, email: true, phone: true, avatar: true, createdAt: true },
+    return NextResponse.json({
+      client: { ...client, archived: client.avatar === 'archived', projects: [] },
+      created,
+      reused,
     })
-
-    await prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        event: 'client_directory_added',
-        metadata: { clientId: client.id, email: client.email },
-      },
-    })
-
-    return NextResponse.json({ client: { ...client, archived: client.avatar === 'archived', projects: [] } })
   } catch (error: any) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
     return NextResponse.json({ error: error.message || 'Error' }, { status: error.status || 500 })

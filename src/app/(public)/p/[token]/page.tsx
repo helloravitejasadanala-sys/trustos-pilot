@@ -307,11 +307,22 @@ export default function ClientJourney({ params }: { params: { token: string } })
             </div>
           ) : (
             <div className="action-outline" style={{ padding: '16px 14px' }}>
+              <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
+                Waiting on {vendorName}
+              </div>
               <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
-                You&apos;re all set
+                {!proposal
+                  ? 'Details received'
+                  : showDelivery && hasGallery && !deliveryApproved
+                    ? 'Review your delivery'
+                    : 'Nothing needed from you right now'}
               </div>
               <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
-                Nothing needed right now — {vendorName} is preparing your project and will be in touch about the next steps.
+                {!proposal
+                  ? `Thanks — wait for ${vendorName} to send your quote. You can message them below anytime.`
+                  : showDelivery && hasGallery && !deliveryApproved
+                    ? `Open the files below, then approve when you're happy.`
+                    : `${vendorName} is preparing the next step and will update this page when they need you.`}
               </p>
             </div>
           )}
@@ -509,6 +520,11 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
   }
 
   async function submit() {
+    const filled = Object.values(values).some(v => String(v ?? '').trim().length > 0)
+    if (!filled) {
+      toast.error('Add at least one detail before confirming.')
+      return
+    }
     setBusy(true)
     const res = await fetch('/api/client/questionnaire', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -516,6 +532,10 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
     })
     setBusy(false)
     if (res.ok) onDone()
+    else {
+      const body = await res.json().catch(() => ({}))
+      toast.error(body.error || 'Could not save — try again')
+    }
   }
 
   return (

@@ -19,7 +19,10 @@ export async function POST(_req: NextRequest) {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
-        files: { where: { type: 'gallery' }, select: { id: true } },
+        files: {
+          where: { type: { in: ['gallery', 'recording'] } },
+          select: { id: true },
+        },
         approvals: { select: { id: true }, take: 1 },
       },
     })

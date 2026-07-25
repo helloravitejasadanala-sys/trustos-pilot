@@ -73,7 +73,7 @@ export default function LoginPage() {
             Sign in to your workspace
           </h1>
           <p className="mt-2 text-sm text-ink-400">
-            For invited vendors and pilot administrators
+            For service businesses and pilot administrators
           </p>
         </div>
 

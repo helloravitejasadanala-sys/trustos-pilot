@@ -33,7 +33,9 @@ export default function ClientFormModal({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
-      toast.success(initial?.id ? 'Client updated' : 'Client created')
+      if (initial?.id) toast.success('Client updated')
+      else if (data.reused) toast.success('Using existing client — details updated where needed')
+      else toast.success('Client created')
       onSaved(data.client)
       onClose()
     } catch (e: any) {

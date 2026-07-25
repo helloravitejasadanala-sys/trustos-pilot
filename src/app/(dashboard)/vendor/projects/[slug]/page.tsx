@@ -652,6 +652,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
                 {project.status === 'LEAD' && project.invitation?.url ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '48ch' }}>
+                      Send this secure link to {clientName} now — they open it without creating an account.
+                    </p>
                     <button type="button" onClick={copyLink} className="btn btn-lime" style={{ alignSelf: 'flex-start' }}>
                       {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
                       Copy link

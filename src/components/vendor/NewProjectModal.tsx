@@ -63,10 +63,17 @@ export default function NewProjectModal({
       const { ok, data } = await parseJsonResponse<{
         project?: { slug: string }
         invitation?: { url: string }
+        clientReused?: boolean
         error?: string
       }>(res)
       if (!ok || !data.project?.slug) throw new Error(data.error || 'Failed to create project')
-      toast.success('Project created — opening it now')
+      if (data.clientReused) {
+        toast.success('Project created with existing client — copy their secure link next')
+      } else if (data.invitation?.url) {
+        toast.success('Project created — copy and send the secure client link')
+      } else {
+        toast.success('Project created — opening it now')
+      }
       onCreated()
       onClose()
       router.push(`/vendor/projects/${data.project.slug}`)

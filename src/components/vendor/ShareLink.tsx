@@ -37,7 +37,7 @@ export default function ShareLink({
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      toast.success('Link copied — share it when you are ready')
+      toast.success('Link copied — send it to your client now')
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast.error('Could not copy — select and copy the link manually.')

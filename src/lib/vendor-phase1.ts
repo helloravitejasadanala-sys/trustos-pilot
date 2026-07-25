@@ -19,6 +19,12 @@ export type VendorProject = {
   invitation?: { url: string; expiresAt: string; openedAt: string | null; email: string | null; expired: boolean } | null
   updatedAt?: string
   lastClientMessageAt?: string | null
+  payments?: { id?: string; type?: string; status?: string; amount?: number | string; method?: string | null }[] | null
+}
+
+/** Projects where the client declared payment and the vendor still needs to confirm. */
+export function hasPendingPaymentConfirm(project: VendorProject) {
+  return (project.payments || []).some(p => p.status === 'PENDING')
 }
 
 export const ARCHIVED_PREFIX = '[archived]'

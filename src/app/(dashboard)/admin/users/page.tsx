@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
+import { Copy, KeyRound, Loader2 } from 'lucide-react'
 import { parseJsonResponse } from '@/lib/safe-json'
 
 type UserRow = {
@@ -13,29 +15,124 @@ type UserRow = {
   _count?: { projects: number }
 }
 
+type PendingReset = {
+  id: string
+  userId: string
+  email: string
+  name: string
+  role: string
+  createdAt: string
+  expiresAt: string
+}
+
 export default function AdminPilotUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([])
+  const [resets, setResets] = useState<PendingReset[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [lastLink, setLastLink] = useState<{ email: string; url: string } | null>(null)
 
-  useEffect(() => {
-    ;(async () => {
-      const res = await fetch('/api/admin/users')
-      const parsed = await parseJsonResponse<{ users?: UserRow[]; error?: string }>(res)
-      if (!parsed.ok) setError(parsed.data.error || 'Could not load users')
-      else setUsers(parsed.data.users || [])
-      setLoading(false)
-    })()
-  }, [])
+  async function load() {
+    const [usersRes, resetsRes] = await Promise.all([
+      fetch('/api/admin/users'),
+      fetch('/api/admin/password-resets'),
+    ])
+    const usersParsed = await parseJsonResponse<{ users?: UserRow[]; error?: string }>(usersRes)
+    const resetsParsed = await parseJsonResponse<{ resets?: PendingReset[]; error?: string }>(resetsRes)
+    if (!usersParsed.ok) setError(usersParsed.data.error || 'Could not load users')
+    else setUsers(usersParsed.data.users || [])
+    if (resetsParsed.ok) setResets(resetsParsed.data.resets || [])
+    setLoading(false)
+  }
 
-  const pilots = users.filter(u => u.role === 'VENDOR' || u.role === 'CLIENT')
+  useEffect(() => { load() }, [])
+
+  const pilots = users.filter(u => u.role === 'VENDOR' || u.role === 'ADMIN')
+
+  async function issueLink(userId: string) {
+    if (busyId) return
+    setBusyId(userId)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issueLink: true }),
+      })
+      const parsed = await parseJsonResponse<{
+        resetUrl?: string
+        email?: string
+        error?: string
+      }>(res)
+      if (!parsed.ok || !parsed.data.resetUrl) throw new Error(parsed.data.error || 'Failed')
+      setLastLink({ email: parsed.data.email || '', url: parsed.data.resetUrl })
+      toast.success('Reset link ready — copy and send to the vendor')
+      await load()
+    } catch (e: any) {
+      toast.error(e.message || 'Could not issue link')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function copyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Reset link copied')
+    } catch {
+      toast.error('Could not copy — select the link manually')
+    }
+  }
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Pilot Users</h1>
-        <p className="mt-1 text-sm text-ink-500">Vendors and clients on the pilot.</p>
+        <p className="mt-1 text-sm text-ink-500">
+          Vendors and admins. Issue a one-time password reset link when someone is locked out.
+        </p>
       </div>
+
+      {lastLink && (
+        <div className="rounded-xl border border-forest-100 bg-white p-4 text-sm">
+          <div className="font-semibold text-ink-900">Latest reset link for {lastLink.email}</div>
+          <p className="mt-1 break-all text-[12.5px] text-ink-500">{lastLink.url}</p>
+          <button
+            type="button"
+            className="btn btn-forest mt-3"
+            style={{ minHeight: 36 }}
+            onClick={() => copyLink(lastLink.url)}
+          >
+            <Copy size={14} className="mr-1.5" /> Copy link
+          </button>
+        </div>
+      )}
+
+      {resets.length > 0 && (
+        <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+          <div className="text-[13px] font-semibold text-ink-900">
+            {resets.length} pending password reset {resets.length === 1 ? 'request' : 'requests'}
+          </div>
+          <ul className="mt-2 space-y-2">
+            {resets.slice(0, 8).map(r => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+                <span>
+                  <strong>{r.name}</strong> · {r.email}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ minHeight: 32, fontSize: 12 }}
+                  disabled={busyId === r.userId}
+                  onClick={() => issueLink(r.userId)}
+                >
+                  {busyId === r.userId ? <Loader2 size={14} className="animate-spin" /> : 'Copy fresh link'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {loading ? (
         <div className="skeleton h-40 rounded-xl" />
@@ -54,6 +151,7 @@ export default function AdminPilotUsersPage() {
                 <th className="hidden px-4 py-2.5 font-semibold sm:table-cell">Email</th>
                 <th className="px-4 py-2.5 font-semibold">Role</th>
                 <th className="px-4 py-2.5 font-semibold">Joined</th>
+                <th className="px-4 py-2.5 font-semibold">Reset</th>
               </tr>
             </thead>
             <tbody>
@@ -77,6 +175,17 @@ export default function AdminPilotUsersPage() {
                       month: 'short',
                       year: 'numeric',
                     })}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-forest-700 hover:text-forest-900"
+                      disabled={busyId === u.id}
+                      onClick={() => issueLink(u.id)}
+                    >
+                      {busyId === u.id ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                      Link
+                    </button>
                   </td>
                 </tr>
               ))}

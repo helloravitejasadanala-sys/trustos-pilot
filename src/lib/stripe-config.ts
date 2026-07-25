@@ -26,6 +26,16 @@ export function isStripeConfigured(): boolean {
   return true
 }
 
+/**
+ * Card checkout in the client portal requires Stripe Elements.
+ * Until that UI ships, never offer "Pay securely online" — even if keys exist.
+ * Opt-in later with STRIPE_CHECKOUT_ENABLED=true once Elements are wired.
+ */
+export function isStripeCheckoutReady(): boolean {
+  if (!isStripeConfigured()) return false
+  return process.env.STRIPE_CHECKOUT_ENABLED === 'true'
+}
+
 export type PaymentMethod = 'manual' | 'stripe' | 'free'
 
 /**

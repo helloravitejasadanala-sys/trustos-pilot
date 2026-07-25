@@ -13,6 +13,7 @@ import { serviceOptions, type ServiceKey } from '@/lib/service-profiles'
 export default function SignUpPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [existsError, setExistsError] = useState(false)
   const [form, setForm] = useState({
     businessName: '',
     ownerName: '',
@@ -40,6 +41,7 @@ export default function SignUpPage() {
     e.preventDefault()
     if (!canSubmit || loading) return
     setLoading(true)
+    setExistsError(false)
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -53,7 +55,14 @@ export default function SignUpPage() {
         }),
       })
       const { ok, data } = await parseJsonResponse<{ user?: any; error?: string }>(res)
-      if (!ok) throw new Error(data.error || 'Could not create your account')
+      if (!ok) {
+        if (res.status === 409) {
+          setExistsError(true)
+          toast.error('You already have a workspace with this email — sign in instead')
+          return
+        }
+        throw new Error(data.error || 'Could not create your account')
+      }
       toast.success(`Welcome to ${PRODUCT_NAME}, ${data.user?.name?.split(' ')[0] || 'there'}`)
       router.push('/vendor')
       router.refresh()
@@ -76,8 +85,26 @@ export default function SignUpPage() {
           <h1 className="font-display text-[1.35rem] font-semibold tracking-tight text-ink-900 break-words sm:text-2xl">
             Create your workspace
           </h1>
-          <p className="mt-2 text-sm text-ink-400">Set up your workspace in under a minute. No card required.</p>
+          <p className="mt-2 text-sm text-ink-400">
+            This creates your business workspace in under a minute. No card required.
+          </p>
         </div>
+
+        {existsError && (
+          <div className="banner banner-error mb-4" role="alert">
+            <div className="min-w-0 flex-1">
+              <strong>This email already has a workspace.</strong>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                <Link href="/login" className="font-semibold underline underline-offset-2">
+                  Sign in
+                </Link>
+                <Link href="/forgot-password" className="font-semibold underline underline-offset-2">
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

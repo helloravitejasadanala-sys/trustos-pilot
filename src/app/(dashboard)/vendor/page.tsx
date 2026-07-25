@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getNextAction } from '@/lib/journey'
-import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
+import { hasPendingPaymentConfirm, isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
 import { hasUnread } from '@/lib/unread'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { projectTypeLabel } from '@/lib/project-types'
@@ -146,6 +146,7 @@ export default function TodayPage() {
   }, [projects])
 
   const unreadProjects = projects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
+  const pendingPayments = projects.filter(p => hasPendingPaymentConfirm(p))
   const firstName = (ownerName || userName).split(' ')[0] || ''
   const workspaceName = business || businessName
   const greeting = greetingFor(new Date().getHours())
@@ -373,6 +374,31 @@ export default function TodayPage() {
               <p className="m-0 max-w-[46ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
                 Active projects are waiting on clients.
               </p>
+            </div>
+          )}
+
+          {pendingPayments.length > 0 && (
+            <div>
+              <div className="mb-2.5 flex items-baseline justify-between">
+                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Payments to confirm</h2>
+                <span className="num text-[12px] text-[color:var(--muted)]">{pendingPayments.length}</span>
+              </div>
+              <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--coral-deep, #c45c3e)' }}>
+                {pendingPayments.slice(0, 4).map(p => (
+                  <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="today-service-row">
+                    <span className={markerClass(p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
+                      {markerLetter(p.type, p.title)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13.5px] font-semibold">{p.title}</div>
+                      <div className="truncate text-[12px] text-[color:var(--muted)]">
+                        {p.client?.name || 'Client'} reported a payment — confirm it
+                      </div>
+                    </div>
+                    <span className="chip chip-coral">Confirm</span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
 

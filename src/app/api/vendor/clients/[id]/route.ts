@@ -2,20 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isTestClient } from '@/lib/vendor-phase1'
+import { resolveVendorClient } from '@/lib/vendor-clients'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
 async function vendorClient(clientId: string, userId: string) {
-  const vendor = await prisma.vendorProfile.findUnique({ where: { userId } })
-  if (!vendor) throw Object.assign(new Error('Vendor profile not found'), { status: 404 })
-
-  const linked = await prisma.project.findFirst({
-    where: { vendorId: vendor.id, clientId },
-    include: { client: true },
-  })
-  if (!linked?.client) throw Object.assign(new Error('Client not found'), { status: 404 })
-  return { vendor, client: linked.client }
+  return resolveVendorClient(clientId, userId)
 }
 
 const patchSchema = z.object({
@@ -29,8 +22,24 @@ const patchSchema = z.object({
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuth(['VENDOR'])
-    const { client } = await vendorClient(params.id, user.id)
+    const { vendor, client } = await vendorClient(params.id, user.id)
     const body = patchSchema.parse(await req.json())
+
+    if (body.email) {
+      const nextEmail = body.email.toLowerCase()
+      if (nextEmail !== client.email) {
+        const taken = await prisma.user.findUnique({
+          where: { email: nextEmail },
+          select: { id: true },
+        })
+        if (taken && taken.id !== client.id) {
+          return NextResponse.json(
+            { error: 'That email is already used by another contact. Pick a different email.' },
+            { status: 409 },
+          )
+        }
+      }
+    }
 
     const updated = await prisma.user.update({
       where: { id: client.id },
@@ -44,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     })
 
     const projects = await prisma.project.findMany({
-      where: { clientId: client.id },
+      where: { clientId: client.id, vendorId: vendor.id },
       select: { id: true, title: true, slug: true, status: true, eventDate: true },
     })
 
@@ -53,6 +62,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     })
   } catch (error: any) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'That email is already used by another contact. Pick a different email.' },
+        { status: 409 },
+      )
+    }
     return NextResponse.json({ error: error.message || 'Error' }, { status: error.status || 500 })
   }
 }

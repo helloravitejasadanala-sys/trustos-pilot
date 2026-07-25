@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { randomBytes } from 'crypto'
-import bcrypt from 'bcryptjs'
 import { generateInvitationToken } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { requireAuth } from '@/lib/auth'
@@ -8,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { appUrl, ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
 import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
 import { getServiceProfile } from '@/lib/service-profiles'
+import { resolveOrCreateClient } from '@/lib/vendor-clients'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -127,38 +126,18 @@ export async function POST(req: NextRequest) {
     // think about "existing vs new client" — it's just a name + email.
     const clientEmail = data.clientEmail ? data.clientEmail.toLowerCase() : null
     let clientId: string | undefined
+    let clientReused = false
     if (clientEmail) {
-      // Never turn an existing vendor/admin into a client. If the email
-      // belongs to another (non-client) account, refuse rather than
-      // silently downgrading their role — that corrupted the vendor's own
-      // workspace ("Welcome Chaitanya Anil").
-      const existingUser = await prisma.user.findUnique({
-        where: { email: clientEmail },
-        select: { id: true, role: true },
+      const resolved = await resolveOrCreateClient({
+        vendorId: vendor.id,
+        vendorUserId: user.id,
+        vendorEmail: user.email,
+        name: data.clientName,
+        email: clientEmail,
+        phone: data.clientPhone,
       })
-      if (existingUser && existingUser.role !== 'CLIENT') {
-        return NextResponse.json(
-          { error: 'That email already belongs to another account. Use a different email for the client.' },
-          { status: 409 }
-        )
-      }
-      const client = await prisma.user.upsert({
-        where: { email: clientEmail },
-        update: {
-          ...(data.clientName ? { name: data.clientName } : {}),
-          ...(data.clientPhone ? { phone: data.clientPhone } : {}),
-          role: 'CLIENT',
-        },
-        create: {
-          email: clientEmail,
-          name: data.clientName || clientEmail.split('@')[0],
-          phone: data.clientPhone || null,
-          role: 'CLIENT',
-          password: await bcrypt.hash(randomBytes(24).toString('hex'), 10),
-        },
-        select: { id: true },
-      })
-      clientId = client.id
+      clientId = resolved.client.id
+      clientReused = resolved.reused
     }
 
     const project = await prisma.project.create({
@@ -197,6 +176,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       project,
+      clientReused,
       invitation: {
         // The vendor is the only party who ever sees the raw token.
         url: `${appUrl()}/p/${invitation.token}`,
