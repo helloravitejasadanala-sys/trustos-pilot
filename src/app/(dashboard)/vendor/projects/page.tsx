@@ -1,20 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import ProjectCard from '@/components/vendor/ProjectCard'
-import NewProjectModal from '@/components/vendor/NewProjectModal'
 import { CardSkeleton, EmptyState } from '@/components/ui'
 import { PageHeader, PageLayout } from '@/components/layout'
+import { useVendorChrome } from '@/components/vendor/VendorShell'
 import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
 import { parseJsonResponse } from '@/lib/safe-json'
 
 export default function ProjectsPage() {
+  const { openNewProject } = useVendorChrome()
   const [projects, setProjects] = useState<VendorProject[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<'active' | 'archived'>('active')
-  const [showCreate, setShowCreate] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -41,14 +41,7 @@ export default function ProjectsPage() {
 
   return (
     <PageLayout>
-      <PageHeader
-        title="Projects"
-        actions={
-          <button type="button" onClick={() => setShowCreate(true)} className="btn btn-forest shrink-0">
-            <Plus size={16} aria-hidden />New project
-          </button>
-        }
-      />
+      <PageHeader title="Projects" />
 
       {/* Toolbar: segmented tabs + search */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -100,13 +93,13 @@ export default function ProjectsPage() {
         <div className="space-y-2.5"><CardSkeleton /><CardSkeleton /></div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={tab === 'active' ? 'No active projects yet' : 'No archived projects'}
+          title={tab === 'active' ? 'No projects yet' : 'No archived projects'}
           description={tab === 'active'
-            ? "Create a project with your client's name and email. We'll open it straight away and keep it here after refresh."
-            : 'Projects you archive will appear here — nothing is deleted.'}
+            ? 'Create a project to invite your first client.'
+            : 'Archived projects will show here.'}
           action={tab === 'active' ? (
-            <button type="button" className="btn btn-forest" onClick={() => setShowCreate(true)}>
-              Create a project
+            <button type="button" className="btn btn-forest" onClick={openNewProject}>
+              ＋ New project
             </button>
           ) : undefined}
         />
@@ -120,8 +113,6 @@ export default function ProjectsPage() {
           </div>
         </div>
       )}
-
-      {showCreate && <NewProjectModal onClose={() => setShowCreate(false)} onCreated={load} />}
     </PageLayout>
   )
 }

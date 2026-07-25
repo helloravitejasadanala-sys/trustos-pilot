@@ -5,25 +5,25 @@ import { toast } from 'react-hot-toast'
 import { Copy, Check, Share2, MessageCircle, Mail } from 'lucide-react'
 
 /**
- * Phase 1 client-link sharing. No automated delivery — every option just
- * opens something the vendor already controls:
- *  - Copy            → clipboard
- *  - Share           → native device share sheet (where supported)
- *  - WhatsApp / Email → opens the app with a prepared message
+ * Phase 1 client-link sharing.
+ * Copy = clipboard only (does not mark shared).
+ * Share / WhatsApp / Email = vendor explicitly shares → optional onShared.
  */
 export default function ShareLink({
   url,
   businessName,
   clientName,
+  onShared,
 }: {
   url: string
   businessName?: string
   clientName?: string
+  /** Called when the vendor uses an explicit share channel (not copy). */
+  onShared?: (channel: 'share' | 'whatsapp' | 'email') => void | Promise<void>
 }) {
   const [copied, setCopied] = useState(false)
   const [canShare, setCanShare] = useState(false)
 
-  // Detect the Web Share API on the client only (avoids hydration issues).
   useEffect(() => {
     if (typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function') {
       setCanShare(true)
@@ -37,7 +37,7 @@ export default function ShareLink({
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      toast.success('Client link copied')
+      toast.success('Link copied — share it when you are ready')
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast.error('Could not copy — select and copy the link manually.')
@@ -47,6 +47,7 @@ export default function ShareLink({
   async function nativeShare() {
     try {
       await (navigator as any).share({ title: businessName || 'Your project', text: message, url })
+      await onShared?.('share')
     } catch {
       /* user dismissed the share sheet — nothing to do */
     }
@@ -61,18 +62,28 @@ export default function ShareLink({
 
   return (
     <div className="flex flex-wrap gap-2">
-      <button onClick={copy} className={btn}>
+      <button type="button" onClick={copy} className={btn}>
         {copied ? <Check size={14} /> : <Copy size={14} />}Copy link
       </button>
       {canShare && (
-        <button onClick={nativeShare} className={btn}>
-          <Share2 size={14} />Share
+        <button type="button" onClick={nativeShare} className={btn}>
+          <Share2 size={14} />Share link
         </button>
       )}
-      <a href={whatsappHref} target="_blank" rel="noreferrer" className={btn}>
+      <a
+        href={whatsappHref}
+        target="_blank"
+        rel="noreferrer"
+        className={btn}
+        onClick={() => { void onShared?.('whatsapp') }}
+      >
         <MessageCircle size={14} />Share by WhatsApp
       </a>
-      <a href={emailHref} className={btn}>
+      <a
+        href={emailHref}
+        className={btn}
+        onClick={() => { void onShared?.('email') }}
+      >
         <Mail size={14} />Share by email
       </a>
     </div>

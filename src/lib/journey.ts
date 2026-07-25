@@ -9,25 +9,81 @@ export type NextAction = {
   label: string        // human phase name
   nextAction: string   // what must happen next
   responsible: 'Vendor' | 'Client' | 'Nobody'
+  /** Vendor-facing primary CTA when responsible === 'Vendor' */
+  ctaLabel?: string
 }
 
 const MAP: Record<string, Omit<NextAction, 'status'>> = {
-  LEAD:                    { label: 'New',                    nextAction: 'Send the secure invitation to the client', responsible: 'Vendor' },
-  QUESTIONNAIRE_SENT:      { label: 'Questionnaire sent',     nextAction: 'Client completes the questionnaire',       responsible: 'Client' },
-  QUESTIONNAIRE_COMPLETED: { label: 'Questionnaire done',     nextAction: 'Prepare and send the proposal',            responsible: 'Vendor' },
-  PROPOSAL_SENT:           { label: 'Proposal sent',          nextAction: 'Client reviews and accepts the proposal',  responsible: 'Client' },
-  PROPOSAL_ACCEPTED:       { label: 'Proposal accepted',      nextAction: 'Client reviews and signs the contract',    responsible: 'Client' },
-  CONTRACT_SENT:           { label: 'Contract sent',          nextAction: 'Client reviews and signs the contract',    responsible: 'Client' },
-  CONTRACT_SIGNED:         { label: 'Contract signed',        nextAction: 'Client pays the deposit',                  responsible: 'Client' },
-  DEPOSIT_PAID:            { label: 'Deposit paid',           nextAction: 'Deliver the work and update milestones',   responsible: 'Vendor' },
-  FULLY_PAID:              { label: 'Fully paid',             nextAction: 'Complete delivery',                        responsible: 'Vendor' },
-  COMPLETED:               { label: 'Completed',              nextAction: 'Request a review',                         responsible: 'Vendor' },
-  CANCELLED:               { label: 'Cancelled',              nextAction: 'No further action',                        responsible: 'Nobody' },
+  LEAD: {
+    label: 'New',
+    nextAction: 'Share the invitation with the client',
+    responsible: 'Vendor',
+    ctaLabel: 'Share invitation →',
+  },
+  QUESTIONNAIRE_SENT: {
+    label: 'Invitation shared',
+    nextAction: 'Client confirms details',
+    responsible: 'Client',
+  },
+  QUESTIONNAIRE_COMPLETED: {
+    label: 'Details done',
+    nextAction: 'Review details and send the quote',
+    responsible: 'Vendor',
+    ctaLabel: 'Review details →',
+  },
+  PROPOSAL_SENT: {
+    label: 'Quote sent',
+    nextAction: 'Client accepts the quote',
+    responsible: 'Client',
+  },
+  PROPOSAL_ACCEPTED: {
+    label: 'Quote accepted',
+    nextAction: 'Send the agreement',
+    responsible: 'Vendor',
+    ctaLabel: 'Send agreement →',
+  },
+  CONTRACT_SENT: {
+    label: 'Agreement sent',
+    nextAction: 'Client signs the agreement',
+    responsible: 'Client',
+  },
+  CONTRACT_SIGNED: {
+    label: 'Agreement signed',
+    nextAction: 'Client pays the deposit',
+    responsible: 'Client',
+  },
+  DEPOSIT_PAID: {
+    label: 'Deposit paid',
+    nextAction: 'Deliver the work',
+    responsible: 'Vendor',
+    ctaLabel: 'Mark service complete →',
+  },
+  FULLY_PAID: {
+    label: 'Fully paid',
+    nextAction: 'Finish delivery',
+    responsible: 'Vendor',
+    ctaLabel: 'Add delivery →',
+  },
+  COMPLETED: {
+    label: 'Completed',
+    nextAction: 'Request a review',
+    responsible: 'Vendor',
+    ctaLabel: 'Request review →',
+  },
+  CANCELLED: {
+    label: 'Cancelled',
+    nextAction: 'No further action',
+    responsible: 'Nobody',
+  },
 }
 
 export function getNextAction(status: string): NextAction {
   const m = MAP[status] ?? { label: status, nextAction: '—', responsible: 'Vendor' as const }
   return { status, ...m }
+}
+
+export function isWaitingOnClient(status: string): boolean {
+  return getNextAction(status).responsible === 'Client'
 }
 
 export function nextDeadline(milestones: { dueDate: string | Date | null; completedAt: string | Date | null }[]): Date | null {

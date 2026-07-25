@@ -72,7 +72,7 @@ export default function SignUpPage() {
           <h1 className="font-display text-[1.35rem] font-semibold tracking-tight text-ink-900 break-words sm:text-2xl">
             Create your workspace
           </h1>
-          <p className="mt-2 text-sm text-ink-400">Set up your studio in under a minute. No card required.</p>
+          <p className="mt-2 text-sm text-ink-400">Set up your workspace in under a minute. No card required.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -113,7 +113,7 @@ export default function SignUpPage() {
                 type="email"
                 value={form.email}
                 onChange={e => set('email', e.target.value)}
-                placeholder="you@studio.com"
+                placeholder="you@business.com"
                 required
                 className="auth-input-with-icon w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
               />

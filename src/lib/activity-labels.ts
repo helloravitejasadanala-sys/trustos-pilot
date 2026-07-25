@@ -4,8 +4,9 @@
  * should read like a sentence, never a snake_case code.
  */
 const LABELS: Record<string, string> = {
-  invitation_created: 'Client invitation sent',
-  invitation_reissued: 'Client invitation resent',
+  invitation_created: 'Client link generated',
+  invitation_reissued: 'Client link regenerated',
+  invitation_sent: 'Client link shared',
   invitation_revoked: 'Client invitation revoked',
   invitation_opened: 'Client opened their secure link',
   deliverable_link_added: 'Added a file link',

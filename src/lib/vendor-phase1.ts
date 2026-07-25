@@ -40,17 +40,18 @@ export function projectNextAction(status: string) {
 
 /**
  * Ordered project journey for the vendor workspace.
- * Delivery approval uses Approval rows; service completion uses project status.
+ * `label` = in-progress stage name (shown as Now).
+ * `doneLabel` = past-tense only for completed steps — never as "Now".
  */
 export const SIMPLE_JOURNEY = [
-  { key: 'created', label: 'Project created' },
-  { key: 'questionnaire', label: 'Details confirmed' },
-  { key: 'quote', label: 'Quote accepted' },
-  { key: 'deposit', label: 'Deposit received' },
-  { key: 'service', label: 'Service completed' },
-  { key: 'delivery', label: 'Deliverables sent' },
-  { key: 'approved', label: 'Client approved' },
-  { key: 'archived', label: 'Archived' },
+  { key: 'created', label: 'Created', doneLabel: 'Created' },
+  { key: 'questionnaire', label: 'Event Details', doneLabel: 'Details confirmed' },
+  { key: 'quote', label: 'Quote', doneLabel: 'Quote accepted' },
+  { key: 'deposit', label: 'Deposit', doneLabel: 'Deposit received' },
+  { key: 'service', label: 'Service', doneLabel: 'Service completed' },
+  { key: 'delivery', label: 'Delivery', doneLabel: 'Deliverables sent' },
+  { key: 'approved', label: 'Approval', doneLabel: 'Client approved' },
+  { key: 'archived', label: 'Archived', doneLabel: 'Archived' },
 ] as const
 
 export type JourneyKey = (typeof SIMPLE_JOURNEY)[number]['key']
@@ -66,21 +67,20 @@ export function hasDeliveryApproval(project: { approvals?: unknown[] | null }) {
 export function journeyProgress(project: any): Record<JourneyKey, boolean> {
   const deposit = (project.payments || []).some((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
   return {
+    // Link generated at create; treat as done once the project exists.
     created: true,
+    // Event Details only complete after the questionnaire — not when the invite is merely generated.
     questionnaire: !!project.questionnaire?.completedAt,
     quote: !!project.proposal?.acceptedAt,
     deposit,
-    // Service completed = vendor marked the work done (status / completedAt).
     service: project.status === 'COMPLETED' || !!project.completedAt,
-    // Deliverables sent = at least one delivery file link (type gallery).
     delivery: hasDeliverables(project),
-    // Client approved = Approval row from the secure client page.
     approved: hasDeliveryApproval(project),
     archived: isArchivedProject(project),
   }
 }
 
-/** Completed step, current step, and next incomplete step for progress UI. */
+/** Current in-progress stage + immediate next only (never future past-tense). */
 export function projectProgressSummary(project: any) {
   const progress = journeyProgress(project)
   const steps = SIMPLE_JOURNEY.filter((s) => s.key !== 'archived')
@@ -88,16 +88,17 @@ export function projectProgressSummary(project: any) {
   if (currentIndex === -1) currentIndex = steps.length - 1
 
   const completed = steps.slice(0, currentIndex).filter((s) => progress[s.key])
-  // If everything before archived is done, current is the last completed step.
   const allDone = steps.every((s) => progress[s.key])
   const current = allDone ? steps[steps.length - 1] : steps[currentIndex]
-  const next = allDone ? null : steps.slice(currentIndex + 1).find((s) => !progress[s.key]) ?? null
+  // Only the immediate next incomplete stage — not later milestones.
+  const next = allDone ? null : steps[currentIndex + 1] ?? null
 
   return {
     progress,
-    completedLabels: completed.map((s) => s.label),
-    currentLabel: current.label,
-    nextLabel: next?.label ?? (allDone ? 'All steps complete' : null),
+    completedLabels: completed.map((s) => s.doneLabel),
+    currentLabel: allDone ? current.doneLabel : current.label,
+    nextLabel: next ? next.label : (allDone ? 'All steps complete' : null),
+    currentIndex,
     allDone,
   }
 }

@@ -65,10 +65,7 @@ export default function LoginPage() {
     <AuthLayout
       brandName={PRODUCT_NAME}
       brandBadge={PRODUCT_BADGE}
-      nav={[
-        { href: '/', label: 'Home' },
-        { href: '/demo', label: 'Sample journey' },
-      ]}
+      nav={[{ href: '/signup', label: 'Create workspace' }]}
     >
       <AuthCard>
         <div className="mb-8 text-center">

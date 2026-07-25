@@ -104,7 +104,7 @@ export default function NewProjectModal({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="min-w-0">
-              <label className="label">Event date</label>
+              <label className="label">Service date</label>
               <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full max-w-full" />
             </div>
             <div className="min-w-0">
@@ -114,9 +114,9 @@ export default function NewProjectModal({
           </div>
 
           <div className="min-w-0 space-y-4 rounded-xl border border-forest-100 bg-forest-50/40 p-3.5 sm:p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-forest-600">Your client</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-forest-600">Client</p>
             <p className="text-xs text-forest-500 -mt-2 break-words">
-              Add a name and email so this project also appears under Clients after you create it.
+              Name and email so they appear under Clients.
             </p>
             <div className="min-w-0">
               <label className="label">Client name</label>

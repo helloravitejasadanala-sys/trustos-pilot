@@ -12,7 +12,7 @@ import ClientFormModal from '@/components/vendor/ClientFormModal'
 import ShareLink from '@/components/vendor/ShareLink'
 import { WorkspaceLayout, WorkspaceTabs } from '@/components/layout'
 import { markSeen } from '@/lib/unread'
-import { getNextAction } from '@/lib/journey'
+import { getNextAction, isWaitingOnClient } from '@/lib/journey'
 import {
   ARCHIVED_PREFIX, SIMPLE_JOURNEY, isTestProject, journeyProgress,
   projectProgressSummary, hasDeliverables, hasDeliveryApproval,
@@ -23,10 +23,8 @@ import { normalizePaymentMethod } from '@/lib/stripe-config'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
 
-const TABS = ['Overview', 'Money', 'Preparation', 'Delivery', 'Messages', 'History'] as const
+const TABS = ['Overview', 'Money', 'Prep', 'Delivery', 'Chat'] as const
 type Tab = typeof TABS[number]
-
-const WAITING_STATUSES = ['LEAD', 'QUESTIONNAIRE_SENT', 'PROPOSAL_SENT', 'CONTRACT_SENT']
 
 function markerClass(type: string | null) {
   const t = (type || '').toUpperCase()
@@ -98,7 +96,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
   useEffect(() => { load() }, [params.slug])
   useEffect(() => {
-    if (tab === 'Messages') {
+    if (tab === 'Chat') {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       if (project?.id) markSeen(project.id)
     }
@@ -108,7 +106,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const clientLabel = project?.client?.name || 'your client'
 
   useMessagePoll({
-    enabled: state === 'ready' && tab === 'Messages' && !!projectId,
+    enabled: state === 'ready' && tab === 'Chat' && !!projectId,
     fetchMessages: async () => {
       if (!projectId) return null
       const res = await fetch(`/api/vendor/projects/${projectId}/messages`)
@@ -207,7 +205,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       await post('link', { name: 'Mood board', url: nextMoodboard, type: 'moodboard' })
       await load()
     }
-    toast.success('Preparation saved')
+    toast.success('Prep saved')
   }
 
   async function addGallery() {
@@ -224,8 +222,20 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     if (!project?.invitation?.url) return
     await navigator.clipboard.writeText(project.invitation.url)
     setCopied(true)
-    toast.success('Client link copied')
+    toast.success('Link copied — share it when you are ready')
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  /** Vendor explicitly shared the link (not mere copy). */
+  async function markInvitationShared() {
+    if (!project?.id) return
+    const res = await fetch(`/api/vendor/projects/${project.id}/invitation`, { method: 'PATCH' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || 'Could not confirm share')
+    }
+    toast.success('Marked as shared — waiting for the client')
+    await load()
   }
 
   if (state === 'loading') {
@@ -271,30 +281,42 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const deposit = (project.payments || []).find((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
   const test = isTestProject(project)
   const detailsDone = !!project.questionnaire?.completedAt
+  // After agreement: Stripe wait = client; manual/free = vendor confirms receipt.
   const waitingOnClient =
-    WAITING_STATUSES.includes(project.status) ||
-    (project.status === 'CONTRACT_SIGNED' && method === 'stripe' && !deposit)
+    project.status === 'CONTRACT_SIGNED'
+      ? method === 'stripe' && !deposit
+      : isWaitingOnClient(project.status)
 
   const journeySteps = SIMPLE_JOURNEY.filter(s => s.key !== 'archived')
-  const currentJourneyIndex = (() => {
-    if (summary.allDone) return journeySteps.length - 1
-    const idx = journeySteps.findIndex(s => s.label === summary.currentLabel)
-    return idx >= 0 ? idx : 0
-  })()
+  const currentJourneyIndex = summary.allDone
+    ? journeySteps.length - 1
+    : Math.max(0, summary.currentIndex)
   const stageOf = journeySteps.length
   const stageNum = currentJourneyIndex + 1
 
   const primary: { label: string; action: () => Promise<void> | void } | null = (() => {
     switch (project.status) {
-      case 'QUESTIONNAIRE_COMPLETED': return { label: 'Review Event Details →', action: () => setTab('Money') }
-      case 'PROPOSAL_ACCEPTED': return { label: 'Send agreement →', action: sendContract }
+      case 'LEAD':
+        return {
+          label: 'Copy link →',
+          action: () => copyLink(),
+        }
+      case 'QUESTIONNAIRE_COMPLETED':
+        return { label: na.ctaLabel || 'Review details →', action: () => setTab('Money') }
+      case 'PROPOSAL_ACCEPTED':
+        return { label: na.ctaLabel || 'Send agreement →', action: sendContract }
       case 'CONTRACT_SIGNED':
         if (method === 'free') return { label: 'Confirm free collaboration →', action: completeFree }
-        return { label: 'Mark deposit received →', action: () => recordPayment('DEPOSIT') }
-      case 'DEPOSIT_PAID': return { label: 'Mark service complete →', action: completeDelivery }
-      case 'FULLY_PAID': return { label: 'Add delivery →', action: () => setTab('Delivery') }
-      case 'COMPLETED': return { label: 'Request a review →', action: requestReview }
-      default: return null
+        if (method === 'manual') return { label: 'Mark deposit received →', action: () => recordPayment('DEPOSIT') }
+        return null
+      case 'DEPOSIT_PAID':
+        return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
+      case 'FULLY_PAID':
+        return { label: na.ctaLabel || 'Add delivery →', action: () => setTab('Delivery') }
+      case 'COMPLETED':
+        return { label: na.ctaLabel || 'Request a review →', action: requestReview }
+      default:
+        return null
     }
   })()
 
@@ -424,12 +446,69 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         </div>
       </div>
 
+      {/* Progress first: Completed → Current → Next */}
+      <div className="panel mb-3 md:mb-4" style={{ padding: '14px 16px' }}>
+        <div
+          className="ws-journey"
+          role="img"
+          aria-label={`Completed: ${summary.completedLabels.slice(-1)[0] || 'Start'}. Current: ${summary.currentLabel}. Next: ${summary.nextLabel || 'Done'}`}
+        >
+          {journeySteps.map((step, i) => {
+            const done = progress[step.key as keyof typeof progress] && i < currentJourneyIndex
+            const isCurrent = i === currentJourneyIndex && !summary.allDone
+            const isDoneFinal = summary.allDone && i <= currentJourneyIndex
+            const filled = done || isDoneFinal
+            return (
+              <div key={step.key} style={{ display: 'contents' }}>
+                {i > 0 && (
+                  <span
+                    className="ws-journey__line"
+                    style={{ background: i <= currentJourneyIndex ? 'var(--forest)' : 'var(--line)' }}
+                  />
+                )}
+                <span
+                  className="ws-journey__dot num"
+                  style={
+                    filled
+                      ? { background: 'var(--forest)', color: '#fff' }
+                      : isCurrent
+                        ? { background: 'var(--lime)', color: 'var(--lime-ink)', border: '2px solid var(--lime-deep)' }
+                        : { background: 'var(--panel)', color: 'var(--faint)', border: '2px solid var(--line)' }
+                  }
+                  title={step.label}
+                >
+                  {filled ? '✓' : i + 1}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+          {summary.completedLabels.length > 0 && (
+            <>
+              <span style={{ color: 'var(--ink)' }}>Completed</span>
+              {' '}{summary.completedLabels[summary.completedLabels.length - 1]}
+              {' · '}
+            </>
+          )}
+          <span style={{ color: 'var(--ink)', fontWeight: 700 }}>Current</span>
+          {' '}{summary.currentLabel}
+          {summary.nextLabel ? (
+            <>
+              {' · '}
+              <span style={{ color: 'var(--ink)' }}>Next</span>
+              {' '}{summary.nextLabel}
+            </>
+          ) : null}
+        </div>
+      </div>
+
       <WorkspaceTabs
         tabs={TABS}
         active={tab}
         onChange={t => setTab(t as Tab)}
         badge={t =>
-          t === 'Messages' && project.messages?.length
+          t === 'Chat' && project.messages?.length
             ? `(${project.messages.length})`
             : null
         }
@@ -442,7 +521,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
             {/* One Clear Next Action */}
             <div>
               <div className="kicker" style={{ color: 'var(--forest)', marginBottom: 9 }}>
-                One clear next action
+                Next action
               </div>
               <div className="action">
                 <div className="ws-handoff">
@@ -458,7 +537,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     V
                   </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: 'var(--on-dark-mut)' }}>Responsibility</div>
+                    <div style={{ fontSize: 11, color: 'var(--on-dark-mut)' }}>Turn</div>
                     <div style={{ fontSize: 13.5, fontWeight: 700 }}>
                       {waitingOnClient ? "Client's turn" : 'Your turn'}
                     </div>
@@ -480,27 +559,19 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <div style={{ font: 'var(--t-h1)', marginBottom: 7 }}>{na.nextAction}</div>
                 <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '52ch', margin: '0 0 20px' }}>
                   {waitingOnClient
-                    ? `${clientName} needs to finish the next step on their secure link before you can move on.`
-                    : na.label
-                      ? `${na.label}. ${primary ? 'Complete this to advance the project.' : 'Nothing needs your attention right now.'}`
-                      : 'Nothing needs your attention right now.'}
+                    ? `${clientName} finishes this on their secure link.`
+                    : primary
+                      ? 'Complete this to move the project forward.'
+                      : 'Nothing needs you right now.'}
                 </p>
 
-                {waitingOnClient ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
-                    <button
-                      type="button"
-                      disabled={busy === 'remind'}
-                      onClick={() => run('remind', sendReminder)}
-                      className="btn btn-lime"
-                    >
-                      {busy === 'remind' ? <Loader2 size={15} className="animate-spin" /> : 'Send a friendly reminder'}
-                    </button>
-                    <button type="button" onClick={copyLink} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
+                {project.status === 'LEAD' && project.invitation?.url ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <button type="button" onClick={copyLink} className="btn btn-lime" style={{ alignSelf: 'flex-start' }}>
                       {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
                       Copy link
                     </button>
-                    {project.invitation?.url && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
                       <a
                         href={project.invitation.url}
                         target="_blank"
@@ -510,91 +581,63 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                       >
                         <Eye size={14} className="mr-1.5" />Preview
                       </a>
-                    )}
-                    <button type="button" onClick={() => setTab('Messages')} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
-                      <MessageSquare size={14} className="mr-1.5" />Message
-                    </button>
+                      <button
+                        type="button"
+                        disabled={busy === 'shared'}
+                        onClick={() => run('shared', markInvitationShared)}
+                        className="btn btn-ghost-dark"
+                        style={{ minHeight: 40 }}
+                      >
+                        {busy === 'shared' ? <Loader2 size={15} className="animate-spin" /> : "I've shared the link"}
+                      </button>
+                    </div>
+                    <ShareLink
+                      url={project.invitation.url}
+                      businessName={project.vendor?.businessName}
+                      clientName={project.client?.name}
+                      onShared={() => run('shared', markInvitationShared)}
+                    />
                   </div>
-                ) : primary ? (
+                ) : waitingOnClient ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
                     <button
                       type="button"
-                      disabled={!!busy}
-                      onClick={() => run('primary', async () => { await primary.action() })}
+                      disabled={busy === 'remind'}
+                      onClick={() => run('remind', sendReminder)}
                       className="btn btn-lime"
                     >
-                      {busy === 'primary' ? <Loader2 size={15} className="animate-spin" /> : primary.label}
+                      {busy === 'remind' ? <Loader2 size={15} className="animate-spin" /> : 'Send reminder'}
                     </button>
-                    <span className="num" style={{ fontSize: 12, color: 'var(--on-dark-mut)' }}>
-                      Advances to stage {Math.min(stageNum + 1, stageOf)}
-                    </span>
+                    <button type="button" onClick={copyLink} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
+                      {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
+                      Copy link
+                    </button>
+                    <button type="button" onClick={() => setTab('Chat')} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
+                      <MessageSquare size={14} className="mr-1.5" />Chat
+                    </button>
                   </div>
+                ) : primary ? (
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    onClick={() => run('primary', async () => { await primary.action() })}
+                    className="btn btn-lime"
+                  >
+                    {busy === 'primary' ? <Loader2 size={15} className="animate-spin" /> : primary.label}
+                  </button>
                 ) : (
                   <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', margin: 0 }}>
-                    Nothing needs your attention right now.
+                    Nothing needs you right now.
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Project journey */}
-            <div>
-              <div style={{ font: 'var(--t-h2)', marginBottom: 12 }}>Project journey</div>
-              <div className="panel" style={{ padding: '20px 18px' }}>
-                <div
-                  className="ws-journey"
-                  role="img"
-                  aria-label={`Stage ${stageNum} of ${stageOf}: ${summary.currentLabel}, in progress`}
-                >
-                  {journeySteps.map((step, i) => {
-                    const done = progress[step.key as keyof typeof progress] && i < currentJourneyIndex
-                    const isCurrent = i === currentJourneyIndex && !summary.allDone
-                    const isDoneFinal = summary.allDone && i <= currentJourneyIndex
-                    const filled = done || isDoneFinal
-                    return (
-                      <div key={step.key} style={{ display: 'contents' }}>
-                        {i > 0 && (
-                          <span
-                            className="ws-journey__line"
-                            style={{ background: i <= currentJourneyIndex ? 'var(--forest)' : 'var(--line)' }}
-                          />
-                        )}
-                        <span
-                          className="ws-journey__dot num"
-                          style={
-                            filled
-                              ? { background: 'var(--forest)', color: '#fff' }
-                              : isCurrent
-                                ? { background: 'var(--lime)', color: 'var(--lime-ink)', border: '2px solid var(--lime-deep)' }
-                                : { background: 'var(--panel)', color: 'var(--faint)', border: '2px solid var(--line)' }
-                          }
-                        >
-                          {filled ? '✓' : i + 1}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div
-                  style={{
-                    marginTop: 14,
-                    paddingTop: 14,
-                    borderTop: '1px solid var(--line-soft)',
-                    fontSize: 12.5,
-                    color: 'var(--muted)',
-                  }}
-                >
-                  <b style={{ color: 'var(--ink)' }}>Now: {summary.currentLabel}.</b>{' '}
-                  {summary.nextLabel ? `Next — ${summary.nextLabel}.` : 'All steps complete.'}
-                </div>
-              </div>
-            </div>
-
-            {/* Event Details */}
+            {/* Client details */}
             <div>
               <div style={{ font: 'var(--t-h2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                Event Details
-                {detailsDone && <span className="chip chip-success">Completed</span>}
+                Client details
+                {detailsDone && <span className="chip chip-success">Done</span>}
               </div>
               {detailsDone ? (
                 <div className="context">
@@ -613,10 +656,37 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 </div>
               ) : (
                 <div className="context" style={{ fontSize: 13.5, color: 'var(--muted)' }}>
-                  Waiting for the client to confirm their project details from the secure link.
+                  Waiting for the client to confirm details on their link.
                 </div>
               )}
             </div>
+
+            {(project.activities || []).length > 0 && (
+              <div>
+                <div style={{ font: 'var(--t-h2)', marginBottom: 12 }}>Recent activity</div>
+                <div className="panel" style={{ padding: 16 }}>
+                  <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                    {(project.activities || []).slice(0, 5).map((a: any) => (
+                      <li
+                        key={a.id}
+                        style={{
+                          borderBottom: '1px solid var(--line-soft)',
+                          paddingBottom: 10,
+                          marginBottom: 10,
+                        }}
+                      >
+                        <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink)' }}>
+                          {humanizeActivityEvent(a.event || a.action || '')}
+                        </p>
+                        <p className="num" style={{ margin: '4px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>
+                          {new Date(a.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Context rail */}
@@ -637,14 +707,23 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <button type="button" className="btn btn-forest-d btn-block" style={{ marginTop: 13, minHeight: 38 }} onClick={() => setClientModal(true)}>
                   Add client
                 </button>
-              ) : project.invitation?.url ? (
-                <button type="button" className="btn btn-forest-d btn-block" style={{ marginTop: 13, minHeight: 38 }} onClick={copyLink}>
-                  {copied ? 'Link copied' : 'Open their portal link'}
+              ) : project.invitation?.url && project.status !== 'LEAD' ? (
+                <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 13, minHeight: 38 }} onClick={copyLink}>
+                  {copied ? 'Link copied' : 'Copy link'}
                 </button>
               ) : null}
-              {project.client && project.invitation?.url && (
+              {project.client && project.invitation?.url && project.status !== 'LEAD' && (
                 <div style={{ marginTop: 12 }}>
-                  <ShareLink url={project.invitation.url} businessName={project.vendor?.businessName} clientName={project.client?.name} />
+                  {project.status === 'QUESTIONNAIRE_SENT' && !project.invitation?.openedAt && (
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                      Waiting for client to open the link.
+                    </div>
+                  )}
+                  <ShareLink
+                    url={project.invitation.url}
+                    businessName={project.vendor?.businessName}
+                    clientName={project.client?.name}
+                  />
                 </div>
               )}
             </div>
@@ -668,13 +747,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
               <button
                 type="button"
-                onClick={() => setTab('Preparation')}
+                onClick={() => setTab('Prep')}
                 className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                 style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
               >
                 <span className="marker" style={{ width: 30, height: 30, background: 'var(--gold-soft)', color: '#7a4a1e', fontSize: 12 }}>✓</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Preparation</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Prep</div>
                   <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{prepDoneCount} of 4 fields</div>
                 </div>
                 <span className={prepDoneCount === 4 ? 'chip chip-success' : prepDoneCount > 0 ? 'chip chip-success' : 'chip chip-muted'}>
@@ -684,13 +763,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
               <button
                 type="button"
-                onClick={() => setTab('Messages')}
+                onClick={() => setTab('Chat')}
                 className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                 style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
               >
                 <span className="marker" style={{ width: 30, height: 30, background: 'var(--coral-soft)', color: 'var(--coral-deep)', fontSize: 12 }}>✉</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Messages</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Chat</div>
                   <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
                     {(project.messages || []).length
                       ? `${project.messages.length} with the client`
@@ -715,7 +794,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                         ? 'Link sent'
                         : progress.service
                           ? 'Ready to add link'
-                          : 'Opens after the shoot'}
+                          : 'Opens after the service'}
                   </div>
                 </div>
                 {!progress.service && !deliverablesSent
@@ -934,9 +1013,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       )}
 
       {/* PREPARATION */}
-      {tab === 'Preparation' && (
+      {tab === 'Prep' && (
         <div className="panel" style={{ padding: 20, maxWidth: 620 }}>
-          <div style={{ font: 'var(--t-h2)', marginBottom: 14 }}>Preparation</div>
+          <div style={{ font: 'var(--t-h2)', marginBottom: 14 }}>Prep</div>
           <div className="space-y-4">
             <div>
               <label className="label">Date & time</label>
@@ -980,7 +1059,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               >
                 🔒
               </span>
-              <div style={{ font: 'var(--t-h2)' }}>Delivery opens after the shoot</div>
+              <div style={{ font: 'var(--t-h2)' }}>Delivery opens after the service</div>
               <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '40ch', margin: '5px auto 16px' }}>
                 When the service is done, add your gallery link and {clientName} sees it instantly on their portal.
               </p>
@@ -1071,10 +1150,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       )}
 
       {/* MESSAGES — polled while this tab is open */}
-      {tab === 'Messages' && (
+      {tab === 'Chat' && (
         <div>
           <div style={{ font: 'var(--t-h2)', marginBottom: 12 }}>
-            Messages{project.client?.name ? ` · ${project.client.name}` : ''}
+            Chat{project.client?.name ? ` · ${project.client.name}` : ''}
           </div>
           <div className="panel" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14, minHeight: '50vh' }}>
             <div
@@ -1086,9 +1165,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               {(project.messages || []).length === 0 ? (
                 <div className="empty" style={{ minHeight: '30vh' }}>
                   <MessageSquare size={28} style={{ color: 'var(--faint)', margin: '0 auto' }} />
-                  <p style={{ margin: '12px 0 0', fontWeight: 600, color: 'var(--ink)' }}>No messages yet — say hello.</p>
+                  <p style={{ margin: '12px 0 0', fontWeight: 600, color: 'var(--ink)' }}>No messages yet</p>
                   <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--muted)' }}>
-                    Send your client a note — it appears in their secure link too.
+                    Send a note — it also appears on their secure link.
                   </p>
                 </div>
               ) : (
@@ -1156,37 +1235,6 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* HISTORY */}
-      {tab === 'History' && (
-        <div className="panel" style={{ padding: 18 }}>
-          {(project.activities || []).length === 0 ? (
-            <div className="empty">
-              <p style={{ margin: 0, color: 'var(--muted)' }}>No activity recorded yet.</p>
-            </div>
-          ) : (
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-              {(project.activities || []).map((a: any) => (
-                <li
-                  key={a.id}
-                  style={{
-                    borderBottom: '1px solid var(--line-soft)',
-                    paddingBottom: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)' }}>
-                    {humanizeActivityEvent(a.event || a.action || '')}
-                  </p>
-                  <p className="num" style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
-                    {new Date(a.createdAt).toLocaleString('en-GB')}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
 

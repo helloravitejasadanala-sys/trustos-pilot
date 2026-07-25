@@ -490,9 +490,13 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
     setError('')
     setBusy(true)
     try {
-      const r = await fetch('/api/client/proposal', { method: 'POST' })
+      const r = await fetch('/api/client/proposal', {
+        method: 'POST',
+        credentials: 'same-origin',
+      })
+      const data = await r.json().catch(() => ({} as { error?: string }))
       if (r.ok) onDone()
-      else setError('We could not accept that just now. Please try again.')
+      else setError(data.error || 'We could not accept that just now. Please try again.')
     } catch {
       setError('Connection issue — please check your network and try again.')
     } finally {

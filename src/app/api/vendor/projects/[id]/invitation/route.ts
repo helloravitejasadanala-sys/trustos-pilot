@@ -79,6 +79,55 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 }
 
+/**
+ * Vendor explicitly shared (or confirmed sharing) the link.
+ * Marks invitation_sent and advances LEAD → QUESTIONNAIRE_SENT so
+ * "waiting for client" is honest. Idempotent.
+ */
+export async function PATCH(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const user = await requireAuth(['VENDOR'])
+    await assertOwnedProject(params.id, user.id)
+
+    const project = await prisma.project.findUnique({
+      where: { id: params.id },
+      select: { id: true, status: true },
+    })
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const invite = await prisma.invitation.findFirst({
+      where: { projectId: params.id, revokedAt: null },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (!invite) {
+      return NextResponse.json({ error: 'No active invitation link' }, { status: 404 })
+    }
+
+    if (project.status === 'LEAD') {
+      await prisma.project.update({
+        where: { id: params.id },
+        data: { status: 'QUESTIONNAIRE_SENT' },
+      })
+    }
+
+    await trackEvent('invitation_sent', {
+      projectId: params.id,
+      userId: user.id,
+      metadata: { invitationId: invite.id },
+    })
+
+    return NextResponse.json({ ok: true, status: project.status === 'LEAD' ? 'QUESTIONNAIRE_SENT' : project.status })
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: error.status || 500 },
+    )
+  }
+}
+
 /** Revoke: kills the link and any live client session using it. */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {

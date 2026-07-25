@@ -9,30 +9,40 @@ import { parseJsonResponse } from '@/lib/safe-json'
 import { projectTypeLabel } from '@/lib/project-types'
 import { useVendorChrome } from '@/components/vendor/VendorShell'
 
-const VENDOR_PRIORITY = ['QUESTIONNAIRE_COMPLETED', 'LEAD', 'DEPOSIT_PAID', 'FULLY_PAID', 'COMPLETED']
+const VENDOR_PRIORITY = [
+  'QUESTIONNAIRE_COMPLETED',
+  'PROPOSAL_ACCEPTED',
+  'LEAD',
+  'DEPOSIT_PAID',
+  'FULLY_PAID',
+  'COMPLETED',
+]
 
 const CTA_LABEL: Record<string, string> = {
-  LEAD: 'Send invitation →',
-  QUESTIONNAIRE_COMPLETED: 'Review Event Details →',
+  LEAD: 'Share invitation →',
+  QUESTIONNAIRE_COMPLETED: 'Review details →',
+  PROPOSAL_ACCEPTED: 'Send agreement →',
   DEPOSIT_PAID: 'Start delivery →',
-  FULLY_PAID: 'Complete delivery →',
-  COMPLETED: 'Request a review →',
+  FULLY_PAID: 'Finish delivery →',
+  COMPLETED: 'Request review →',
 }
 
 const ACTION_HEADLINE: Record<string, (client: string) => string> = {
-  LEAD: (c) => `Send ${c} their secure invitation`,
-  QUESTIONNAIRE_COMPLETED: (c) => `Review ${c}'s Event Details`,
-  DEPOSIT_PAID: (c) => `Begin delivery for ${c}`,
-  FULLY_PAID: (c) => `Complete delivery for ${c}`,
-  COMPLETED: (c) => `Request a review from ${c}`,
+  LEAD: (c) => `Share ${c} their invitation`,
+  QUESTIONNAIRE_COMPLETED: (c) => `Review ${c}'s details`,
+  PROPOSAL_ACCEPTED: (c) => `Send ${c} the agreement`,
+  DEPOSIT_PAID: (c) => `Start delivery for ${c}`,
+  FULLY_PAID: (c) => `Finish delivery for ${c}`,
+  COMPLETED: (c) => `Ask ${c} for a review`,
 }
 
 const ACTION_WHY: Record<string, string> = {
-  LEAD: 'They need the link before they can confirm Event Details. Sending it unlocks the rest of the job.',
-  QUESTIONNAIRE_COMPLETED: 'They sent everything. Reviewing it unlocks the quote.',
-  DEPOSIT_PAID: 'Payment is in — time to deliver the work and keep them updated.',
-  FULLY_PAID: 'The balance is settled. Finish delivery so they can approve.',
-  COMPLETED: 'The job is done on your side. A review request keeps the relationship warm.',
+  LEAD: 'They need the link before they can confirm details.',
+  QUESTIONNAIRE_COMPLETED: 'Details are in — review them, then send a quote.',
+  PROPOSAL_ACCEPTED: 'Quote accepted. Send the agreement so they can pay.',
+  DEPOSIT_PAID: 'Payment received. Deliver the work.',
+  FULLY_PAID: 'Balance settled. Finish delivery for approval.',
+  COMPLETED: 'Job complete. Ask for a review.',
 }
 
 type ActivityItem = { id: string; event: string; createdAt: string; project: { title: string; slug: string } | null }
@@ -58,18 +68,6 @@ function markerLetter(type: string | null, title: string) {
   return (title || 'P').charAt(0).toUpperCase()
 }
 
-function snoozeKey(projectId: string) {
-  return `trustos:snooze:${projectId}:${new Date().toISOString().slice(0, 10)}`
-}
-
-function isSnoozed(projectId: string) {
-  try { return localStorage.getItem(snoozeKey(projectId)) === '1' } catch { return false }
-}
-
-function setSnoozed(projectId: string) {
-  try { localStorage.setItem(snoozeKey(projectId), '1') } catch { /* ignore */ }
-}
-
 export default function TodayPage() {
   const { openNewProject, userName, businessName, profileLoaded } = useVendorChrome()
   const [projects, setProjects] = useState<VendorProject[]>([])
@@ -78,7 +76,6 @@ export default function TodayPage() {
   const [ownerName, setOwnerName] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [snoozeTick, setSnoozeTick] = useState(0)
 
   async function load() {
     setLoadError(null)
@@ -139,11 +136,7 @@ export default function TodayPage() {
       const bi = VENDOR_PRIORITY.indexOf(b.p.status)
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
     })
-  // snoozeTick forces re-render after local snooze
-  const todaysAction = vendorActionable.find(({ p }) => {
-    void snoozeTick
-    return !isSnoozed(p.id)
-  }) ?? null
+  const todaysAction = vendorActionable[0] ?? null
 
   const deadlines = useMemo(() => {
     return projects
@@ -154,10 +147,10 @@ export default function TodayPage() {
 
   const unreadProjects = projects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
   const firstName = (ownerName || userName).split(' ')[0] || ''
-  const studio = business || businessName
+  const workspaceName = business || businessName
   const greeting = greetingFor(new Date().getHours())
   const greetingLine = firstName ? `${greeting}, ${firstName}` : greeting
-  const avatarLetter = firstName ? firstName.charAt(0).toUpperCase() : (studio ? studio.charAt(0).toUpperCase() : '')
+  const avatarLetter = firstName ? firstName.charAt(0).toUpperCase() : (workspaceName ? workspaceName.charAt(0).toUpperCase() : '')
 
   if (loading || !profileLoaded) {
     return (
@@ -194,7 +187,7 @@ export default function TodayPage() {
     )
   }
 
-  // Empty workspace — one dark action module, one lime CTA
+  // Empty workspace — one clear next action
   if (projects.length === 0) {
     return (
       <div>
@@ -202,13 +195,13 @@ export default function TodayPage() {
           Welcome{firstName ? `, ${firstName}` : ''}
         </h1>
         <p className="mt-1 mb-6 text-[color:var(--muted)]">
-          Your studio&apos;s ready. Start with one real job — everything else follows from there.
+          Your workspace is ready.
         </p>
         <div className="action" style={{ maxWidth: 620 }}>
           <div className="kicker mb-2.5 text-[color:var(--lime)]">Do this first</div>
           <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>Create your first project</div>
           <p className="mb-5 max-w-[48ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
-            Add the client, pick the type of work, and TrustOS sends them a secure link to confirm their Event Details. Takes under a minute.
+            Add a client and job type. They get a secure link to confirm details.
           </p>
           <button type="button" className="btn btn-lime" onClick={openNewProject}>
             ＋ New project
@@ -261,19 +254,13 @@ export default function TodayPage() {
           {greetingLine}
         </h1>
         <p className="mt-1 text-[color:var(--muted)]">
-          You have{' '}
-          <b style={{ color: 'var(--ink)' }}>{waitingVendor.length} {waitingVendor.length === 1 ? 'thing' : 'things'}</b>
-          {' '}that need you
-          {waitingClient.length > 0 && (
-            <>
-              {' '}and{' '}
-              <b style={{ color: 'var(--ink)' }}>
-                {waitingClient.length} {waitingClient.length === 1 ? 'client' : 'clients'}
-              </b>
-              {' '}to nudge
-            </>
-          )}
-          .
+          {waitingVendor.length > 0
+            ? `${waitingVendor.length} waiting on you${waitingClient.length > 0 ? ` · ${waitingClient.length} waiting on clients` : ''}${unreadProjects.length > 0 ? ` · ${unreadProjects.length} unread` : ''}`
+            : waitingClient.length > 0
+              ? `${waitingClient.length} waiting on clients${unreadProjects.length > 0 ? ` · ${unreadProjects.length} unread` : ''}`
+              : unreadProjects.length > 0
+                ? `${unreadProjects.length} unread message${unreadProjects.length === 1 ? '' : 's'}`
+                : 'Nothing needs you right now'}
         </p>
       </div>
 
@@ -282,12 +269,12 @@ export default function TodayPage() {
           <span aria-hidden>✉</span>
           <div className="min-w-0 flex-1">
             <strong>
-              {unreadProjects.length} new client {unreadProjects.length === 1 ? 'message' : 'messages'}
+              {unreadProjects.length} unread {unreadProjects.length === 1 ? 'message' : 'messages'}
             </strong>
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-              {unreadProjects.map(p => (
+              {unreadProjects.slice(0, 3).map(p => (
                 <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="underline underline-offset-2">
-                  {p.title}
+                  Open {p.title}
                 </Link>
               ))}
             </div>
@@ -341,64 +328,59 @@ export default function TodayPage() {
                     <p className="m-0 max-w-[46ch] text-[13px] text-[color:var(--on-dark-mut)]">{why}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-col gap-3 md:mt-5 md:flex-row md:items-center md:gap-3">
+                <div className="mt-4 md:mt-5">
                   <Link
                     href={`/vendor/projects/${todaysAction.p.slug}`}
                     className="btn btn-lime w-full md:w-auto"
                   >
                     {cta}
                   </Link>
-                  <button
-                    type="button"
-                    className="btn btn-ghost-dark hidden md:inline-flex"
-                    onClick={() => {
-                      setSnoozed(todaysAction.p.id)
-                      setSnoozeTick(t => t + 1)
-                    }}
-                  >
-                    Snooze
-                  </button>
-                  <span className="num hidden text-[12px] text-[color:var(--on-dark-mut)] md:ml-auto md:inline">
-                    ~2 min
-                  </span>
                 </div>
               </div>
+            </div>
+          ) : unreadProjects.length > 0 ? (
+            <div className="action">
+              <div className="kicker mb-2.5 text-[color:var(--lime)]">Do this first</div>
+              <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>
+                Read unread messages
+              </div>
+              <p className="m-0 mb-5 max-w-[46ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
+                {unreadProjects[0].client?.name || unreadProjects[0].title} is waiting for a reply.
+              </p>
+              <Link
+                href={`/vendor/projects/${unreadProjects[0].slug}`}
+                className="btn btn-lime w-full md:w-auto"
+              >
+                Open messages →
+              </Link>
             </div>
           ) : (
             <div className="action">
               <div className="kicker mb-2.5 text-[color:var(--on-dark-mut)]">Do this first</div>
               <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>You&apos;re all caught up</div>
               <p className="m-0 max-w-[46ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
-                Every active project is waiting on a client. Review today&apos;s schedule when you&apos;re ready.
+                Active projects are waiting on clients.
               </p>
-              {servicesSoon.length > 0 && (
-                <Link href="/vendor/projects" className="btn btn-ghost-dark mt-5">
-                  Review today&apos;s schedule
-                </Link>
-              )}
             </div>
           )}
 
-          {/* Today & tomorrow services */}
-          <div>
-            <div className="mb-2.5 flex items-baseline justify-between">
-              <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Today &amp; tomorrow</h2>
-              <span className="text-[12px] text-[color:var(--muted)]">
-                {servicesSoon.length} {servicesSoon.length === 1 ? 'service' : 'services'}
-              </span>
-            </div>
-            <div className="panel overflow-hidden">
-              {servicesSoon.length === 0 ? (
-                <p className="px-4 py-4 text-[13px] text-[color:var(--muted)]">Nothing scheduled for today or tomorrow.</p>
-              ) : (
-                servicesSoon.map(p => {
+          {servicesSoon.length > 0 && (
+            <div>
+              <div className="mb-2.5 flex items-baseline justify-between">
+                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Coming up</h2>
+                <span className="text-[12px] text-[color:var(--muted)]">
+                  {servicesSoon.length}
+                </span>
+              </div>
+              <div className="panel overflow-hidden">
+                {servicesSoon.map(p => {
                   const d = new Date(p.eventDate!)
                   const na = getNextAction(p.status)
                   const chip =
                     na.responsible === 'Vendor' ? 'chip chip-amber' :
                     na.responsible === 'Client' ? 'chip chip-lav' : 'chip chip-muted'
                   const chipLabel =
-                    na.responsible === 'Vendor' ? 'Prep needed' :
+                    na.responsible === 'Vendor' ? 'Your turn' :
                     na.responsible === 'Client' ? 'Waiting' : 'Done'
                   return (
                     <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="today-service-row">
@@ -426,10 +408,10 @@ export default function TodayPage() {
                       <span className={chip}>{chipLabel}</span>
                     </Link>
                   )
-                })
-              )}
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Mobile count tiles */}
           <div className="today-count-tiles">
@@ -495,22 +477,19 @@ export default function TodayPage() {
                   </div>
                   <Link
                     href={`/vendor/projects/${p.slug}`}
-                    className="btn btn-block"
-                    style={{ minHeight: 38, background: 'var(--lav-soft)', color: 'var(--lav)' }}
+                    className="text-[12.5px] font-semibold text-[color:var(--lav)] underline-offset-2 hover:underline"
                   >
-                    Send a reminder
+                    Open project →
                   </Link>
                 </div>
               ))
             )}
           </div>
 
-          <div className="context" style={{ padding: 18 }}>
-            <div style={{ font: 'var(--t-xs)', fontWeight: 700, marginBottom: 12 }}>Upcoming deadlines</div>
-            {deadlines.length === 0 ? (
-              <p className="text-[12.5px] text-[color:var(--muted)]">No upcoming dates yet.</p>
-            ) : (
-              deadlines.map((p, i) => {
+          {deadlines.length > 0 && (
+            <div className="context" style={{ padding: 18 }}>
+              <div style={{ font: 'var(--t-xs)', fontWeight: 700, marginBottom: 12 }}>Upcoming</div>
+              {deadlines.map((p, i) => {
                 const d = new Date(p.eventDate!)
                 const urgent = i === 0
                 return (
@@ -534,26 +513,13 @@ export default function TodayPage() {
                     </div>
                   </Link>
                 )
-              })
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="action text-left"
-            style={{ border: 'none', cursor: 'pointer', width: '100%' }}
-            onClick={openNewProject}
-          >
-            <span style={{ color: 'var(--lime)', fontSize: 22 }} aria-hidden>＋</span>
-            <div style={{ font: 'var(--t-h2)', marginTop: 10 }}>Start a new project</div>
-            <div className="mt-0.5 text-[12px] text-[color:var(--on-dark-mut)]">
-              Set it up in under a minute — the client gets a link.
+              })}
             </div>
-          </button>
+          )}
 
           {activity.length > 0 && (
             <div className="context" style={{ padding: 18 }}>
-              <div style={{ font: 'var(--t-xs)', fontWeight: 700, marginBottom: 12 }}>Recent activity</div>
+              <div style={{ font: 'var(--t-xs)', fontWeight: 700, marginBottom: 12 }}>Recent</div>
               {activity.slice(0, 4).map(a => (
                 <Link
                   key={a.id}

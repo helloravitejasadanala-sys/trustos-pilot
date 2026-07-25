@@ -5,21 +5,34 @@ import { trackEvent } from '@/lib/analytics'
 
 export const dynamic = 'force-dynamic'
 
+const PROPOSAL_SELECT = {
+  title: true,
+  description: true,
+  price: true,
+  items: true,
+  depositPercent: true,
+  depositAmount: true,
+  expiryDate: true,
+  acceptedAt: true,
+  declinedAt: true,
+} as const
+
 export async function GET() {
   try {
     const { projectId } = await requireClientSession()
     const proposal = await prisma.proposal.findUnique({
       where: { projectId },
-      select: {
-        title: true, description: true, price: true, items: true,
-        depositPercent: true, depositAmount: true,
-        expiryDate: true, acceptedAt: true, declinedAt: true,
-      },
+      select: PROPOSAL_SELECT,
     })
-    await trackEvent('proposal_viewed', { projectId })
+    if (proposal) {
+      await trackEvent('proposal_viewed', { projectId })
+    }
     return NextResponse.json({ proposal })
   } catch (err: any) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: err.status ?? 500 })
+    return NextResponse.json(
+      { error: err.message || 'Unauthorized' },
+      { status: err.status ?? 500 },
+    )
   }
 }
 
@@ -27,7 +40,12 @@ export async function GET() {
 export async function POST() {
   try {
     const { projectId } = await requireClientSession()
-    const proposal = await prisma.proposal.findUnique({ where: { projectId } })
+    // Select only fields needed for accept — avoid depending on optional
+    // columns (e.g. deposit) that may lag behind schema on some deploys.
+    const proposal = await prisma.proposal.findUnique({
+      where: { projectId },
+      select: { acceptedAt: true, expiryDate: true },
+    })
     if (!proposal) {
       return NextResponse.json({ error: 'No proposal to accept' }, { status: 404 })
     }
@@ -50,6 +68,10 @@ export async function POST() {
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: err.status ?? 500 })
+    console.error('[client/proposal POST]', err)
+    return NextResponse.json(
+      { error: err.message || 'Could not accept the proposal' },
+      { status: err.status ?? 500 },
+    )
   }
 }

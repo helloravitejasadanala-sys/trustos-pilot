@@ -66,29 +66,37 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const [projectCount, setProjectCount] = useState(0)
   const [showCreate, setShowCreate] = useState(false)
 
+  // Identity loads once — never flash "Workspace" / "Account" placeholders.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const [meRes, projRes] = await Promise.all([
-          fetch('/api/auth/me'),
-          fetch('/api/vendor/projects'),
-        ])
+        const meRes = await fetch('/api/auth/me')
         const me = await parseJsonResponse<{
           user?: { name?: string; vendorProfile?: { businessName?: string | null } | null }
         }>(meRes)
-        if (!cancelled && me.ok) {
-          setBusinessName(me.data.user?.vendorProfile?.businessName?.trim() || '')
-          setUserName(me.data.user?.name?.trim() || '')
-        }
-        const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
-        if (!cancelled && proj.ok) {
-          const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
-          setProjectCount(live.length)
-          setTodayCount(live.filter(p => getNextAction(p.status).responsible === 'Vendor').length)
-        }
-      } finally {
-        if (!cancelled) setProfileLoaded(true)
+        if (cancelled || !me.ok || !me.data.user) return
+        const nextBusiness = me.data.user.vendorProfile?.businessName?.trim() || ''
+        const nextName = me.data.user.name?.trim() || ''
+        setBusinessName(nextBusiness)
+        setUserName(nextName)
+        if (nextBusiness || nextName) setProfileLoaded(true)
+      } catch {
+        /* keep loading skeleton until a successful identity load */
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const projRes = await fetch('/api/vendor/projects')
+      const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
+      if (!cancelled && proj.ok) {
+        const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
+        setProjectCount(live.length)
+        setTodayCount(live.filter(p => getNextAction(p.status).responsible === 'Vendor').length)
       }
     })()
     return () => { cancelled = true }
@@ -101,10 +109,11 @@ export default function VendorShell({ children }: { children: ReactNode }) {
     [openNewProject, businessName, userName, profileLoaded],
   )
 
-  const workspaceLabel = businessName.trim() || userName.trim() || 'Workspace'
-  const workspaceInitial = (businessName || userName || 'W').charAt(0).toUpperCase()
-  const profileInitial = (userName || businessName || '·').charAt(0).toUpperCase()
+  const workspaceLabel = businessName.trim() || userName.trim()
+  const workspaceInitial = (businessName || userName).charAt(0).toUpperCase()
+  const profileInitial = (userName || businessName).charAt(0).toUpperCase()
   const profileLabel = userName.trim() || businessName.trim()
+  const showIdentity = profileLoaded && !!workspaceLabel
 
   const badgeFor = (href: string) => {
     if (href === '/vendor' && todayCount > 0) return todayCount
@@ -118,10 +127,10 @@ export default function VendorShell({ children }: { children: ReactNode }) {
         <aside className="vendor-rail" aria-label="Workspace">
           <Link href="/vendor" className="vendor-rail__brand">
             <span className="vendor-rail__mark" aria-hidden>
-              {profileLoaded ? workspaceInitial : '·'}
+              {showIdentity ? workspaceInitial : '·'}
             </span>
             <span className="min-w-0">
-              {profileLoaded ? (
+              {showIdentity ? (
                 <>
                   <span className="block truncate text-[14px] font-bold leading-tight">{workspaceLabel}</span>
                   <span className="block text-[12px] text-[color:var(--on-dark-mut)]">Workspace</span>
@@ -158,14 +167,12 @@ export default function VendorShell({ children }: { children: ReactNode }) {
 
           <div className="vendor-rail__profile">
             <span className="vendor-rail__avatar" aria-hidden>
-              {profileLoaded ? profileInitial : '·'}
+              {showIdentity ? profileInitial : '·'}
             </span>
             <div className="min-w-0">
-              {profileLoaded ? (
+              {showIdentity && profileLabel ? (
                 <>
-                  <div className="truncate text-[13px] font-semibold">
-                    {profileLabel || 'Account'}
-                  </div>
+                  <div className="truncate text-[13px] font-semibold">{profileLabel}</div>
                   <div className="text-[12px] text-[color:var(--on-dark-mut)]">Owner</div>
                 </>
               ) : (
@@ -188,12 +195,6 @@ export default function VendorShell({ children }: { children: ReactNode }) {
             ) : (
               <>
                 <span className="num text-[13px] text-[color:var(--muted)]">{formatTopbarDate()}</span>
-                <input
-                  type="search"
-                  className="vendor-topbar__search"
-                  placeholder="Search projects & clients"
-                  aria-label="Search projects and clients"
-                />
                 <button
                   type="button"
                   className="btn btn-forest ml-auto"

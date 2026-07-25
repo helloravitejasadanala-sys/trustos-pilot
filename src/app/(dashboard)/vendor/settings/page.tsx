@@ -61,12 +61,6 @@ export default function SettingsPage() {
           )}
         </section>
 
-        <section className="rounded-xl border border-forest-100 bg-white p-4">
-          <p className="text-sm text-forest-600">
-            You are signed into your own {PRODUCT_NAME} workspace. Sample journeys on the public demo page use separate sample data and do not replace this account after you sign in again.
-          </p>
-        </section>
-
         <button onClick={logout} disabled={signingOut} className="btn-secondary w-full sm:w-auto">
           {signingOut ? <Loader2 size={16} className="mr-2 animate-spin" /> : <LogOut size={16} className="mr-2" />}Sign out
         </button>
