@@ -39,7 +39,7 @@ export default function AdminSettingsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-ink-500">{PRODUCT_NAME} company access.</p>
+        <p className="mt-1 text-sm text-ink-500">{PRODUCT_NAME} HQ access for your admin account.</p>
       </div>
 
       <section className="rounded-xl border border-neutral-100 bg-white">

@@ -31,38 +31,31 @@ function clientSteps(service?: string | null) {
       label: `Confirm your ${profile.questionnaireLabel.toLowerCase()}`,
       time: '3 minutes',
       who: 'You',
-      why: 'A few practical things about the day. About 3 minutes — no account needed.',
+      why: 'A few practical things about your day — about 3 minutes.',
     },
     {
       key: 'proposal' as const,
-      label: 'Review and accept your proposal',
+      label: 'Review your quote',
       time: '3 minutes',
       who: 'You',
-      why: 'Check what’s included, then accept so your vendor can prepare the agreement.',
+      why: 'Check what’s included, then accept so the agreement can be prepared.',
     },
     {
       key: 'contract' as const,
-      label: 'Review and sign your agreement',
+      label: 'Sign your agreement',
       time: '5 minutes',
       who: 'You',
-      why: 'Read the terms, then type your name to confirm — takes about five minutes.',
+      why: 'Read the terms, then type your name to confirm.',
     },
     {
       key: 'payment' as const,
       label: `Pay your ${deposit}`,
       time: '2 minutes',
       who: 'You',
-      why: `Your ${deposit} secures the booking. Confirm once you’ve paid by the method agreed.`,
+      why: `Your ${deposit} secures the booking. Confirm once you’ve paid.`,
     },
   ]
 }
-
-const DETAIL_CHIPS = [
-  { key: 'time', label: 'Timings', icon: '🕑' },
-  { key: 'venue', label: 'Venue', icon: '📍' },
-  { key: 'phone', label: 'Contact', icon: '📞' },
-  { key: 'notes', label: 'Notes', icon: '✎' },
-] as const
 
 export default function ClientJourney({ params }: { params: { token: string } }) {
   const [state, setState] = useState<'loading' | 'invalid' | 'session' | 'ready'>('loading')
@@ -140,7 +133,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
   if (state === 'loading') {
     return (
       <ClientPortalLayout centered>
-        <div className="w-full max-w-xl space-y-3" aria-busy="true" aria-label="Loading your project">
+        <div className="w-full max-w-xl space-y-3" aria-busy="true" aria-label="Loading your event">
           <div className="h-8 w-1/2 animate-pulse rounded" style={{ background: 'var(--line)' }} />
           <div className="h-4 w-3/4 animate-pulse rounded" style={{ background: 'var(--line)' }} />
           <div className="mt-6 h-40 w-full animate-pulse rounded-[var(--r-lg)]" style={{ background: 'var(--line)' }} />
@@ -193,10 +186,13 @@ export default function ClientJourney({ params }: { params: { token: string } })
     // nothing to pay (free collaboration → total 0 → fullyPaid).
     payment: !!payment && (payment.fullyPaid || Number(payment.depositPaid) > 0),
   }
+  // Never show Pay before an agreement exists and is signed.
+  const waitingForAgreement = !!done.proposal && !contract
   let current: (typeof STEPS)[number]['key'] | 'done' = 'done'
   if (!done.questionnaire) current = 'questionnaire'
   else if (proposal && !done.proposal) current = 'proposal'
   else if (contract && !done.contract) current = 'contract'
+  else if (waitingForAgreement) current = 'done'
   else if (payment && !done.payment) current = 'payment'
 
   const currentStep = STEPS.find(s => s.key === current)
@@ -216,261 +212,129 @@ export default function ClientJourney({ params }: { params: { token: string } })
     ? new Date(project.eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : null
 
-  const answers = questionnaire?.answers || {}
   const hasGallery = Array.isArray(project.files) && project.files.some(
     (f: any) => f.type === 'gallery' || f.type === 'recording',
   )
   const deliveryApproved = Array.isArray(project.approvals) && project.approvals.length > 0
   const showDelivery = serviceProfile.features.showDelivery
 
-  const quoteChip = !proposal
-    ? { cls: 'chip chip-muted', label: 'Soon' }
-    : done.proposal
-      ? { cls: 'chip chip-success', label: 'Accepted' }
-      : { cls: 'chip chip-amber', label: 'To review' }
+  const nextLabel = current === 'done'
+    ? waitingForAgreement
+      ? 'Waiting for your agreement'
+      : (showDelivery && hasGallery && !deliveryApproved ? 'Review your files' : 'You’re booked')
+    : currentStep
+      ? `Next: ${currentStep.label}`
+      : 'Your event'
 
-  const paymentChip = (() => {
-    if (!payment) return { cls: 'chip chip-muted', label: 'Soon' }
-    if (Number(payment.total) === 0) return { cls: 'chip chip-success', label: 'None due' }
-    if (done.payment) return { cls: 'chip chip-success', label: 'Received' }
-    if (payment.declared) return { cls: 'chip chip-amber', label: 'Awaiting' }
-    return { cls: 'chip chip-amber', label: 'Due' }
-  })()
-
-  const deliveryChip = deliveryApproved
-    ? { cls: 'chip chip-success', label: 'Approved' }
-    : hasGallery
-      ? { cls: 'chip chip-amber', label: 'Ready' }
-      : { cls: 'chip chip-muted', label: 'Soon' }
+  const bookingLine = [typeLabel, eventDate].filter(Boolean).join(' · ')
 
   return (
     <ClientPortalLayout
       brandName={vendorName}
       brandLetter={vendorInitial}
-      forLine={clientFirst ? `For ${project.client?.name}` : undefined}
+      forLine={`Your event with ${vendorName}`}
       title={projectTitle}
-      stepLabel={`Step ${stepIndex} of ${STEPS.length}`}
+      stepLabel={nextLabel}
       progressPct={progressPct}
     >
-      <div className="portal-grid">
-        <div className="flex min-w-0 flex-col gap-3.5 md:gap-[22px]">
-          {/* One current action — forest CTA, never lime */}
-          {current !== 'done' && currentStep ? (
-            <div className="min-w-0">
-              <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
-                What we need from you
-              </div>
-              <div className="action-outline" style={{ padding: '16px 14px' }}>
-                <div className="serif break-words" style={{ fontSize: 'clamp(20px, 5.5vw, 25px)', lineHeight: 1.1, marginBottom: 6 }}>
-                  {currentStep.label}
-                </div>
-                <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
-                  {currentStep.why}
-                </p>
+      <div className="flex min-w-0 flex-col gap-4" style={{ maxWidth: 640, margin: '0 auto' }}>
+        {bookingLine ? (
+          <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
+            {clientFirst ? `${clientFirst} · ` : ''}{bookingLine}
+          </p>
+        ) : null}
 
-                {current === 'questionnaire' && (
-                  <div className="portal-detail-chips">
-                    {DETAIL_CHIPS.map(chip => {
-                      const filled = !!(answers[chip.key] || (chip.key === 'venue' && project.location) || (chip.key === 'time' && answers.time))
-                      return (
-                        <span
-                          key={chip.key}
-                          className="chip"
-                          style={{
-                            padding: 12,
-                            justifyContent: 'flex-start',
-                            background: filled ? 'var(--success-soft)' : 'var(--canvas-2)',
-                            color: filled ? 'var(--success)' : 'var(--ink)',
-                            border: filled ? '1px solid #bfe0cd' : '1px solid var(--line)',
-                          }}
-                        >
-                          {chip.icon} {chip.label}{filled ? ' ✓' : ''}
-                        </span>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {current === 'questionnaire' && (
-                  <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />
-                )}
-                {current === 'proposal' && (
-                  <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />
-                )}
-                {current === 'contract' && (
-                  <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />
-                )}
-                {current === 'payment' && (
-                  <PaymentStep payment={payment} busy={busy} setBusy={setBusy} onDone={refresh} />
-                )}
-              </div>
+        {current !== 'done' && currentStep ? (
+          <div className="min-w-0">
+            <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
+              What we need from you
             </div>
-          ) : (
             <div className="action-outline" style={{ padding: '16px 14px' }}>
-              <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
-                Waiting on {vendorName}
+              <div className="serif break-words" style={{ fontSize: 'clamp(20px, 5.5vw, 25px)', lineHeight: 1.1, marginBottom: 6 }}>
+                {currentStep.label}
               </div>
-              <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
-                {!proposal
-                  ? 'Details received'
-                  : showDelivery && hasGallery && !deliveryApproved
-                    ? 'Review your delivery'
-                    : 'Nothing needed from you right now'}
-              </div>
-              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
-                {!proposal
-                  ? `Thanks — wait for ${vendorName} to send your quote. You can message them below anytime.`
-                  : showDelivery && hasGallery && !deliveryApproved
-                    ? `Open the files below, then approve when you're happy.`
-                    : `${vendorName} is preparing the next step and will update this page when they need you.`}
+              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
+                {currentStep.why}
               </p>
-            </div>
-          )}
-
-          <div className="portal-quote">
-            <span
-              className="marker"
-              style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--forest)', color: '#fff' }}
-            >
-              {vendorInitial}
-            </span>
-            <div>
-              <div className="serif" style={{ fontStyle: 'italic', fontSize: 19, lineHeight: 1.3 }}>
-                &ldquo;Anything you need, just message us right here.&rdquo;
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
-                {vendorName}
-              </div>
+              {current === 'questionnaire' && (
+                <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />
+              )}
+              {current === 'proposal' && (
+                <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />
+              )}
+              {current === 'contract' && (
+                <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />
+              )}
+              {current === 'payment' && (
+                <PaymentStep payment={payment} busy={busy} setBusy={setBusy} onDone={refresh} />
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Status rail */}
-        <div className="portal-status">
-          <div style={{ font: 'var(--t-xs)', fontWeight: 700 }}>Where things stand</div>
-
-          <div className="panel portal-status-row">
-            <span className="marker marker-photo" style={{ width: 36, height: 36, borderRadius: 9 }}>
-              {typeLabel.charAt(0)}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your project</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                {[typeLabel, eventDate].filter(Boolean).join(' · ') || 'Details coming'}
-              </div>
+        ) : (
+          <div className="action-outline" style={{ padding: '16px 14px' }}>
+            <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
+              With {vendorName}
             </div>
-            <span className={current === 'done' ? 'chip chip-success' : 'chip chip-lav'}>
-              {current === 'done' ? 'On track' : 'In prep'}
-            </span>
+            <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
+              {!proposal
+                ? 'We’ve got your event details'
+                : waitingForAgreement
+                  ? 'Quote accepted — agreement coming next'
+                  : showDelivery && hasGallery && !deliveryApproved
+                    ? 'Your files are ready'
+                    : 'Nothing needed from you right now'}
+            </div>
+            <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
+              {!proposal
+                ? `Thanks — ${vendorName} will send your quote here. Message them anytime below.`
+                : waitingForAgreement
+                  ? `${vendorName} will send your agreement here. You’ll sign it before any payment.`
+                  : showDelivery && hasGallery && !deliveryApproved
+                    ? 'Open the files below, then approve when you’re happy.'
+                    : `${vendorName} will update this page when they need you.`}
+            </p>
           </div>
+        )}
 
-          <div className="panel portal-status-row">
-            <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--success-soft)', color: 'var(--success)' }}>£</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your quote</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                {proposal
-                  ? `£${Number(proposal.price).toFixed(0)}${proposal.title ? ` · ${proposal.title}` : ''}`
-                  : 'Waiting for your studio'}
-              </div>
+        {showDelivery && hasGallery && (
+          <div className="panel" style={{ padding: 18 }}>
+            <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>
+              {serviceProfile.features.deliverableKind === 'recording' ? 'Your recording' : 'Your gallery'}
             </div>
-            <span className={quoteChip.cls}>{quoteChip.label}</span>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
+              {project.files
+                .filter((f: any) => f.type === 'gallery' || f.type === 'recording')
+                .map((f: any) => (
+                <li key={f.id}>
+                  <a
+                    href={f.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 14, color: 'var(--forest)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                  >
+                    {f.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            {serviceProfile.features.showApproval && (
+              <DeliveryApproval
+                approved={deliveryApproved}
+                busy={busy}
+                setBusy={setBusy}
+                onDone={refresh}
+              />
+            )}
           </div>
+        )}
 
-          <div className="panel portal-status-row">
-            <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--amber-soft)', color: 'var(--amber)' }}>⇄</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Payment</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                {!payment
-                  ? 'Opens after the agreement'
-                  : Number(payment.total) === 0
-                    ? 'No payment required'
-                    : payment.declared && !done.payment
-                      ? 'Bank transfer · awaiting confirmation'
-                      : done.payment
-                        ? 'Deposit confirmed'
-                        : `£${Number(payment.depositDue).toFixed(0)} deposit`}
-              </div>
-            </div>
-            <span className={paymentChip.cls}>{paymentChip.label}</span>
-          </div>
+        <ClientMessages vendorName={vendorName} />
 
-          {showDelivery && (
-            <div className="panel portal-status-row">
-              <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--recessed)', color: 'var(--faint)' }}>⬇</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>
-                  {serviceProfile.features.deliverableKind === 'recording' ? 'Your recording' : 'Your delivery'}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                  {hasGallery ? 'Files are ready below' : 'Ready a few days after'}
-                </div>
-              </div>
-              <span className={deliveryChip.cls}>{deliveryChip.label}</span>
-            </div>
-          )}
-        </div>
+        <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+          <HelpCircle size={13} />
+          Questions? Message {vendorName} above{project.vendor.phone ? `, or call ${project.vendor.phone}` : ''}.
+        </p>
       </div>
-
-      {/* Payment status summary */}
-      {payment && (done.contract || done.payment) && (
-        <div className="panel" style={{ padding: 18 }}>
-          <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 10 }}>Payment</div>
-          {Number(payment.total) === 0 ? (
-            <Row k="Amount" v="No payment required" />
-          ) : (
-            <Row
-              k="Deposit"
-              v={
-                Number(payment.depositPaid) > 0 || payment.fullyPaid
-                  ? `£${Number(payment.depositPaid || payment.depositDue).toFixed(2)} received`
-                  : payment.declared
-                    ? `£${Number(payment.depositDue).toFixed(2)} — awaiting confirmation`
-                    : `£${Number(payment.depositDue).toFixed(2)} due`
-              }
-            />
-          )}
-        </div>
-      )}
-
-      {/* Files — galleries / recordings when the service profile supports delivery */}
-      {showDelivery && hasGallery && (
-        <div className="panel" style={{ padding: 18 }}>
-          <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>Your files</div>
-          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
-            {project.files
-              .filter((f: any) => f.type === 'gallery' || f.type === 'recording')
-              .map((f: any) => (
-              <li key={f.id}>
-                <a
-                  href={f.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ fontSize: 14, color: 'var(--forest)', textDecoration: 'underline', textUnderlineOffset: 2 }}
-                >
-                  {f.name}
-                </a>
-              </li>
-            ))}
-          </ul>
-          {serviceProfile.features.showApproval && (
-            <DeliveryApproval
-              approved={deliveryApproved}
-              busy={busy}
-              setBusy={setBusy}
-              onDone={refresh}
-            />
-          )}
-        </div>
-      )}
-
-      <ClientMessages vendorName={vendorName} />
-
-      <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
-        <HelpCircle size={13} />
-        Questions? Contact {vendorName}{project.vendor.phone ? ` on ${project.vendor.phone}` : ''}.
-      </p>
     </ClientPortalLayout>
   )
 }
@@ -531,8 +395,10 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
       body: JSON.stringify({ answers: values, complete: true }),
     })
     setBusy(false)
-    if (res.ok) onDone()
-    else {
+    if (res.ok) {
+      toast.success('Thanks — your details are saved.')
+      onDone()
+    } else {
       const body = await res.json().catch(() => ({}))
       toast.error(body.error || 'Could not save — try again')
     }
@@ -567,8 +433,10 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
         credentials: 'same-origin',
       })
       const data = await r.json().catch(() => ({} as { error?: string }))
-      if (r.ok) onDone()
-      else setError(data.error || 'We could not accept that just now. Please try again.')
+      if (r.ok) {
+        toast.success('Quote accepted.')
+        onDone()
+      } else setError(data.error || 'We could not accept that just now. Please try again.')
     } catch {
       setError('Connection issue — please check your network and try again.')
     } finally {
@@ -594,7 +462,7 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
         </ul>
       )}
       {error && <div className="banner banner-error mb-3">{error}</div>}
-      <Primary onClick={accept} busy={busy}>Accept proposal</Primary>
+      <Primary onClick={accept} busy={busy}>Accept quote</Primary>
     </div>
   )
 }
@@ -612,8 +480,10 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signedBy: name, consent }),
       })
-      if (r.ok) onDone()
-      else setError('We could not save your signature just now. Please try again.')
+      if (r.ok) {
+        toast.success('Agreement signed — thank you.')
+        onDone()
+      } else setError('We could not save your signature just now. Please try again.')
     } catch {
       setError('Connection issue — please check your network and try again.')
     } finally {
@@ -702,7 +572,10 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
     setBusy(true)
     try {
       const r = await fetch('/api/client/payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'DEPOSIT', mode: 'manual' }) })
-      if (r.ok) { onDone() } else {
+      if (r.ok) {
+        toast.success('Got it — your vendor will confirm the payment.')
+        onDone()
+      } else {
         const body = await r.json().catch(() => ({}))
         setError(body.error || 'We could not record that just now. Please try again.')
       }
@@ -747,7 +620,10 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
     setBusy(true)
     try {
       const r = await fetch('/api/client/complete', { method: 'POST' })
-      if (r.ok) { onDone() } else {
+      if (r.ok) {
+        toast.success('Approved — thank you.')
+        onDone()
+      } else {
         const b = await r.json().catch(() => ({}))
         setError(b.error || 'We could not record that just now. Please try again.')
       }

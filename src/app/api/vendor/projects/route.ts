@@ -95,7 +95,7 @@ const createProjectSchema = z.object({
   budget: z.number().optional(),
   notes: z.string().optional(),
   clientName: z.string().trim().optional(),
-  clientEmail: z.string().trim().email().optional().or(z.literal('')),
+  clientEmail: z.string().trim().email('Client email is required'),
   clientPhone: z.string().trim().optional(),
 })
 
@@ -122,23 +122,18 @@ export async function POST(req: NextRequest) {
 
     const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36)
 
-    // Create / attach the client up front so the vendor never has to
-    // think about "existing vs new client" — it's just a name + email.
-    const clientEmail = data.clientEmail ? data.clientEmail.toLowerCase() : null
-    let clientId: string | undefined
-    let clientReused = false
-    if (clientEmail) {
-      const resolved = await resolveOrCreateClient({
-        vendorId: vendor.id,
-        vendorUserId: user.id,
-        vendorEmail: user.email,
-        name: data.clientName,
-        email: clientEmail,
-        phone: data.clientPhone,
-      })
-      clientId = resolved.client.id
-      clientReused = resolved.reused
-    }
+    // Client email is required so chat works on the booking page.
+    const clientEmail = data.clientEmail.toLowerCase()
+    const resolved = await resolveOrCreateClient({
+      vendorId: vendor.id,
+      vendorUserId: user.id,
+      vendorEmail: user.email,
+      name: data.clientName,
+      email: clientEmail,
+      phone: data.clientPhone,
+    })
+    const clientId = resolved.client.id
+    const clientReused = resolved.reused
 
     const project = await prisma.project.create({
       data: {

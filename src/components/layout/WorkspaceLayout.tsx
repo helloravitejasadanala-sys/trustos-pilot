@@ -48,11 +48,14 @@ export function WorkspaceTabs({
   active,
   onChange,
   badge,
+  labelFor,
 }: {
   tabs: readonly string[] | string[]
   active: string
   onChange: (tab: string) => void
   badge?: (tab: string) => string | null | undefined
+  /** Optional display label (ids stay stable for logic). */
+  labelFor?: (tab: string) => string
 }) {
   return (
     <div
@@ -61,7 +64,8 @@ export function WorkspaceTabs({
       role="tablist"
     >
       {tabs.map(t => {
-        const label = badge?.(t)
+        const badgeText = badge?.(t)
+        const display = labelFor?.(t) || t
         const isActive = active === t
         return (
           <button
@@ -79,8 +83,8 @@ export function WorkspaceTabs({
                 : { background: 'transparent', color: 'var(--muted)' }
             }
           >
-            {t}
-            {label ? ` ${label}` : ''}
+            {display}
+            {badgeText ? ` ${badgeText}` : ''}
           </button>
         )
       })}

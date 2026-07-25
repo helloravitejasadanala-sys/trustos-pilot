@@ -17,7 +17,7 @@ export async function GET() {
       database,
       authSecret: !!process.env.AUTH_SECRET,
       databaseUrl: !!process.env.DATABASE_URL,
-      appUrl: !!process.env.NEXT_PUBLIC_APP_URL || !!process.env.VERCEL_URL,
+      appUrl: !!process.env.APP_URL || !!process.env.NEXT_PUBLIC_APP_URL || !!process.env.VERCEL_URL,
       stripe: !!process.env.STRIPE_SECRET_KEY,
     }
 

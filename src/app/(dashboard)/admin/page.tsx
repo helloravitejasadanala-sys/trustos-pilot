@@ -43,16 +43,16 @@ type Overview = {
 }
 
 const CARD_META: Array<{ key: keyof Overview['cards']; label: string; href?: string }> = [
-  { key: 'totalWorkspaces', label: 'Total Workspaces', href: '/admin/workspaces' },
-  { key: 'activePilotVendors', label: 'Active Pilot Vendors', href: '/admin/workspaces' },
-  { key: 'totalClients', label: 'Total Clients', href: '/admin/users' },
-  { key: 'totalProjects', label: 'Total Projects' },
-  { key: 'totalVenues', label: 'Total Venues', href: '/admin/venues' },
-  { key: 'pendingVenueReviews', label: 'Pending Venue Reviews', href: '/admin/venues?status=PENDING' },
-  { key: 'verifiedVenues', label: 'Verified Venues', href: '/admin/venues?status=VERIFIED' },
-  { key: 'totalResearchContributors', label: 'Research Contributors', href: '/admin/contributors' },
-  { key: 'feedbackWaiting', label: 'Feedback Waiting', href: '/admin/feedback?status=UNREAD' },
-  { key: 'systemStatus', label: 'System Status', href: '/admin/health' },
+  { key: 'activePilotVendors', label: 'Active vendors', href: '/admin/workspaces' },
+  { key: 'totalWorkspaces', label: 'Workspaces', href: '/admin/workspaces' },
+  { key: 'totalClients', label: 'Clients', href: '/admin/users' },
+  { key: 'totalProjects', label: 'Projects' },
+  { key: 'pendingVenueReviews', label: 'Venues to review', href: '/admin/venues?status=PENDING' },
+  { key: 'verifiedVenues', label: 'Verified venues', href: '/admin/venues?status=VERIFIED' },
+  { key: 'totalVenues', label: 'All venues', href: '/admin/venues' },
+  { key: 'feedbackWaiting', label: 'Unread feedback', href: '/admin/feedback?status=UNREAD' },
+  { key: 'totalResearchContributors', label: 'Contributors', href: '/admin/contributors' },
+  { key: 'systemStatus', label: 'System', href: '/admin/health' },
 ]
 
 export default function AdminOverviewPage() {
@@ -105,8 +105,8 @@ export default function AdminOverviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight text-ink-900">Overview</h1>
-        <p className="mt-1 text-sm text-ink-500">What needs TrustOS attention next.</p>
+        <h1 className="text-lg font-semibold tracking-tight text-ink-900">TrustOS HQ</h1>
+        <p className="mt-1 text-sm text-ink-500">What needs attention next — pilot, venues, and feedback.</p>
       </div>
 
       {nextAction && (

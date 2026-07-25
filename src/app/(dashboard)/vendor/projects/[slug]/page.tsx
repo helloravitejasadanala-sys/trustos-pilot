@@ -22,9 +22,13 @@ import {
 import { projectTypeLabel } from '@/lib/project-types'
 import {
   allDetailFieldsForService,
+  deliveryLockedCopy,
+  deliveryOpenCopy,
   getServiceProfile,
   journeyStagesForService,
   prepFieldLabels,
+  prepSaveLabel,
+  vendorTabLabel,
   vendorTabsForService,
 } from '@/lib/service-profiles'
 import { humanizeActivityEvent } from '@/lib/activity-labels'
@@ -252,15 +256,28 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   async function savePrep() {
     const rawDate = prepDateRef.current?.value || prep.eventDate
     const parsedDate = rawDate ? new Date(rawDate) : null
+    const musicOrMood = prep.moodboard.trim()
+    const isUrl = /^https?:\/\//i.test(musicOrMood)
+    const isMusic = prepFields.includes('music')
+    // Free-text music/look notes are not URLs — keep them in project notes.
+    let notes = prep.notes.trim()
+    if (musicOrMood && !isUrl) {
+      const label = isMusic ? 'Music / set notes' : 'Look / inspiration notes'
+      const block = `${label}:\n${musicOrMood}`
+      notes = notes.includes(musicOrMood) ? notes : [notes, block].filter(Boolean).join('\n\n')
+    }
     await patchProject({
       eventDate: parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : null,
       location: prep.location.trim() || null,
-      notes: prep.notes.trim() || null,
+      notes: notes || null,
     })
     const currentMoodboard = (project.files || []).find((f: any) => f.type === 'moodboard')?.url || ''
-    const nextMoodboard = prep.moodboard.trim()
-    if (nextMoodboard && nextMoodboard !== currentMoodboard) {
-      await post('link', { name: 'Mood board', url: nextMoodboard, type: 'moodboard' })
+    if (musicOrMood && isUrl && musicOrMood !== currentMoodboard) {
+      await post('link', {
+        name: isMusic ? 'Music link' : 'Mood board',
+        url: musicOrMood,
+        type: 'moodboard',
+      })
       await load()
     }
     toast.success('Prep saved')
@@ -378,10 +395,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         }
         return null
       case 'DEPOSIT_PAID':
-        return {
-          label: na.ctaLabel || (serviceProfile.features.showPrep ? 'Open preparation →' : 'Mark service complete →'),
-          action: () => (serviceProfile.features.showPrep ? setTab('Prep') : completeDelivery()),
+        if (serviceProfile.features.showPrep) {
+          return {
+            label: na.ctaLabel || 'Open preparation →',
+            action: () => setTab('Prep'),
+          }
         }
+        return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
       case 'FULLY_PAID':
         if (serviceProfile.features.showDelivery) {
           return { label: na.ctaLabel || 'Add delivery →', action: () => setTab('Delivery') }
@@ -591,10 +611,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         tabs={tabs}
         active={tabs.includes(tab) ? tab : 'Overview'}
         onChange={t => setTab(t)}
+        labelFor={t => vendorTabLabel(t, primaryService)}
         badge={t => {
           if (t !== 'Chat') return null
           if (chatUnread) return 'new'
-          if (project.messages?.length) return `(${project.messages.length})`
           return null
         }}
       />
@@ -655,36 +675,21 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '48ch' }}>
                       Send this secure link to {clientName} now — they open it without creating an account.
                     </p>
-                    <button type="button" onClick={copyLink} className="btn btn-lime" style={{ alignSelf: 'flex-start' }}>
-                      {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
-                      Copy link
-                    </button>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-                      <a
-                        href={project.invitation.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-ghost-dark"
-                        style={{ minHeight: 40 }}
-                      >
-                        <Eye size={14} className="mr-1.5" />Preview
-                      </a>
-                      <button
-                        type="button"
-                        disabled={busy === 'shared'}
-                        onClick={() => run('shared', markInvitationShared)}
-                        className="btn btn-ghost-dark"
-                        style={{ minHeight: 40 }}
-                      >
-                        {busy === 'shared' ? <Loader2 size={15} className="animate-spin" /> : "I've shared the link"}
-                      </button>
-                    </div>
                     <ShareLink
                       url={project.invitation.url}
                       businessName={project.vendor?.businessName}
                       clientName={project.client?.name}
                       onShared={() => run('shared', markInvitationShared)}
                     />
+                    <button
+                      type="button"
+                      disabled={busy === 'shared'}
+                      onClick={() => run('shared', markInvitationShared)}
+                      className="btn btn-ghost-dark"
+                      style={{ minHeight: 40, alignSelf: 'flex-start' }}
+                    >
+                      {busy === 'shared' ? <Loader2 size={15} className="animate-spin" /> : "I've shared the link"}
+                    </button>
                   </div>
                 ) : waitingOnClient ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
@@ -695,10 +700,6 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                       className="btn btn-lime"
                     >
                       {busy === 'remind' ? <Loader2 size={15} className="animate-spin" /> : 'Send reminder'}
-                    </button>
-                    <button type="button" onClick={copyLink} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
-                      {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
-                      Copy link
                     </button>
                     <button type="button" onClick={() => setTab('Chat')} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
                       <MessageSquare size={14} className="mr-1.5" />Chat
@@ -1119,48 +1120,82 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
           <div className="space-y-4">
             {prepFields.includes('eventDate') && (
               <div>
-                <label className="label">{prepFieldLabels('eventDate').label}</label>
+                <label className="label">{prepFieldLabels('eventDate', primaryService).label}</label>
                 <input ref={prepDateRef} type="datetime-local" value={prep.eventDate} onChange={e => setPrep(p => ({ ...p, eventDate: e.target.value }))} />
               </div>
             )}
             {prepFields.includes('location') && (
               <div>
-                <label className="label">{prepFieldLabels('location').label}</label>
+                <label className="label">{prepFieldLabels('location', primaryService).label}</label>
                 <input
                   value={prep.location}
                   onChange={e => setPrep(p => ({ ...p, location: e.target.value }))}
-                  placeholder={prepFieldLabels('location').placeholder}
+                  placeholder={prepFieldLabels('location', primaryService).placeholder}
                 />
               </div>
             )}
             {(prepFields.includes('moodboard') || prepFields.includes('music')) && (
               <div>
                 <label className="label">
-                  {prepFieldLabels(prepFields.includes('music') ? 'music' : 'moodboard').label}
+                  {prepFieldLabels(prepFields.includes('music') ? 'music' : 'moodboard', primaryService).label}
                 </label>
-                <input
-                  placeholder={prepFieldLabels(prepFields.includes('music') ? 'music' : 'moodboard').placeholder}
+                <textarea
+                  rows={3}
+                  placeholder={prepFieldLabels(prepFields.includes('music') ? 'music' : 'moodboard', primaryService).placeholder}
                   value={prep.moodboard}
                   onChange={e => setPrep(p => ({ ...p, moodboard: e.target.value }))}
                 />
+                <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
+                  Paste a https:// link, or write notes — both save.
+                </p>
               </div>
             )}
-            {(prepFields.includes('notes') || prepFields.includes('equipment')) && (
+            {prepFields.includes('equipment') && (
               <div>
-                <label className="label">
-                  {prepFieldLabels(prepFields.includes('equipment') && !prepFields.includes('notes') ? 'equipment' : 'notes').label}
-                </label>
+                <label className="label">{prepFieldLabels('equipment', primaryService).label}</label>
                 <textarea
                   value={prep.notes}
                   onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))}
                   rows={4}
-                  placeholder={prepFieldLabels(prepFields.includes('equipment') && !prepFields.includes('notes') ? 'equipment' : 'notes').placeholder}
+                  placeholder={prepFieldLabels('equipment', primaryService).placeholder}
+                />
+              </div>
+            )}
+            {prepFields.includes('notes') && !prepFields.includes('equipment') && (
+              <div>
+                <label className="label">{prepFieldLabels('notes', primaryService).label}</label>
+                <textarea
+                  value={prep.notes}
+                  onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))}
+                  rows={4}
+                  placeholder={prepFieldLabels('notes', primaryService).placeholder}
                 />
               </div>
             )}
             <button type="button" className="btn btn-lime" disabled={busy === 'prep'} onClick={() => run('prep', savePrep)}>
-              {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : 'Save preparation'}
+              {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : prepSaveLabel(primaryService)}
             </button>
+            {/* Makeup / DJ have no Delivery tab — complete from Prep after the job. */}
+            {!serviceProfile.features.showDelivery &&
+              (project.status === 'DEPOSIT_PAID' || project.status === 'FULLY_PAID') && (
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
+                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 10px' }}>
+                  When the {serviceProfile.key === 'DJ' ? 'performance' : 'appointment'} is done, mark it complete.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-forest"
+                  disabled={!!busy}
+                  onClick={() => run('complete', completeDelivery)}
+                >
+                  {serviceProfile.key === 'DJ'
+                    ? 'Mark performance complete →'
+                    : serviceProfile.key === 'MAKEUP_ARTIST'
+                      ? 'Mark appointment complete →'
+                      : 'Mark service complete →'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1184,20 +1219,11 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               >
                 🔒
               </span>
-              <div style={{ font: 'var(--t-h2)' }}>
-                {serviceProfile.features.deliverableKind === 'recording'
-                  ? 'Recording delivery opens after the live event'
-                  : 'Gallery opens after the shoot'}
-              </div>
+              <div style={{ font: 'var(--t-h2)' }}>{deliveryLockedCopy(primaryService)}</div>
               <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '40ch', margin: '5px auto 16px' }}>
-                When the service is done, add your{' '}
-                {serviceProfile.features.deliverableKind === 'recording' ? 'recording' : 'gallery'}{' '}
-                link and {clientName} sees it instantly on their portal.
+                When you are ready, mark the service complete — then add the link for {clientName}.
               </p>
-              <button type="button" className="btn btn-ghost-dark" disabled>
-                Add delivery link · locked
-              </button>
-              <div style={{ marginTop: 18 }}>
+              <div style={{ marginTop: 8 }}>
                 <button
                   type="button"
                   className="btn btn-lime"
@@ -1212,7 +1238,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
             <>
               {project.status === 'COMPLETED' || progress.service ? (
                 <div className="banner banner-success">
-                  Service marked complete — add the delivery link below.
+                  Service marked complete — add the {deliveryOpenCopy(primaryService).title.toLowerCase()} link below.
                 </div>
               ) : (
                 <div>
@@ -1224,12 +1250,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               )}
 
               <div className="panel" style={{ padding: 18 }}>
-                <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Deliverables</div>
+                <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>{deliveryOpenCopy(primaryService).title}</div>
                 <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 14px' }}>
-                  Paste an external file or download link. Your client sees it on their secure page and can approve delivery.
+                  Paste a download link. {clientName} sees it on their page and can approve.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
-                  <input value={gallery.name} onChange={e => setGallery(g => ({ ...g, name: e.target.value }))} placeholder="Label (e.g. Files)" />
+                  <input value={gallery.name} onChange={e => setGallery(g => ({ ...g, name: e.target.value }))} placeholder="Label" />
                   <input value={gallery.url} onChange={e => setGallery(g => ({ ...g, url: e.target.value }))} placeholder="https://..." inputMode="url" />
                   <button
                     type="button"
@@ -1237,7 +1263,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     disabled={busy === 'gallery' || !gallery.url.trim()}
                     onClick={() => run('gallery', addGallery)}
                   >
-                    {busy === 'gallery' ? <Loader2 size={16} className="animate-spin" /> : <><LinkIcon size={16} className="mr-2" />Add delivery link</>}
+                    {busy === 'gallery' ? <Loader2 size={16} className="animate-spin" /> : <><LinkIcon size={16} className="mr-2" />{deliveryOpenCopy(primaryService).addLabel}</>}
                   </button>
                 </div>
                 {(project.files || []).filter((f: any) => f.type === 'gallery' || f.type === 'recording').length > 0 && (

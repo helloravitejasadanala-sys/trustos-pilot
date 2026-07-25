@@ -40,7 +40,7 @@ export default function NewProjectModal({
     return groups
   }, [types])
 
-  const emailValid = clientEmail.trim().length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())
   const canCreate = title.trim().length > 0 && emailValid
 
   async function create() {
@@ -133,7 +133,7 @@ export default function NewProjectModal({
           <div className="min-w-0 space-y-4 rounded-xl border border-forest-100 bg-forest-50/40 p-3.5 sm:p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-forest-600">Client</p>
             <p className="text-xs text-forest-500 -mt-2 break-words">
-              Name and email so they appear under Clients.
+              Email is required so they can message you from their booking page.
             </p>
             <div className="min-w-0">
               <label className="label">Client name</label>
@@ -141,8 +141,8 @@ export default function NewProjectModal({
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="min-w-0">
-                <label className="label">Client email</label>
-                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="client@example.com" className="w-full max-w-full" />
+                <label className="label">Client email <span className="text-red-400">*</span></label>
+                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="client@example.com" className="w-full max-w-full" required />
                 {clientEmail.length > 0 && !emailValid && <p className="mt-1 text-xs text-red-600">Enter a valid email address</p>}
               </div>
               <div className="min-w-0">

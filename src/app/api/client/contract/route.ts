@@ -50,6 +50,12 @@ export async function POST(req: NextRequest) {
     if (!contract) {
       return NextResponse.json({ error: 'No contract to sign' }, { status: 404 })
     }
+    if (!contract.content?.trim()) {
+      return NextResponse.json(
+        { error: 'The agreement is not ready yet. Please ask your vendor to send it again.' },
+        { status: 409 },
+      )
+    }
     // Item 10 — never overwrite an accepted contract.
     if (contract.signedAt) {
       return NextResponse.json({ ok: true, alreadySigned: true })

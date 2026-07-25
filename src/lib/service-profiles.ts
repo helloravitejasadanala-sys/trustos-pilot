@@ -87,13 +87,13 @@ export const SERVICE_PROFILES: Record<ServiceKey, ServiceProfile> = {
     description: 'Sessions, weddings, and portrait work with gallery delivery.',
     allowedProjectTypes: PHOTO_TYPES,
     defaultProjectType: 'FAMILY_SESSION',
-    questionnaireLabel: 'Questionnaire',
-    questionnaireSectionLabel: 'Session details',
+    questionnaireLabel: 'Session details',
+    questionnaireSectionLabel: 'About the session',
     depositLabel: 'Deposit',
     questionnaireExtras: [],
     stages: [
       { key: 'created', label: 'Created', doneLabel: 'Created' },
-      { key: 'questionnaire', label: 'Questionnaire', doneLabel: 'Questionnaire done' },
+      { key: 'questionnaire', label: 'Details', doneLabel: 'Details confirmed' },
       { key: 'quote', label: 'Quote', doneLabel: 'Quote accepted' },
       { key: 'deposit', label: 'Deposit', doneLabel: 'Deposit received' },
       { key: 'prep', label: 'Preparation', doneLabel: 'Preparation done' },
@@ -116,9 +116,9 @@ export const SERVICE_PROFILES: Record<ServiceKey, ServiceProfile> = {
     },
     actionCopy: {
       QUESTIONNAIRE_COMPLETED: {
-        label: 'Questionnaire done',
-        nextAction: 'Review questionnaire and send the quote',
-        ctaLabel: 'Review questionnaire →',
+        label: 'Details in',
+        nextAction: 'Review session details and send the quote',
+        ctaLabel: 'Review details →',
       },
       DEPOSIT_PAID: {
         nextAction: 'Prepare for the shoot',
@@ -278,7 +278,7 @@ export const SERVICE_PROFILES: Record<ServiceKey, ServiceProfile> = {
       { key: 'questionnaire', label: 'Event Details', doneLabel: 'Details confirmed' },
       { key: 'quote', label: 'Quote', doneLabel: 'Quote accepted' },
       { key: 'deposit', label: 'Deposit', doneLabel: 'Deposit received' },
-      { key: 'prep', label: 'Preparation', doneLabel: 'Preparation done' },
+      { key: 'prep', label: 'Music Prep', doneLabel: 'Music prep done' },
       { key: 'service', label: 'Performance', doneLabel: 'Performance done' },
       { key: 'approved', label: 'Completed', doneLabel: 'Completed' },
       { key: 'archived', label: 'Archived', doneLabel: 'Archived' },
@@ -375,15 +375,53 @@ export function vendorTabsForService(service?: string | null): string[] {
   return tabs
 }
 
-export function prepFieldLabels(key: PrepFieldKey): { label: string; placeholder?: string } {
+/** Short tab labels — ids stay Overview/Money/Prep/Delivery/Chat. */
+export function vendorTabLabel(tab: string, service?: string | null): string {
+  const profile = getServiceProfile(service)
+  if (tab === 'Prep') {
+    const stage = profile.stages.find(s => s.key === 'prep')?.label || 'Prep'
+    if (/look/i.test(stage)) return 'Look'
+    if (/equipment/i.test(stage)) return 'Equipment'
+    if (/music/i.test(stage)) return 'Music'
+    return 'Prep'
+  }
+  if (tab === 'Delivery') {
+    const stage = profile.stages.find(s => s.key === 'delivery')?.label || 'Delivery'
+    if (/recording/i.test(stage)) return 'Recording'
+    if (/gallery/i.test(stage)) return 'Gallery'
+    return 'Delivery'
+  }
+  return tab
+}
+
+export function prepFieldLabels(
+  key: PrepFieldKey,
+  service?: string | null,
+): { label: string; placeholder?: string } {
+  const profile = getServiceProfile(service)
   switch (key) {
     case 'eventDate':
       return { label: 'Date & time' }
     case 'location':
-      return { label: 'Location', placeholder: 'Venue or address' }
+      return {
+        label: profile.key === 'LIVE_STREAMING' ? 'Venue / stream location' : 'Location',
+        placeholder: 'Venue or address',
+      }
     case 'moodboard':
-      return { label: 'Moodboard / inspiration link', placeholder: 'https://…' }
+      return {
+        label: profile.key === 'MAKEUP_ARTIST' ? 'Look inspiration link' : 'Moodboard / inspiration link',
+        placeholder: 'https://…',
+      }
     case 'notes':
+      if (profile.key === 'MAKEUP_ARTIST') {
+        return { label: 'Look notes', placeholder: 'Skin type, preferences, trial notes…' }
+      }
+      if (profile.key === 'LIVE_STREAMING') {
+        return { label: 'Tech notes', placeholder: 'Power, internet, run-of-show…' }
+      }
+      if (profile.key === 'DJ') {
+        return { label: 'Event notes', placeholder: 'Timings, MC cues, access…' }
+      }
       return { label: 'Notes', placeholder: 'Timings, access, anything to remember' }
     case 'equipment':
       return { label: 'Equipment checklist', placeholder: 'Cameras, encoders, backup internet…' }
@@ -392,4 +430,26 @@ export function prepFieldLabels(key: PrepFieldKey): { label: string; placeholder
     default:
       return { label: key }
   }
+}
+
+export function prepSaveLabel(service?: string | null): string {
+  const key = getServiceProfile(service).key
+  if (key === 'MAKEUP_ARTIST') return 'Save look notes'
+  if (key === 'LIVE_STREAMING') return 'Save equipment prep'
+  if (key === 'DJ') return 'Save event prep'
+  return 'Save preparation'
+}
+
+export function deliveryLockedCopy(service?: string | null): string {
+  const kind = getServiceProfile(service).features.deliverableKind
+  if (kind === 'recording') return 'Recording links unlock after the live event.'
+  return 'Gallery links unlock after the shoot.'
+}
+
+export function deliveryOpenCopy(service?: string | null): { title: string; addLabel: string } {
+  const kind = getServiceProfile(service).features.deliverableKind
+  if (kind === 'recording') {
+    return { title: 'Recording', addLabel: 'Add recording link' }
+  }
+  return { title: 'Gallery', addLabel: 'Add gallery link' }
 }

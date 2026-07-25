@@ -59,10 +59,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       })
     }
 
-    const newStatus = type === 'DEPOSIT' ? 'DEPOSIT_PAID' : 'FULLY_PAID'
+    // Full deposit (or deposit covering the total) means money is settled.
+    const depositCoversTotal = type === 'DEPOSIT' && deposit > 0 && deposit >= price
+    const newStatus =
+      type === 'FINAL' || depositCoversTotal || price === 0 ? 'FULLY_PAID' : 'DEPOSIT_PAID'
     await prisma.project.update({
       where: { id: project.id },
-      data: { status: newStatus }
+      data: { status: newStatus },
     })
 
     return NextResponse.json({ ok: true, status: newStatus })

@@ -17,16 +17,48 @@ import {
 import { ReactNode, useState } from 'react'
 import { cn } from '@/lib/utils'
 
-const NAV = [
-  { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/admin/workspaces', label: 'Workspaces', icon: Building2 },
-  { href: '/admin/venues', label: 'Venue Research', icon: MapPin },
-  { href: '/admin/contributors', label: 'Research Contributors', icon: Trophy },
-  { href: '/admin/users', label: 'Pilot Users', icon: Users },
-  { href: '/admin/feedback', label: 'Feedback', icon: MessageSquare },
-  { href: '/admin/health', label: 'System Health', icon: Activity },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
-] as const
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof LayoutDashboard
+  exact?: boolean
+}
+
+type NavGroup = {
+  label: string
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Pilot',
+    items: [
+      { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
+      { href: '/admin/users', label: 'Pilot Users', icon: Users },
+      { href: '/admin/workspaces', label: 'Workspaces', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Knowledge',
+    items: [
+      { href: '/admin/venues', label: 'Venue Research', icon: MapPin },
+      { href: '/admin/contributors', label: 'Contributors', icon: Trophy },
+    ],
+  },
+  {
+    label: 'Inbox',
+    items: [
+      { href: '/admin/feedback', label: 'Pilot Feedback', icon: MessageSquare },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { href: '/admin/health', label: 'System Health', icon: Activity },
+      { href: '/admin/settings', label: 'Settings', icon: Settings },
+    ],
+  },
+]
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href
@@ -38,28 +70,37 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
 
   const nav = (
-    <nav className="flex flex-col gap-0.5 px-2 py-3" aria-label="Company dashboard">
-      {NAV.map(item => {
-        const active = isActive(pathname, item.href, 'exact' in item ? item.exact : undefined)
-        const Icon = item.icon
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            aria-current={active ? 'page' : undefined}
-            className={cn(
-              'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-              active
-                ? 'bg-ink-900 text-white'
-                : 'text-ink-600 hover:bg-neutral-100 hover:text-ink-900',
-            )}
-          >
-            <Icon size={16} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
-            {item.label}
-          </Link>
-        )
-      })}
+    <nav className="flex flex-col gap-4 px-2 py-3" aria-label="TrustOS HQ">
+      {NAV_GROUPS.map(group => (
+        <div key={group.label}>
+          <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-400">
+            {group.label}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {group.items.map(item => {
+              const active = isActive(pathname, item.href, item.exact)
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
+                    active
+                      ? 'bg-ink-900 text-white'
+                      : 'text-ink-600 hover:bg-neutral-100 hover:text-ink-900',
+                  )}
+                >
+                  <Icon size={16} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+                  {item.label}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   )
 
@@ -69,9 +110,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         <aside className="hidden w-56 shrink-0 border-r border-neutral-200 bg-white md:flex md:flex-col">
           <div className="border-b border-neutral-100 px-4 py-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
-              TrustOS
+              Internal
             </div>
-            <div className="mt-0.5 text-sm font-semibold text-ink-900">Company Dashboard</div>
+            <div className="mt-0.5 text-sm font-semibold text-ink-900">TrustOS HQ</div>
           </div>
           {nav}
         </aside>
@@ -88,9 +129,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </button>
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
-                TrustOS
+                Internal
               </div>
-              <div className="text-sm font-semibold">Company Dashboard</div>
+              <div className="text-sm font-semibold">TrustOS HQ</div>
             </div>
           </header>
 

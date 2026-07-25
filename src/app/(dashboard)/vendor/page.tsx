@@ -18,33 +18,6 @@ const VENDOR_PRIORITY = [
   'COMPLETED',
 ]
 
-const CTA_LABEL: Record<string, string> = {
-  LEAD: 'Share invitation →',
-  QUESTIONNAIRE_COMPLETED: 'Review details →',
-  PROPOSAL_ACCEPTED: 'Send agreement →',
-  DEPOSIT_PAID: 'Start delivery →',
-  FULLY_PAID: 'Finish delivery →',
-  COMPLETED: 'Request review →',
-}
-
-const ACTION_HEADLINE: Record<string, (client: string) => string> = {
-  LEAD: (c) => `Share ${c} their invitation`,
-  QUESTIONNAIRE_COMPLETED: (c) => `Review ${c}'s details`,
-  PROPOSAL_ACCEPTED: (c) => `Send ${c} the agreement`,
-  DEPOSIT_PAID: (c) => `Start delivery for ${c}`,
-  FULLY_PAID: (c) => `Finish delivery for ${c}`,
-  COMPLETED: (c) => `Ask ${c} for a review`,
-}
-
-const ACTION_WHY: Record<string, string> = {
-  LEAD: 'They need the link before they can confirm details.',
-  QUESTIONNAIRE_COMPLETED: 'Details are in — review them, then send a quote.',
-  PROPOSAL_ACCEPTED: 'Quote accepted. Send the agreement so they can pay.',
-  DEPOSIT_PAID: 'Payment received. Deliver the work.',
-  FULLY_PAID: 'Balance settled. Finish delivery for approval.',
-  COMPLETED: 'Job complete. Ask for a review.',
-}
-
 type ActivityItem = { id: string; event: string; createdAt: string; project: { title: string; slug: string } | null }
 
 function greetingFor(hour: number) {
@@ -136,7 +109,22 @@ export default function TodayPage() {
       const bi = VENDOR_PRIORITY.indexOf(b.p.status)
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
     })
-  const todaysAction = vendorActionable[0] ?? null
+  const unreadProjects = projects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
+  const pendingPayments = projects.filter(p => hasPendingPaymentConfirm(p))
+
+  // Priority: payments to confirm → unread → journey action (no guessing).
+  type Focus =
+    | { kind: 'payment'; p: VendorProject }
+    | { kind: 'unread'; p: VendorProject }
+    | { kind: 'action'; p: VendorProject; na: ReturnType<typeof getNextAction> }
+    | null
+  const focus: Focus = pendingPayments[0]
+    ? { kind: 'payment', p: pendingPayments[0] }
+    : unreadProjects[0]
+      ? { kind: 'unread', p: unreadProjects[0] }
+      : vendorActionable[0]
+        ? { kind: 'action', p: vendorActionable[0].p, na: vendorActionable[0].na }
+        : null
 
   const deadlines = useMemo(() => {
     return projects
@@ -145,8 +133,6 @@ export default function TodayPage() {
       .slice(0, 5)
   }, [projects])
 
-  const unreadProjects = projects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
-  const pendingPayments = projects.filter(p => hasPendingPaymentConfirm(p))
   const firstName = (ownerName || userName).split(' ')[0] || ''
   const workspaceName = business || businessName
   const greeting = greetingFor(new Date().getHours())
@@ -212,21 +198,43 @@ export default function TodayPage() {
     )
   }
 
-  const clientLabel = todaysAction?.p.client?.name?.split(' ')[0]
-    || todaysAction?.p.title
-    || 'your client'
-  const headline = todaysAction
-    ? (ACTION_HEADLINE[todaysAction.p.status]?.(clientLabel)
-      ?? todaysAction.na.nextAction)
-    : ''
-  const why = todaysAction
-    ? (ACTION_WHY[todaysAction.p.status] ?? todaysAction.na.nextAction)
-    : ''
-  const cta = todaysAction
-    ? (CTA_LABEL[todaysAction.p.status] ?? 'Open project →')
-    : ''
+  const focusProject = focus?.p
+  const clientLabel = focusProject?.client?.name?.split(' ')[0] || focusProject?.title || 'your client'
+  const focusEventDate = focusProject?.eventDate ? new Date(focusProject.eventDate) : null
 
-  const eventDate = todaysAction?.p.eventDate ? new Date(todaysAction.p.eventDate) : null
+  let headline = 'You\'re all caught up'
+  let why = waitingClient.length > 0
+    ? `${waitingClient.length} job${waitingClient.length === 1 ? '' : 's'} waiting on clients.`
+    : 'Nothing needs you right now.'
+  let cta = 'Browse projects →'
+  let ctaHref = '/vendor/projects'
+  let focusMarker = focusProject
+
+  if (focus?.kind === 'payment') {
+    headline = `Confirm payment from ${clientLabel}`
+    why = 'They said they paid — check and confirm so the job can move on.'
+    cta = 'Confirm payment →'
+    ctaHref = `/vendor/projects/${focus.p.slug}`
+  } else if (focus?.kind === 'unread') {
+    headline = `Reply to ${clientLabel}`
+    why = 'They messaged you — answer so they are not left waiting.'
+    cta = 'Open messages →'
+    ctaHref = `/vendor/projects/${focus.p.slug}`
+  } else if (focus?.kind === 'action') {
+    headline = focus.na.nextAction
+    why = focus.na.responsible === 'Vendor'
+      ? `Next step for ${clientLabel}.`
+      : `Waiting on ${clientLabel}.`
+    cta = focus.na.ctaLabel || 'Open project →'
+    ctaHref = `/vendor/projects/${focus.p.slug}`
+  }
+
+  const summaryBits = [
+    waitingVendor.length > 0 ? `${waitingVendor.length} need you` : null,
+    waitingClient.length > 0 ? `${waitingClient.length} waiting on clients` : null,
+    unreadProjects.length > 0 ? `${unreadProjects.length} unread` : null,
+    pendingPayments.length > 0 ? `${pendingPayments.length} payment${pendingPayments.length === 1 ? '' : 's'} to confirm` : null,
+  ].filter(Boolean)
 
   return (
     <div>
@@ -239,6 +247,9 @@ export default function TodayPage() {
           <h1 className="serif" style={{ fontSize: 26, lineHeight: 1.05 }}>
             {greetingLine}
           </h1>
+          {summaryBits.length > 0 && (
+            <p className="mt-1 text-[12.5px] text-[color:var(--muted)]">{summaryBits.join(' · ')}</p>
+          )}
         </div>
         <span
           className="marker"
@@ -255,136 +266,69 @@ export default function TodayPage() {
           {greetingLine}
         </h1>
         <p className="mt-1 text-[color:var(--muted)]">
-          {waitingVendor.length > 0
-            ? `${waitingVendor.length} waiting on you${waitingClient.length > 0 ? ` · ${waitingClient.length} waiting on clients` : ''}${unreadProjects.length > 0 ? ` · ${unreadProjects.length} unread` : ''}`
-            : waitingClient.length > 0
-              ? `${waitingClient.length} waiting on clients${unreadProjects.length > 0 ? ` · ${unreadProjects.length} unread` : ''}`
-              : unreadProjects.length > 0
-                ? `${unreadProjects.length} unread message${unreadProjects.length === 1 ? '' : 's'}`
-                : 'Nothing needs you right now'}
+          {summaryBits.length > 0 ? summaryBits.join(' · ') : 'Nothing needs you right now'}
         </p>
       </div>
 
-      {unreadProjects.length > 0 && (
-        <div
-          className="banner mb-4"
-          role="status"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--coral-deep, #c45c3e) 40%, var(--line))',
-            background: 'color-mix(in srgb, var(--coral-soft, #f5e4dc) 55%, var(--panel))',
-          }}
-        >
-          <span aria-hidden>✉</span>
-          <div className="min-w-0 flex-1">
-            <strong style={{ color: 'var(--coral-deep, #c45c3e)' }}>
-              {unreadProjects.length} unread {unreadProjects.length === 1 ? 'message' : 'messages'}
-            </strong>
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-              {unreadProjects.slice(0, 3).map(p => (
-                <Link
-                  key={p.id}
-                  href={`/vendor/projects/${p.slug}`}
-                  className="font-semibold underline underline-offset-2"
-                  style={{ color: 'var(--forest)' }}
-                >
-                  Reply to {p.client?.name || p.title}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="today-grid">
         <div className="today-stack">
-          {/* Do This First — exactly one dark .action + one lime CTA */}
-          {todaysAction ? (
-            <div>
-              <div className="kicker mb-2.5 text-[color:var(--coral-deep)]">● Do this first</div>
-              <div className="action">
-                <div className="flex gap-3 md:gap-5">
-                  {eventDate && !isNaN(eventDate.getTime()) && (
-                    <div className="today-date-block">
-                      <span className="kicker text-[color:var(--lime)]">
-                        {eventDate.toLocaleDateString('en-GB', { weekday: 'short' })}
-                      </span>
-                      <div>
-                        <div className="num text-[22px] font-extrabold leading-none md:text-[30px]">
-                          {eventDate.getDate()}
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-[color:var(--on-dark-mut)]">
-                          {eventDate.toLocaleDateString('en-GB', { month: 'short' })}
-                          {eventDate.getHours() || eventDate.getMinutes()
-                            ? ` · ${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })}`
-                            : ''}
-                        </div>
+          {/* Do This First — one primary action only */}
+          <div>
+            <div className="kicker mb-2.5 text-[color:var(--coral-deep)]">● Do this first</div>
+            <div className="action">
+              <div className="flex gap-3 md:gap-5">
+                {focusMarker && focusEventDate && !isNaN(focusEventDate.getTime()) && (
+                  <div className="today-date-block">
+                    <span className="kicker text-[color:var(--lime)]">
+                      {focusEventDate.toLocaleDateString('en-GB', { weekday: 'short' })}
+                    </span>
+                    <div>
+                      <div className="num text-[22px] font-extrabold leading-none md:text-[30px]">
+                        {focusEventDate.getDate()}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-[color:var(--on-dark-mut)]">
+                        {focusEventDate.toLocaleDateString('en-GB', { month: 'short' })}
                       </div>
                     </div>
-                  )}
-                  <div className="min-w-0 flex-1">
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  {focusMarker && (
                     <div className="mb-2.5 flex flex-wrap items-center gap-2">
                       <span
-                        className={markerClass(todaysAction.p.type)}
+                        className={markerClass(focusMarker.type)}
                         style={{ width: 26, height: 26, fontSize: 12 }}
                         aria-hidden
                       >
-                        {markerLetter(todaysAction.p.type, todaysAction.p.title)}
+                        {markerLetter(focusMarker.type, focusMarker.title)}
                       </span>
                       <span className="text-[13px] font-semibold">
-                        {todaysAction.p.client?.name || 'Client'} · {projectTypeLabel(todaysAction.p.type || 'OTHER')}
+                        {focusMarker.client?.name || 'Client'} · {projectTypeLabel(focusMarker.type || 'OTHER')}
                       </span>
-                      {todaysAction.p.status === 'QUESTIONNAIRE_COMPLETED' && (
-                        <span className="chip chip-coral">Just in</span>
-                      )}
+                      {focus?.kind === 'payment' && <span className="chip chip-coral">Payment</span>}
+                      {focus?.kind === 'unread' && <span className="chip chip-coral">Message</span>}
                     </div>
-                    <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>{headline}</div>
-                    <p className="m-0 max-w-[46ch] text-[13px] text-[color:var(--on-dark-mut)]">{why}</p>
-                  </div>
-                </div>
-                <div className="mt-4 md:mt-5">
-                  <Link
-                    href={`/vendor/projects/${todaysAction.p.slug}`}
-                    className="btn btn-lime w-full md:w-auto"
-                  >
-                    {cta}
-                  </Link>
+                  )}
+                  <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>{headline}</div>
+                  <p className="m-0 max-w-[46ch] text-[13px] text-[color:var(--on-dark-mut)]">{why}</p>
                 </div>
               </div>
-            </div>
-          ) : unreadProjects.length > 0 ? (
-            <div className="action">
-              <div className="kicker mb-2.5 text-[color:var(--lime)]">Do this first</div>
-              <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>
-                Read unread messages
+              <div className="mt-4 md:mt-5">
+                <Link href={ctaHref} className="btn btn-lime w-full md:w-auto">
+                  {cta}
+                </Link>
               </div>
-              <p className="m-0 mb-5 max-w-[46ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
-                {unreadProjects[0].client?.name || unreadProjects[0].title} is waiting for a reply.
-              </p>
-              <Link
-                href={`/vendor/projects/${unreadProjects[0].slug}`}
-                className="btn btn-lime w-full md:w-auto"
-              >
-                Open messages →
-              </Link>
             </div>
-          ) : (
-            <div className="action">
-              <div className="kicker mb-2.5 text-[color:var(--on-dark-mut)]">Do this first</div>
-              <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>You&apos;re all caught up</div>
-              <p className="m-0 max-w-[46ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
-                Active projects are waiting on clients.
-              </p>
-            </div>
-          )}
+          </div>
 
-          {pendingPayments.length > 0 && (
+          {pendingPayments.length > 1 && (
             <div>
               <div className="mb-2.5 flex items-baseline justify-between">
-                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Payments to confirm</h2>
-                <span className="num text-[12px] text-[color:var(--muted)]">{pendingPayments.length}</span>
+                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>More payments</h2>
+                <span className="num text-[12px] text-[color:var(--muted)]">{pendingPayments.length - 1}</span>
               </div>
               <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--coral-deep, #c45c3e)' }}>
-                {pendingPayments.slice(0, 4).map(p => (
+                {pendingPayments.slice(1, 4).map(p => (
                   <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="today-service-row">
                     <span className={markerClass(p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
                       {markerLetter(p.type, p.title)}
@@ -392,10 +336,9 @@ export default function TodayPage() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13.5px] font-semibold">{p.title}</div>
                       <div className="truncate text-[12px] text-[color:var(--muted)]">
-                        {p.client?.name || 'Client'} reported a payment — confirm it
+                        {p.client?.name || 'Client'} — confirm payment
                       </div>
                     </div>
-                    <span className="chip chip-coral">Confirm</span>
                   </Link>
                 ))}
               </div>
@@ -451,41 +394,34 @@ export default function TodayPage() {
             </div>
           )}
 
-          {/* Mobile count tiles */}
-          <div className="today-count-tiles">
-            <div className="panel" style={{ padding: 15, borderLeft: '3px solid var(--amber)' }}>
-              <div className="num text-[26px] font-extrabold text-[color:var(--amber)]">{waitingVendor.length}</div>
-              <div className="mt-1 text-[12.5px] font-semibold">Waiting on me</div>
-            </div>
-            <div className="panel" style={{ padding: 15, borderLeft: '3px solid var(--lav)' }}>
-              <div className="num text-[26px] font-extrabold text-[color:var(--lav)]">{waitingClient.length}</div>
-              <div className="mt-1 text-[12.5px] font-semibold">Waiting on client</div>
-            </div>
-          </div>
-
-          {/* Desktop: Waiting on me list */}
-          <div className="hidden md:block">
+          {/* Waiting on me — names + next step (mobile + desktop) */}
+          <div>
             <div className="mb-2.5 flex items-baseline justify-between">
-              <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Waiting on me</h2>
+              <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Needs you</h2>
               <span className="num text-[12px] text-[color:var(--muted)]">{waitingVendor.length}</span>
             </div>
             <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--amber)' }}>
               {waitingVendor.length === 0 ? (
                 <p className="px-4 py-4 text-[13px] text-[color:var(--muted)]">Nothing needs your action right now.</p>
               ) : (
-                waitingVendor.slice(0, 4).map(p => (
-                  <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="today-service-row">
-                    <span className={markerClass(p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
-                      {markerLetter(p.type, p.title)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13.5px] font-semibold">{p.title}</div>
-                      <div className="truncate text-[12px] text-[color:var(--muted)]">
-                        {CTA_LABEL[p.status]?.replace(' →', '') || getNextAction(p.status, primaryService).nextAction}
+                waitingVendor.slice(0, 5).map(p => {
+                  const na = getNextAction(p.status, primaryService)
+                  return (
+                    <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="today-service-row">
+                      <span className={markerClass(p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
+                        {markerLetter(p.type, p.title)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13.5px] font-semibold">
+                          {p.client?.name || p.title}
+                        </div>
+                        <div className="truncate text-[12px] text-[color:var(--muted)]">
+                          {na.nextAction}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                ))
+                    </Link>
+                  )
+                })
               )}
             </div>
           </div>

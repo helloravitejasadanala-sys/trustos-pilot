@@ -10,7 +10,8 @@ const DEMO_TTL_DAYS = 3650
  * Production must never fall back to localhost — that mints unusable links.
  */
 export function appUrl() {
-  const explicit = (process.env.APP_URL || '').replace(/\/$/, '')
+  // Prefer server APP_URL; fall back to NEXT_PUBLIC_APP_URL so health + links agree.
+  const explicit = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
   if (explicit) return explicit
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`
   return 'http://localhost:3000'
