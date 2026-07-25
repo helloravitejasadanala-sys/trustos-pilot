@@ -7,6 +7,7 @@ import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { appUrl, ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
 import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
+import { getServiceProfile } from '@/lib/service-profiles'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -111,6 +112,14 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const data = createProjectSchema.parse(body)
+
+    const profile = getServiceProfile(vendor.primaryService)
+    if (!profile.allowedProjectTypes.includes(data.type)) {
+      return NextResponse.json(
+        { error: `That project type is not available for ${profile.label} workspaces.` },
+        { status: 400 },
+      )
+    }
 
     const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36)
 

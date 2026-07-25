@@ -2,7 +2,11 @@
  * Single source of truth for "where is this project and what happens
  * next". Used by both the vendor workspace and (conceptually) the
  * client view, so the two never disagree.
+ *
+ * Service Profiles may override labels/CTAs without changing status logic.
  */
+
+import { getServiceProfile } from '@/lib/service-profiles'
 
 export type NextAction = {
   status: string
@@ -77,13 +81,29 @@ const MAP: Record<string, Omit<NextAction, 'status'>> = {
   },
 }
 
-export function getNextAction(status: string): NextAction {
+export function getNextAction(status: string, service?: string | null): NextAction {
   const m = MAP[status] ?? { label: status, nextAction: '—', responsible: 'Vendor' as const }
-  return { status, ...m }
+  const base = { status, ...m }
+  const override = getServiceProfile(service).actionCopy[status]
+  if (!override) {
+    // Deposit wording for makeup advance
+    if (status === 'CONTRACT_SIGNED') {
+      const depositWord = getServiceProfile(service).depositLabel.toLowerCase()
+      return {
+        ...base,
+        nextAction: `Client pays the ${depositWord}`,
+      }
+    }
+    return base
+  }
+  return {
+    ...base,
+    ...override,
+  }
 }
 
-export function isWaitingOnClient(status: string): boolean {
-  return getNextAction(status).responsible === 'Client'
+export function isWaitingOnClient(status: string, service?: string | null): boolean {
+  return getNextAction(status, service).responsible === 'Client'
 }
 
 export function nextDeadline(milestones: { dueDate: string | Date | null; completedAt: string | Date | null }[]): Date | null {

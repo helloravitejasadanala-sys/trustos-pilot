@@ -28,6 +28,7 @@ type VendorChromeValue = {
   openNewProject: () => void
   businessName: string
   userName: string
+  primaryService: string
   /** False until /api/auth/me has resolved (success or failure). */
   profileLoaded: boolean
 }
@@ -41,6 +42,7 @@ export function useVendorChrome() {
       openNewProject: () => {},
       businessName: '',
       userName: '',
+      primaryService: 'PHOTOGRAPHY',
       profileLoaded: false,
     }
   }
@@ -61,6 +63,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const inWorkspace = pathname.startsWith('/vendor/projects/') && pathname.split('/').length > 3
   const [businessName, setBusinessName] = useState('')
   const [userName, setUserName] = useState('')
+  const [primaryService, setPrimaryService] = useState('PHOTOGRAPHY')
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [todayCount, setTodayCount] = useState(0)
   const [projectCount, setProjectCount] = useState(0)
@@ -73,13 +76,18 @@ export default function VendorShell({ children }: { children: ReactNode }) {
       try {
         const meRes = await fetch('/api/auth/me')
         const me = await parseJsonResponse<{
-          user?: { name?: string; vendorProfile?: { businessName?: string | null } | null }
+          user?: {
+            name?: string
+            vendorProfile?: { businessName?: string | null; primaryService?: string | null } | null
+          }
         }>(meRes)
         if (cancelled || !me.ok || !me.data.user) return
         const nextBusiness = me.data.user.vendorProfile?.businessName?.trim() || ''
         const nextName = me.data.user.name?.trim() || ''
+        const nextService = me.data.user.vendorProfile?.primaryService?.trim() || 'PHOTOGRAPHY'
         setBusinessName(nextBusiness)
         setUserName(nextName)
+        setPrimaryService(nextService)
         if (nextBusiness || nextName) setProfileLoaded(true)
       } catch {
         /* keep loading skeleton until a successful identity load */
@@ -96,17 +104,17 @@ export default function VendorShell({ children }: { children: ReactNode }) {
       if (!cancelled && proj.ok) {
         const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
         setProjectCount(live.length)
-        setTodayCount(live.filter(p => getNextAction(p.status).responsible === 'Vendor').length)
+        setTodayCount(live.filter(p => getNextAction(p.status, primaryService).responsible === 'Vendor').length)
       }
     })()
     return () => { cancelled = true }
-  }, [pathname])
+  }, [pathname, primaryService])
 
   const openNewProject = useCallback(() => setShowCreate(true), [])
 
   const chrome = useMemo(
-    () => ({ openNewProject, businessName, userName, profileLoaded }),
-    [openNewProject, businessName, userName, profileLoaded],
+    () => ({ openNewProject, businessName, userName, primaryService, profileLoaded }),
+    [openNewProject, businessName, userName, primaryService, profileLoaded],
   )
 
   const workspaceLabel = businessName.trim() || userName.trim()

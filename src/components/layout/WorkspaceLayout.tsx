@@ -49,7 +49,7 @@ export function WorkspaceTabs({
   onChange,
   badge,
 }: {
-  tabs: readonly string[]
+  tabs: readonly string[] | string[]
   active: string
   onChange: (tab: string) => void
   badge?: (tab: string) => string | null | undefined

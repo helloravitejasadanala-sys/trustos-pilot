@@ -25,7 +25,7 @@ export async function GET() {
         eventDate: true,
         location: true,
         vendor: {
-          select: { businessName: true, logo: true, phone: true, location: true },
+          select: { businessName: true, logo: true, phone: true, location: true, primaryService: true },
         },
         proposal: {
           select: { title: true, description: true, price: true, items: true, acceptedAt: true },

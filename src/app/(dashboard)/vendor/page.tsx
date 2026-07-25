@@ -69,7 +69,7 @@ function markerLetter(type: string | null, title: string) {
 }
 
 export default function TodayPage() {
-  const { openNewProject, userName, businessName, profileLoaded } = useVendorChrome()
+  const { openNewProject, userName, businessName, primaryService, profileLoaded } = useVendorChrome()
   const [projects, setProjects] = useState<VendorProject[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [business, setBusiness] = useState('')
@@ -126,11 +126,11 @@ export default function TodayPage() {
       .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime())
   }, [projects, todayStr, tomorrowStr])
 
-  const waitingVendor = projects.filter(p => getNextAction(p.status).responsible === 'Vendor')
-  const waitingClient = projects.filter(p => getNextAction(p.status).responsible === 'Client')
+  const waitingVendor = projects.filter(p => getNextAction(p.status, primaryService).responsible === 'Vendor')
+  const waitingClient = projects.filter(p => getNextAction(p.status, primaryService).responsible === 'Client')
 
   const vendorActionable = waitingVendor
-    .map(p => ({ p, na: getNextAction(p.status) }))
+    .map(p => ({ p, na: getNextAction(p.status, primaryService) }))
     .sort((a, b) => {
       const ai = VENDOR_PRIORITY.indexOf(a.p.status)
       const bi = VENDOR_PRIORITY.indexOf(b.p.status)
@@ -375,7 +375,7 @@ export default function TodayPage() {
               <div className="panel overflow-hidden">
                 {servicesSoon.map(p => {
                   const d = new Date(p.eventDate!)
-                  const na = getNextAction(p.status)
+                  const na = getNextAction(p.status, primaryService)
                   const chip =
                     na.responsible === 'Vendor' ? 'chip chip-amber' :
                     na.responsible === 'Client' ? 'chip chip-lav' : 'chip chip-muted'
@@ -443,7 +443,7 @@ export default function TodayPage() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13.5px] font-semibold">{p.title}</div>
                       <div className="truncate text-[12px] text-[color:var(--muted)]">
-                        {CTA_LABEL[p.status]?.replace(' →', '') || getNextAction(p.status).nextAction}
+                        {CTA_LABEL[p.status]?.replace(' →', '') || getNextAction(p.status, primaryService).nextAction}
                       </div>
                     </div>
                   </Link>
@@ -473,7 +473,7 @@ export default function TodayPage() {
                     <span className="truncate text-[13px] font-semibold">{p.client?.name || p.title}</span>
                   </div>
                   <div className="mb-2.5 text-[12px] text-[color:var(--muted)]">
-                    {getNextAction(p.status).nextAction}
+                    {getNextAction(p.status, primaryService).nextAction}
                   </div>
                   <Link
                     href={`/vendor/projects/${p.slug}`}

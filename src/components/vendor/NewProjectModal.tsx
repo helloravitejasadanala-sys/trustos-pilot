@@ -1,11 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Plus, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { PROJECT_TYPES } from '@/lib/project-types'
 import { parseJsonResponse } from '@/lib/safe-json'
+import {
+  defaultProjectTypeForService,
+  projectTypesForService,
+} from '@/lib/service-profiles'
+import { useVendorChrome } from '@/components/vendor/VendorShell'
 
 export default function NewProjectModal({
   onClose,
@@ -15,20 +19,26 @@ export default function NewProjectModal({
   onCreated: () => void
 }) {
   const router = useRouter()
+  const { primaryService } = useVendorChrome()
+  const types = useMemo(() => projectTypesForService(primaryService), [primaryService])
   const [saving, setSaving] = useState(false)
   const [title, setTitle] = useState('')
-  const [type, setType] = useState('FAMILY_SESSION')
+  const [type, setType] = useState(defaultProjectTypeForService(primaryService))
   const [eventDate, setEventDate] = useState('')
   const [location, setLocation] = useState('')
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [clientPhone, setClientPhone] = useState('')
 
+  useEffect(() => {
+    setType(defaultProjectTypeForService(primaryService))
+  }, [primaryService])
+
   const grouped = useMemo(() => {
-    const groups: Record<string, typeof PROJECT_TYPES> = {}
-    for (const t of PROJECT_TYPES) (groups[t.group] ||= []).push(t)
+    const groups: Record<string, typeof types> = {}
+    for (const t of types) (groups[t.group] ||= []).push(t)
     return groups
-  }, [])
+  }, [types])
 
   const emailValid = clientEmail.trim().length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())
   const canCreate = title.trim().length > 0 && emailValid

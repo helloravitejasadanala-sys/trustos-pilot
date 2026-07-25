@@ -41,6 +41,7 @@ export const PROJECT_TYPES: ProjectTypeInfo[] = [
   { value: 'LIVE_STREAM', label: 'Live streaming', group: 'Video' },
   { value: 'DECOR', label: 'Decor & styling', group: 'Events' },
   { value: 'MAKEUP', label: 'Makeup & hair', group: 'Events' },
+  { value: 'DJ', label: 'DJ / music', group: 'Events' },
   { value: 'EVENT_PLANNING', label: 'Event planning', group: 'Events' },
   { value: 'EVENT', label: 'General event', group: 'Events' },
   { value: 'OTHER', label: 'Other', group: 'Events' },
@@ -119,6 +120,13 @@ const MAKEUP: DetailField[] = [
   { key: 'inspiration', label: 'Hair services needed, or a look you love?', type: 'textarea', placeholder: 'Describe it or paste a link' },
 ]
 
+const DJ: DetailField[] = [
+  { key: 'eventType', label: 'What type of event is this?', type: 'text', placeholder: 'Wedding, birthday, corporate…' },
+  { key: 'guestEstimate', label: 'Roughly how many guests?', type: 'number' },
+  { key: 'setLength', label: 'How long should we play?', type: 'text', placeholder: 'e.g. 6pm – midnight' },
+  { key: 'equipment', label: 'Any venue or equipment constraints?', type: 'textarea', placeholder: 'Power, space, noise limits' },
+]
+
 const EVENT_PLANNING: DetailField[] = [
   { key: 'eventType', label: 'What type of event is this?', type: 'text' },
   { key: 'guestEstimate', label: 'Roughly how many guests?', type: 'number' },
@@ -144,6 +152,7 @@ const QUESTION_SETS: Record<string, DetailField[]> = {
   LIVE_STREAM,
   DECOR,
   MAKEUP,
+  DJ,
   EVENT_PLANNING,
   EVENT: EVENT_PLANNING,
   OTHER,

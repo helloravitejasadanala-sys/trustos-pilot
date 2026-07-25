@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { PRODUCT_BADGE, PRODUCT_NAME } from '@/lib/brand'
 import { AuthCard, AuthLayout } from '@/components/layout'
+import { serviceOptions, type ServiceKey } from '@/lib/service-profiles'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function SignUpPage() {
     email: '',
     password: '',
     confirm: '',
+    primaryService: 'PHOTOGRAPHY' as ServiceKey,
   })
 
   function set<K extends keyof typeof form>(key: K, value: string) {
@@ -31,7 +33,8 @@ export default function SignUpPage() {
     form.ownerName.trim() &&
     form.email.trim() &&
     form.password.length >= 8 &&
-    form.password === form.confirm
+    form.password === form.confirm &&
+    !!form.primaryService
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -46,6 +49,7 @@ export default function SignUpPage() {
           ownerName: form.ownerName.trim(),
           email: form.email.trim(),
           password: form.password,
+          primaryService: form.primaryService,
         }),
       })
       const { ok, data } = await parseJsonResponse<{ user?: any; error?: string }>(res)
@@ -103,6 +107,23 @@ export default function SignUpPage() {
                 className="auth-input-with-icon w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="label">Primary service</label>
+            <select
+              value={form.primaryService}
+              onChange={e => set('primaryService', e.target.value as ServiceKey)}
+              required
+              className="w-full border-ink-200/50 bg-white/80 focus:border-forest-300 focus:ring-0"
+            >
+              {serviceOptions().map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-ink-400">
+              {serviceOptions().find(s => s.value === form.primaryService)?.description}
+            </p>
           </div>
 
           <div>

@@ -1,4 +1,10 @@
 import { getNextAction } from '@/lib/journey'
+import {
+  getServiceProfile,
+  journeyStagesForService,
+  type ProfileStageKey,
+  type ServiceKey,
+} from '@/lib/service-profiles'
 
 export type VendorProject = {
   id: string
@@ -34,63 +40,89 @@ export function isArchivedClient(client: { avatar?: string | null }) {
   return client.avatar === 'archived'
 }
 
-export function projectNextAction(status: string) {
-  return getNextAction(status)
+export function projectNextAction(status: string, service?: string | null) {
+  return getNextAction(status, service)
 }
 
 /**
- * Ordered project journey for the vendor workspace.
- * `label` = in-progress stage name (shown as Now).
- * `doneLabel` = past-tense only for completed steps — never as "Now".
+ * Default journey (photography-shaped). Prefer journeyStagesForService(service).
+ * Kept for callers that still import SIMPLE_JOURNEY.
  */
-export const SIMPLE_JOURNEY = [
-  { key: 'created', label: 'Created', doneLabel: 'Created' },
-  { key: 'questionnaire', label: 'Event Details', doneLabel: 'Details confirmed' },
-  { key: 'quote', label: 'Quote', doneLabel: 'Quote accepted' },
-  { key: 'deposit', label: 'Deposit', doneLabel: 'Deposit received' },
-  { key: 'service', label: 'Service', doneLabel: 'Service completed' },
-  { key: 'delivery', label: 'Delivery', doneLabel: 'Deliverables sent' },
-  { key: 'approved', label: 'Approval', doneLabel: 'Client approved' },
-  { key: 'archived', label: 'Archived', doneLabel: 'Archived' },
-] as const
+export const SIMPLE_JOURNEY = getServiceProfile('PHOTOGRAPHY').stages
 
-export type JourneyKey = (typeof SIMPLE_JOURNEY)[number]['key']
+export type JourneyKey = ProfileStageKey
 
 export function hasDeliverables(project: { files?: { type?: string | null }[] | null }) {
-  return (project.files || []).some((f) => f.type === 'gallery')
+  return (project.files || []).some((f) => f.type === 'gallery' || f.type === 'recording')
 }
 
 export function hasDeliveryApproval(project: { approvals?: unknown[] | null }) {
   return (project.approvals || []).length > 0
 }
 
-export function journeyProgress(project: any): Record<JourneyKey, boolean> {
+function prepComplete(project: any, service?: string | null) {
+  const fields = getServiceProfile(service).features.prepFields
+  const notes = String(project.notes || '').replace(ARCHIVED_PREFIX, '').trim()
+  const moodboard = (project.files || []).some((f: any) => f.type === 'moodboard' && f.url)
+  const checks: Record<string, boolean> = {
+    eventDate: !!project.eventDate,
+    location: !!(project.location && String(project.location).trim()),
+    moodboard,
+    notes: !!notes,
+    equipment: !!notes,
+    music: !!notes,
+  }
+  // Prep counts as done when deposit is in and at least one relevant field is set,
+  // or when all primary fields (date + location) are filled.
   const deposit = (project.payments || []).some((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
-  return {
-    // Link generated at create; treat as done once the project exists.
+  const filled = fields.filter(f => checks[f]).length
+  if (fields.includes('eventDate') && fields.includes('location') && checks.eventDate && checks.location) {
+    return true
+  }
+  return deposit && filled > 0
+}
+
+export function journeyProgress(
+  project: any,
+  service?: string | null,
+): Record<ProfileStageKey, boolean> {
+  const profile = getServiceProfile(service)
+  const deposit = (project.payments || []).some((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
+  const serviceDone = project.status === 'COMPLETED' || !!project.completedAt
+  const deliverables = hasDeliverables(project)
+  const approved = hasDeliveryApproval(project)
+
+  const progress: Record<ProfileStageKey, boolean> = {
     created: true,
-    // Event Details only complete after the questionnaire — not when the invite is merely generated.
     questionnaire: !!project.questionnaire?.completedAt,
     quote: !!project.proposal?.acceptedAt,
     deposit,
-    service: project.status === 'COMPLETED' || !!project.completedAt,
-    delivery: hasDeliverables(project),
-    approved: hasDeliveryApproval(project),
+    prep: prepComplete(project, service),
+    service: serviceDone,
+    editing: profile.features.showEditing ? (deliverables || (serviceDone && deposit)) : true,
+    delivery: profile.features.showDelivery ? deliverables : true,
+    approved: profile.features.showApproval ? approved : serviceDone,
     archived: isArchivedProject(project),
   }
+
+  // For profiles without gallery/delivery, skip editing + delivery visually via stages filter.
+  if (!profile.features.showEditing) progress.editing = true
+  if (!profile.features.showDelivery) progress.delivery = true
+  if (!profile.features.showApproval && serviceDone) progress.approved = true
+
+  return progress
 }
 
 /** Current in-progress stage + immediate next only (never future past-tense). */
-export function projectProgressSummary(project: any) {
-  const progress = journeyProgress(project)
-  const steps = SIMPLE_JOURNEY.filter((s) => s.key !== 'archived')
+export function projectProgressSummary(project: any, service?: string | null) {
+  const progress = journeyProgress(project, service)
+  const steps = journeyStagesForService(service)
   let currentIndex = steps.findIndex((s) => !progress[s.key])
   if (currentIndex === -1) currentIndex = steps.length - 1
 
   const completed = steps.slice(0, currentIndex).filter((s) => progress[s.key])
   const allDone = steps.every((s) => progress[s.key])
   const current = allDone ? steps[steps.length - 1] : steps[currentIndex]
-  // Only the immediate next incomplete stage — not later milestones.
   const next = allDone ? null : steps[currentIndex + 1] ?? null
 
   return {
@@ -100,5 +132,6 @@ export function projectProgressSummary(project: any) {
     nextLabel: next ? next.label : (allDone ? 'All steps complete' : null),
     currentIndex,
     allDone,
+    service: getServiceProfile(service).key as ServiceKey,
   }
 }

@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react'
 import { Loader2, CheckCircle, HelpCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
-import { BASE_DETAIL_FIELDS, detailQuestionsFor, projectTypeLabel, sectionLabelFor, type DetailField } from '@/lib/project-types'
+import { BASE_DETAIL_FIELDS, projectTypeLabel, type DetailField } from '@/lib/project-types'
+import {
+  detailQuestionsForService,
+  getServiceProfile,
+  sectionLabelForService,
+} from '@/lib/service-profiles'
 import { ClientPortalLayout } from '@/components/layout'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
 
@@ -16,12 +21,40 @@ import { useMessagePoll } from '@/hooks/useMessagePoll'
 
 type Data = { project: any; questionnaire: any; proposal: any; contract: any; payment: any }
 
-const STEPS = [
-  { key: 'questionnaire', label: 'Confirm your event details', time: '3 minutes', who: 'You', why: 'A few practical things about the day. About 3 minutes — no account needed.' },
-  { key: 'proposal', label: 'Review and accept your proposal', time: '3 minutes', who: 'You', why: 'Check what’s included, then accept so your studio can prepare the agreement.' },
-  { key: 'contract', label: 'Review and sign your agreement', time: '5 minutes', who: 'You', why: 'Read the terms, then type your name to confirm — takes about five minutes.' },
-  { key: 'payment', label: 'Pay your deposit', time: '2 minutes', who: 'You', why: 'Your deposit secures the booking. Confirm once you’ve paid by the method agreed.' },
-] as const
+function clientSteps(service?: string | null) {
+  const profile = getServiceProfile(service)
+  const deposit = profile.depositLabel.toLowerCase()
+  return [
+    {
+      key: 'questionnaire' as const,
+      label: `Confirm your ${profile.questionnaireLabel.toLowerCase()}`,
+      time: '3 minutes',
+      who: 'You',
+      why: 'A few practical things about the day. About 3 minutes — no account needed.',
+    },
+    {
+      key: 'proposal' as const,
+      label: 'Review and accept your proposal',
+      time: '3 minutes',
+      who: 'You',
+      why: 'Check what’s included, then accept so your vendor can prepare the agreement.',
+    },
+    {
+      key: 'contract' as const,
+      label: 'Review and sign your agreement',
+      time: '5 minutes',
+      who: 'You',
+      why: 'Read the terms, then type your name to confirm — takes about five minutes.',
+    },
+    {
+      key: 'payment' as const,
+      label: `Pay your ${deposit}`,
+      time: '2 minutes',
+      who: 'You',
+      why: `Your ${deposit} secures the booking. Confirm once you’ve paid by the method agreed.`,
+    },
+  ]
+}
 
 const DETAIL_CHIPS = [
   { key: 'time', label: 'Timings', icon: '🕑' },
@@ -148,6 +181,9 @@ export default function ClientJourney({ params }: { params: { token: string } })
   }
 
   const { project, questionnaire, proposal, contract, payment } = d
+  const serviceKey = project.vendor?.primaryService as string | undefined
+  const serviceProfile = getServiceProfile(serviceKey)
+  const STEPS = clientSteps(serviceKey)
   const done = {
     questionnaire: !!questionnaire?.completedAt,
     proposal: !!proposal?.acceptedAt,
@@ -156,7 +192,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
     // nothing to pay (free collaboration → total 0 → fullyPaid).
     payment: !!payment && (payment.fullyPaid || Number(payment.depositPaid) > 0),
   }
-  let current: typeof STEPS[number]['key'] | 'done' = 'done'
+  let current: (typeof STEPS)[number]['key'] | 'done' = 'done'
   if (!done.questionnaire) current = 'questionnaire'
   else if (proposal && !done.proposal) current = 'proposal'
   else if (contract && !done.contract) current = 'contract'
@@ -180,8 +216,11 @@ export default function ClientJourney({ params }: { params: { token: string } })
     : null
 
   const answers = questionnaire?.answers || {}
-  const hasGallery = Array.isArray(project.files) && project.files.some((f: any) => f.type === 'gallery')
+  const hasGallery = Array.isArray(project.files) && project.files.some(
+    (f: any) => f.type === 'gallery' || f.type === 'recording',
+  )
   const deliveryApproved = Array.isArray(project.approvals) && project.approvals.length > 0
+  const showDelivery = serviceProfile.features.showDelivery
 
   const quoteChip = !proposal
     ? { cls: 'chip chip-muted', label: 'Soon' }
@@ -345,16 +384,20 @@ export default function ClientJourney({ params }: { params: { token: string } })
             <span className={paymentChip.cls}>{paymentChip.label}</span>
           </div>
 
-          <div className="panel portal-status-row">
-            <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--recessed)', color: 'var(--faint)' }}>⬇</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Your delivery</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                {hasGallery ? 'Files are ready below' : 'Ready a few days after'}
+          {showDelivery && (
+            <div className="panel portal-status-row">
+              <span className="marker" style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--recessed)', color: 'var(--faint)' }}>⬇</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+                  {serviceProfile.features.deliverableKind === 'recording' ? 'Your recording' : 'Your delivery'}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+                  {hasGallery ? 'Files are ready below' : 'Ready a few days after'}
+                </div>
               </div>
+              <span className={deliveryChip.cls}>{deliveryChip.label}</span>
             </div>
-            <span className={deliveryChip.cls}>{deliveryChip.label}</span>
-          </div>
+          )}
         </div>
       </div>
 
@@ -379,12 +422,14 @@ export default function ClientJourney({ params }: { params: { token: string } })
         </div>
       )}
 
-      {/* Files — shared galleries and deliverables */}
-      {hasGallery && (
+      {/* Files — galleries / recordings when the service profile supports delivery */}
+      {showDelivery && hasGallery && (
         <div className="panel" style={{ padding: 18 }}>
           <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>Your files</div>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
-            {project.files.filter((f: any) => f.type === 'gallery').map((f: any) => (
+            {project.files
+              .filter((f: any) => f.type === 'gallery' || f.type === 'recording')
+              .map((f: any) => (
               <li key={f.id}>
                 <a
                   href={f.url}
@@ -397,12 +442,14 @@ export default function ClientJourney({ params }: { params: { token: string } })
               </li>
             ))}
           </ul>
-          <DeliveryApproval
-            approved={deliveryApproved}
-            busy={busy}
-            setBusy={setBusy}
-            onDone={refresh}
-          />
+          {serviceProfile.features.showApproval && (
+            <DeliveryApproval
+              approved={deliveryApproved}
+              busy={busy}
+              setBusy={setBusy}
+              onDone={refresh}
+            />
+          )}
         </div>
       )}
 
@@ -419,8 +466,10 @@ export default function ClientJourney({ params }: { params: { token: string } })
 // ---- steps (logic unchanged) ----------------------------------------
 
 function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
+  const service = project?.vendor?.primaryService
+  const profile = getServiceProfile(service)
   const essentials = BASE_DETAIL_FIELDS
-  const typeFields = detailQuestionsFor(project?.type ?? 'OTHER')
+  const typeFields = detailQuestionsForService(project?.type ?? 'OTHER', service)
   const [values, setValues] = useState<Record<string, string>>(() => {
     const seed: Record<string, string> = { ...(existing || {}) }
     // Pre-fill the basics the vendor already knows so the client only confirms.
@@ -470,11 +519,13 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
 
   return (
     <div>
-      <p className="kicker" style={{ color: 'var(--faint)', marginBottom: 10 }}>The essentials</p>
+      <p className="kicker" style={{ color: 'var(--faint)', marginBottom: 10 }}>{profile.questionnaireLabel}</p>
       {essentials.map(renderField)}
       {typeFields.length > 0 && (
         <>
-          <p className="kicker" style={{ color: 'var(--faint)', margin: '18px 0 10px' }}>{sectionLabelFor(project?.type ?? 'OTHER')}</p>
+          <p className="kicker" style={{ color: 'var(--faint)', margin: '18px 0 10px' }}>
+            {sectionLabelForService(project?.type ?? 'OTHER', service)}
+          </p>
           {typeFields.map(renderField)}
         </>
       )}

@@ -34,21 +34,29 @@ enum Role {
   CLIENT
 }
 
+enum PrimaryService {
+  PHOTOGRAPHY
+  LIVE_STREAMING
+  MAKEUP_ARTIST
+  DJ
+}
+
 model VendorProfile {
-  id           String  @id @default(uuid())
-  userId       String  @unique @map("user_id")
-  user         User    @relation(fields: [userId], references: [id])
-  businessName String  @map("business_name")
-  slug         String  @unique
-  tagline      String?
-  description  String?
-  logo         String?
-  website      String?
-  instagram    String?
-  phone        String?
-  location     String?
-  isActive     Boolean @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id             String         @id @default(uuid())
+  userId         String         @unique @map("user_id")
+  user           User           @relation(fields: [userId], references: [id])
+  businessName   String         @map("business_name")
+  slug           String         @unique
+  primaryService PrimaryService @default(PHOTOGRAPHY) @map("primary_service")
+  tagline        String?
+  description    String?
+  logo           String?
+  website        String?
+  instagram      String?
+  phone          String?
+  location       String?
+  isActive       Boolean        @default(true) @map("is_active")
+  createdAt      DateTime       @default(now()) @map("created_at")
 
   projects         Project[]
   packages         Package[]
@@ -143,6 +151,7 @@ enum ProjectType {
   DECOR
   MAKEUP
   EVENT_PLANNING
+  DJ
 }
 
 model Questionnaire {

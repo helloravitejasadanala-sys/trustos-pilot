@@ -5,7 +5,6 @@ import { setSession } from '@/lib/auth'
 import { clearClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { z } from 'zod'
-
 export const dynamic = 'force-dynamic'
 
 const registerSchema = z.object({
@@ -13,6 +12,7 @@ const registerSchema = z.object({
   ownerName: z.string().trim().min(1, 'Your name is required'),
   email: z.string().trim().email('Enter a valid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  primaryService: z.enum(['PHOTOGRAPHY', 'LIVE_STREAMING', 'MAKEUP_ARTIST', 'DJ']),
 })
 
 /** Turn a business name into a unique, url-safe vendor slug. */
@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
           create: {
             businessName: data.businessName,
             slug,
+            primaryService: data.primaryService as any,
           },
         },
       },

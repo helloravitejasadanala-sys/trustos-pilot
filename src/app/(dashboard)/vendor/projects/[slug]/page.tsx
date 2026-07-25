@@ -14,17 +14,23 @@ import { WorkspaceLayout, WorkspaceTabs } from '@/components/layout'
 import { markSeen } from '@/lib/unread'
 import { getNextAction, isWaitingOnClient } from '@/lib/journey'
 import {
-  ARCHIVED_PREFIX, SIMPLE_JOURNEY, isTestProject, journeyProgress,
+  ARCHIVED_PREFIX, isTestProject, journeyProgress,
   projectProgressSummary, hasDeliverables, hasDeliveryApproval,
 } from '@/lib/vendor-phase1'
-import { projectTypeLabel, allDetailFields } from '@/lib/project-types'
+import { projectTypeLabel } from '@/lib/project-types'
+import {
+  allDetailFieldsForService,
+  getServiceProfile,
+  journeyStagesForService,
+  prepFieldLabels,
+  vendorTabsForService,
+} from '@/lib/service-profiles'
 import { humanizeActivityEvent } from '@/lib/activity-labels'
 import { normalizePaymentMethod } from '@/lib/stripe-config'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
 
-const TABS = ['Overview', 'Money', 'Prep', 'Delivery', 'Chat'] as const
-type Tab = typeof TABS[number]
+type Tab = string
 
 function markerClass(type: string | null) {
   const t = (type || '').toUpperCase()
@@ -54,6 +60,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const [copied, setCopied] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [clientModal, setClientModal] = useState(false)
+  const [primaryService, setPrimaryService] = useState('PHOTOGRAPHY')
   const [quote, setQuote] = useState({ method: 'manual', title: '', price: '', deposit: '', description: '' })
   const [stripeConfigured, setStripeConfigured] = useState(false)
   const [draft, setDraft] = useState('')
@@ -71,10 +78,20 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       fetch(`/api/vendor/projects/${params.slug}/detail`),
       fetch('/api/vendor/clients'),
     ])
-    const detailJson = await parseJsonResponse<{ project?: any; stripeConfigured?: boolean; error?: string }>(detail)
+    const detailJson = await parseJsonResponse<{
+      project?: any
+      primaryService?: string
+      stripeConfigured?: boolean
+      error?: string
+    }>(detail)
     if (!detailJson.ok || !detailJson.data.project) { setState('error'); return }
     const p = detailJson.data.project
     setProject(p)
+    setPrimaryService(
+      detailJson.data.primaryService
+      || p.vendor?.primaryService
+      || 'PHOTOGRAPHY',
+    )
     setStripeConfigured(!!detailJson.data.stripeConfigured)
     const clientJson = await parseJsonResponse<{ clients?: any[] }>(clientRes)
     if (clientJson.ok) setClients(clientJson.data.clients || [])
@@ -212,7 +229,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     const name = gallery.name.trim() || 'Files'
     const url = gallery.url.trim()
     if (!/^https?:\/\//i.test(url)) return toast.error('Enter a link starting with http:// or https://')
-    await post('link', { name, url, type: 'gallery' })
+    const fileType = getServiceProfile(primaryService).features.deliverableKind === 'recording'
+      ? 'recording'
+      : 'gallery'
+    await post('link', { name, url, type: fileType })
     setGallery({ name: 'Files', url: '' })
     toast.success('Deliverable link added')
     await load()
@@ -272,9 +292,11 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     )
   }
 
-  const na = getNextAction(project.status)
-  const progress = journeyProgress(project)
-  const summary = projectProgressSummary(project)
+  const serviceProfile = getServiceProfile(primaryService)
+  const tabs = vendorTabsForService(primaryService)
+  const na = getNextAction(project.status, primaryService)
+  const progress = journeyProgress(project, primaryService)
+  const summary = projectProgressSummary(project, primaryService)
   const deliverablesSent = hasDeliverables(project)
   const deliveryApproved = hasDeliveryApproval(project)
   const method = normalizePaymentMethod(project.paymentMethod || quote.method)
@@ -285,9 +307,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const waitingOnClient =
     project.status === 'CONTRACT_SIGNED'
       ? method === 'stripe' && !deposit
-      : isWaitingOnClient(project.status)
+      : isWaitingOnClient(project.status, primaryService)
 
-  const journeySteps = SIMPLE_JOURNEY.filter(s => s.key !== 'archived')
+  const journeySteps = journeyStagesForService(primaryService)
   const currentJourneyIndex = summary.allDone
     ? journeySteps.length - 1
     : Math.max(0, summary.currentIndex)
@@ -307,13 +329,27 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         return { label: na.ctaLabel || 'Send agreement →', action: sendContract }
       case 'CONTRACT_SIGNED':
         if (method === 'free') return { label: 'Confirm free collaboration →', action: completeFree }
-        if (method === 'manual') return { label: 'Mark deposit received →', action: () => recordPayment('DEPOSIT') }
+        if (method === 'manual') {
+          return {
+            label: `Mark ${serviceProfile.depositLabel.toLowerCase()} received →`,
+            action: () => recordPayment('DEPOSIT'),
+          }
+        }
         return null
       case 'DEPOSIT_PAID':
-        return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
+        return {
+          label: na.ctaLabel || (serviceProfile.features.showPrep ? 'Open preparation →' : 'Mark service complete →'),
+          action: () => (serviceProfile.features.showPrep ? setTab('Prep') : completeDelivery()),
+        }
       case 'FULLY_PAID':
-        return { label: na.ctaLabel || 'Add delivery →', action: () => setTab('Delivery') }
+        if (serviceProfile.features.showDelivery) {
+          return { label: na.ctaLabel || 'Add delivery →', action: () => setTab('Delivery') }
+        }
+        return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
       case 'COMPLETED':
+        if (serviceProfile.features.showDelivery && !deliverablesSent) {
+          return { label: na.ctaLabel || 'Add delivery →', action: () => setTab('Delivery') }
+        }
         return { label: na.ctaLabel || 'Request a review →', action: requestReview }
       default:
         return null
@@ -337,14 +373,21 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     project.location || null,
   ].filter(Boolean).join(' · ')
 
-  const prepDoneCount = [prep.eventDate, prep.location, prep.moodboard, prep.notes].filter(Boolean).length
+  const prepFields = serviceProfile.features.prepFields
+  const prepDoneCount = prepFields.filter(f => {
+    if (f === 'eventDate') return !!prep.eventDate
+    if (f === 'location') return !!prep.location
+    if (f === 'moodboard' || f === 'music') return !!prep.moodboard
+    if (f === 'notes' || f === 'equipment') return !!prep.notes
+    return false
+  }).length
   const moneyChip = !project.proposal
     ? { label: 'To do', cls: 'chip chip-amber', hint: 'Quote not sent' }
     : method === 'free'
       ? { label: 'Free', cls: 'chip chip-success', hint: 'No payment required' }
       : deposit
-        ? { label: 'Received', cls: 'chip chip-success', hint: 'Deposit in' }
-        : { label: 'Awaiting', cls: 'chip chip-amber', hint: 'Awaiting transfer' }
+        ? { label: 'Received', cls: 'chip chip-success', hint: `${serviceProfile.depositLabel} in` }
+        : { label: 'Awaiting', cls: 'chip chip-amber', hint: `Awaiting ${serviceProfile.depositLabel.toLowerCase()}` }
 
   const paymentStatusChip = (() => {
     if (method === 'free') return <span className="chip chip-success">No payment required</span>
@@ -504,9 +547,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       </div>
 
       <WorkspaceTabs
-        tabs={TABS}
-        active={tab}
-        onChange={t => setTab(t as Tab)}
+        tabs={tabs}
+        active={tabs.includes(tab) ? tab : 'Overview'}
+        onChange={t => setTab(t)}
         badge={t =>
           t === 'Chat' && project.messages?.length
             ? `(${project.messages.length})`
@@ -633,16 +676,16 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               </div>
             </div>
 
-            {/* Client details */}
+            {/* Client questionnaire answers */}
             <div>
               <div style={{ font: 'var(--t-h2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                Client details
+                {serviceProfile.questionnaireLabel}
                 {detailsDone && <span className="chip chip-success">Done</span>}
               </div>
               {detailsDone ? (
                 <div className="context">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    {allDetailFields(project.type).map(f => {
+                    {allDetailFieldsForService(project.type, primaryService).map(f => {
                       const v = project.questionnaire?.answers?.[f.key]
                       if (!v) return null
                       return (
@@ -745,21 +788,27 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <span className={moneyChip.cls}>{moneyChip.label}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setTab('Prep')}
-                className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
-                style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
-              >
-                <span className="marker" style={{ width: 30, height: 30, background: 'var(--gold-soft)', color: '#7a4a1e', fontSize: 12 }}>✓</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Prep</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{prepDoneCount} of 4 fields</div>
-                </div>
-                <span className={prepDoneCount === 4 ? 'chip chip-success' : prepDoneCount > 0 ? 'chip chip-success' : 'chip chip-muted'}>
-                  {prepDoneCount === 0 ? 'To do' : prepDoneCount === 4 ? 'Ready' : 'In progress'}
-                </span>
-              </button>
+              {serviceProfile.features.showPrep && (
+                <button
+                  type="button"
+                  onClick={() => setTab('Prep')}
+                  className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
+                  style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
+                >
+                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--gold-soft)', color: '#7a4a1e', fontSize: 12 }}>✓</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {journeySteps.find(s => s.key === 'prep')?.label || 'Prep'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                      {prepDoneCount} of {prepFields.length} fields
+                    </div>
+                  </div>
+                  <span className={prepDoneCount === prepFields.length ? 'chip chip-success' : prepDoneCount > 0 ? 'chip chip-success' : 'chip chip-muted'}>
+                    {prepDoneCount === 0 ? 'To do' : prepDoneCount === prepFields.length ? 'Ready' : 'In progress'}
+                  </span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -778,31 +827,35 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 </div>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setTab('Delivery')}
-                className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
-                style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
-              >
-                <span className="marker" style={{ width: 30, height: 30, background: 'var(--recessed)', color: 'var(--muted)', fontSize: 12 }}>⬇</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Delivery</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-                    {deliveryApproved
-                      ? 'Client approved'
-                      : deliverablesSent
-                        ? 'Link sent'
-                        : progress.service
-                          ? 'Ready to add link'
-                          : 'Opens after the service'}
+              {serviceProfile.features.showDelivery && (
+                <button
+                  type="button"
+                  onClick={() => setTab('Delivery')}
+                  className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
+                  style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
+                >
+                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--recessed)', color: 'var(--muted)', fontSize: 12 }}>⬇</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {journeySteps.find(s => s.key === 'delivery')?.label || 'Delivery'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                      {deliveryApproved
+                        ? 'Client approved'
+                        : deliverablesSent
+                          ? 'Link sent'
+                          : progress.service
+                            ? 'Ready to add link'
+                            : 'Opens after the service'}
+                    </div>
                   </div>
-                </div>
-                {!progress.service && !deliverablesSent
-                  ? <span className="chip chip-muted">Locked</span>
-                  : deliveryApproved
-                    ? <span className="chip chip-success">Done</span>
-                    : null}
-              </button>
+                  {!progress.service && !deliverablesSent
+                    ? <span className="chip chip-muted">Locked</span>
+                    : deliveryApproved
+                      ? <span className="chip chip-success">Done</span>
+                      : null}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1012,27 +1065,54 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         </div>
       )}
 
-      {/* PREPARATION */}
-      {tab === 'Prep' && (
+      {/* PREPARATION — fields driven by Service Profile */}
+      {tab === 'Prep' && serviceProfile.features.showPrep && (
         <div className="panel" style={{ padding: 20, maxWidth: 620 }}>
-          <div style={{ font: 'var(--t-h2)', marginBottom: 14 }}>Prep</div>
+          <div style={{ font: 'var(--t-h2)', marginBottom: 14 }}>
+            {journeySteps.find(s => s.key === 'prep')?.label || 'Prep'}
+          </div>
           <div className="space-y-4">
-            <div>
-              <label className="label">Date & time</label>
-              <input ref={prepDateRef} type="datetime-local" value={prep.eventDate} onChange={e => setPrep(p => ({ ...p, eventDate: e.target.value }))} />
-            </div>
-            <div>
-              <label className="label">Location</label>
-              <input value={prep.location} onChange={e => setPrep(p => ({ ...p, location: e.target.value }))} placeholder="Venue or address" />
-            </div>
-            <div>
-              <label className="label">Mood-board link</label>
-              <input placeholder="https://..." value={prep.moodboard} onChange={e => setPrep(p => ({ ...p, moodboard: e.target.value }))} />
-            </div>
-            <div>
-              <label className="label">Notes</label>
-              <textarea value={prep.notes} onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))} rows={4} placeholder="Timings, access notes, anything to remember" />
-            </div>
+            {prepFields.includes('eventDate') && (
+              <div>
+                <label className="label">{prepFieldLabels('eventDate').label}</label>
+                <input ref={prepDateRef} type="datetime-local" value={prep.eventDate} onChange={e => setPrep(p => ({ ...p, eventDate: e.target.value }))} />
+              </div>
+            )}
+            {prepFields.includes('location') && (
+              <div>
+                <label className="label">{prepFieldLabels('location').label}</label>
+                <input
+                  value={prep.location}
+                  onChange={e => setPrep(p => ({ ...p, location: e.target.value }))}
+                  placeholder={prepFieldLabels('location').placeholder}
+                />
+              </div>
+            )}
+            {(prepFields.includes('moodboard') || prepFields.includes('music')) && (
+              <div>
+                <label className="label">
+                  {prepFieldLabels(prepFields.includes('music') ? 'music' : 'moodboard').label}
+                </label>
+                <input
+                  placeholder={prepFieldLabels(prepFields.includes('music') ? 'music' : 'moodboard').placeholder}
+                  value={prep.moodboard}
+                  onChange={e => setPrep(p => ({ ...p, moodboard: e.target.value }))}
+                />
+              </div>
+            )}
+            {(prepFields.includes('notes') || prepFields.includes('equipment')) && (
+              <div>
+                <label className="label">
+                  {prepFieldLabels(prepFields.includes('equipment') && !prepFields.includes('notes') ? 'equipment' : 'notes').label}
+                </label>
+                <textarea
+                  value={prep.notes}
+                  onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))}
+                  rows={4}
+                  placeholder={prepFieldLabels(prepFields.includes('equipment') && !prepFields.includes('notes') ? 'equipment' : 'notes').placeholder}
+                />
+              </div>
+            )}
             <button type="button" className="btn btn-lime" disabled={busy === 'prep'} onClick={() => run('prep', savePrep)}>
               {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : 'Save preparation'}
             </button>
@@ -1040,8 +1120,8 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         </div>
       )}
 
-      {/* DELIVERY */}
-      {tab === 'Delivery' && (
+      {/* DELIVERY — hidden for services without gallery/recording (Makeup, DJ) */}
+      {tab === 'Delivery' && serviceProfile.features.showDelivery && (
         <div className="ws-stack" style={{ maxWidth: 620 }}>
           {!progress.service && !deliverablesSent ? (
             <div className="action" style={{ textAlign: 'center' }}>
@@ -1059,9 +1139,15 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               >
                 🔒
               </span>
-              <div style={{ font: 'var(--t-h2)' }}>Delivery opens after the service</div>
+              <div style={{ font: 'var(--t-h2)' }}>
+                {serviceProfile.features.deliverableKind === 'recording'
+                  ? 'Recording delivery opens after the live event'
+                  : 'Gallery opens after the shoot'}
+              </div>
               <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '40ch', margin: '5px auto 16px' }}>
-                When the service is done, add your gallery link and {clientName} sees it instantly on their portal.
+                When the service is done, add your{' '}
+                {serviceProfile.features.deliverableKind === 'recording' ? 'recording' : 'gallery'}{' '}
+                link and {clientName} sees it instantly on their portal.
               </p>
               <button type="button" className="btn btn-ghost-dark" disabled>
                 Add delivery link · locked
@@ -1109,9 +1195,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     {busy === 'gallery' ? <Loader2 size={16} className="animate-spin" /> : <><LinkIcon size={16} className="mr-2" />Add delivery link</>}
                   </button>
                 </div>
-                {(project.files || []).filter((f: any) => f.type === 'gallery').length > 0 && (
+                {(project.files || []).filter((f: any) => f.type === 'gallery' || f.type === 'recording').length > 0 && (
                   <ul className="mt-4 space-y-2" style={{ margin: '16px 0 0', padding: 0, listStyle: 'none' }}>
-                    {(project.files || []).filter((f: any) => f.type === 'gallery').map((f: any) => (
+                    {(project.files || []).filter((f: any) => f.type === 'gallery' || f.type === 'recording').map((f: any) => (
                       <li key={f.id} className="flex items-center gap-2 text-sm">
                         <LinkIcon size={14} style={{ color: 'var(--muted)', flexShrink: 0 }} />
                         <a href={f.url} target="_blank" rel="noreferrer" style={{ color: 'var(--ink)', textDecoration: 'underline', textUnderlineOffset: 2 }} className="truncate">

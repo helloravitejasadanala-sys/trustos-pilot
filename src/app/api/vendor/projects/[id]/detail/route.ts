@@ -61,7 +61,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       project: {
         ...rest,
         invitation: formatInvitationLink(inv),
+        vendor: {
+          businessName: vendor.businessName,
+          primaryService: vendor.primaryService,
+        },
       },
+      primaryService: vendor.primaryService,
       // Section L — the browser learns only a boolean. The Stripe option is
       // hidden in the Money tab when this is false; the key never leaves here.
       stripeConfigured: isStripeConfigured(),
