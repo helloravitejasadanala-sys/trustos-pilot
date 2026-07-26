@@ -16,7 +16,7 @@ import {
 import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { getNextAction } from '@/lib/journey'
-import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
+import { hasPendingPaymentConfirm, isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
 import { hasUnread } from '@/lib/unread'
 import { playMessageChime } from '@/lib/notify'
 import NewProjectModal from '@/components/vendor/NewProjectModal'
@@ -121,7 +121,13 @@ export default function VendorShell({ children }: { children: ReactNode }) {
         if (!cancelled && proj.ok) {
           const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
           setProjectCount(live.length)
-          setTodayCount(live.filter(p => getNextAction(p.status, primaryService).responsible === 'Vendor').length)
+          setTodayCount(
+            live.filter(
+              p =>
+                hasPendingPaymentConfirm(p) ||
+                getNextAction(p.status, primaryService).responsible === 'Vendor',
+            ).length,
+          )
 
           const unread = live.filter(p => hasUnread(p.id, p.lastClientMessageAt))
           setUnreadCount(unread.length)

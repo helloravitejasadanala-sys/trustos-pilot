@@ -5,8 +5,8 @@ import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { appUrl, ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
 import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
-import { getServiceProfile } from '@/lib/service-profiles'
-import { resolveOrCreateClient } from '@/lib/vendor-clients'
+import { getServiceProfile, isServiceKey } from '@/lib/service-profiles'
+import { noteClientDirectory, resolveOrCreateClient } from '@/lib/vendor-clients'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -89,6 +89,8 @@ export async function GET() {
 
 const createProjectSchema = z.object({
   title: z.string().min(1),
+  /** Per-booking service; falls back to workspace primary when omitted. */
+  service: z.string().optional(),
   type: z.string(),
   eventDate: z.string().optional(),
   location: z.string().optional(),
@@ -112,10 +114,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const data = createProjectSchema.parse(body)
 
-    const profile = getServiceProfile(vendor.primaryService)
+    const bookingService = isServiceKey(data.service) ? data.service : vendor.primaryService
+    const profile = getServiceProfile(bookingService)
     if (!profile.allowedProjectTypes.includes(data.type)) {
       return NextResponse.json(
-        { error: `That project type is not available for ${profile.label} workspaces.` },
+        { error: `That job type is not available for ${profile.label}.` },
         { status: 400 },
       )
     }
@@ -134,6 +137,7 @@ export async function POST(req: NextRequest) {
     })
     const clientId = resolved.client.id
     const clientReused = resolved.reused
+    await noteClientDirectory(user.id, clientId, clientEmail, clientReused)
 
     const project = await prisma.project.create({
       data: {
@@ -141,6 +145,7 @@ export async function POST(req: NextRequest) {
         clientId,
         title: data.title,
         slug,
+        service: bookingService as any,
         type: data.type as any,
         eventDate: data.eventDate ? new Date(data.eventDate) : undefined,
         location: data.location,

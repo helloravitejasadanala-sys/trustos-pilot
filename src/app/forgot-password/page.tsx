@@ -52,8 +52,9 @@ export default function ForgotPasswordPage() {
         {done ? (
           <>
             <p className="mt-3 text-sm leading-relaxed text-ink-500">
-              If <strong>{email.trim()}</strong> has a workspace, we&apos;ll send a one-time
-              reset link within one business day. Check your inbox (and spam).
+              If <strong>{email.trim()}</strong> has a workspace, TrustOS support will email
+              you a one-time reset link within one business day (check spam). Your request is
+              already queued for the team.
             </p>
             <Link
               href="/login"

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
-import { resolveOrCreateClient } from '@/lib/vendor-clients'
+import { noteClientDirectory, resolveOrCreateClient } from '@/lib/vendor-clients'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -103,20 +103,15 @@ export async function POST(req: NextRequest) {
       phone: body.phone,
     })
 
-    if (created || reused) {
-      await prisma.activityLog.create({
-        data: {
-          userId: user.id,
-          event: 'client_directory_added',
-          metadata: { clientId: client.id, email: client.email, reused },
-        },
-      })
-    }
+    await noteClientDirectory(user.id, client.id, client.email, reused)
 
     return NextResponse.json({
       client: { ...client, archived: client.avatar === 'archived', projects: [] },
       created,
       reused,
+      message: reused
+        ? 'Using an existing client on your list — details updated where allowed.'
+        : 'Client added to your directory.',
     })
   } catch (error: any) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })

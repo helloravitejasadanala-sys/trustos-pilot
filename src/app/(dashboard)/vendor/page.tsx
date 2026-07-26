@@ -182,7 +182,7 @@ export default function TodayPage() {
           Welcome{firstName ? `, ${firstName}` : ''}
         </h1>
         <p className="mt-1 mb-6 text-[color:var(--muted)]">
-          Everything is under control — start with your first booking.
+          Your workspace is ready{workspaceName ? ` (${workspaceName})` : ''}. Start with your first booking — nothing else is missing.
         </p>
         <ol className="mb-5 max-w-[42ch] space-y-1.5 text-[13.5px] text-[color:var(--muted)]" style={{ margin: '0 0 20px', paddingLeft: 18 }}>
           <li><span style={{ color: 'var(--ink)', fontWeight: 600 }}>01</span> Create a booking</li>

@@ -6,7 +6,7 @@ import { Users, FileText, Truck, Star, ArrowRight, Briefcase } from "lucide-reac
 const steps = [
   {
     num: "01",
-    title: "Create a project",
+    title: "Create a booking",
     body: "Add the job and your client in under a minute.",
     icon: Briefcase,
   },
@@ -69,7 +69,7 @@ export default function LandingPage() {
               Pilot
             </span>
           </Link>
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-4 sm:gap-6">
             <Link
               href="/login"
               className="text-sm font-medium text-ink-500 transition-colors hover:text-forest-700"
@@ -80,7 +80,7 @@ export default function LandingPage() {
               href="/signup"
               className="rounded-xl bg-forest-800 px-4 py-2 text-sm font-medium text-paper-50 shadow-soft transition-all hover:bg-forest-900 hover:shadow-elevated"
             >
-              Get started
+              Sign up
             </Link>
           </nav>
         </div>
@@ -117,13 +117,19 @@ export default function LandingPage() {
               href="/signup"
               className="group inline-flex items-center gap-2 rounded-xl bg-forest-800 px-7 py-3.5 text-sm font-semibold text-paper-50 shadow-elevated transition-all hover:bg-forest-900 hover:shadow-float"
             >
-              Create your workspace
+              Sign up — create your workspace
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+            <Link
+              href="/login"
+              className="text-sm font-medium text-ink-500 underline-offset-4 hover:text-forest-700 hover:underline"
+            >
+              Already have a workspace? Sign in
             </Link>
           </div>
 
           <p className="mt-6 text-sm text-ink-400">
-            No credit card · Under a minute to start · Cancel anytime in the pilot
+            First step: Sign up · Then sign in anytime · No card · Cancel anytime in the pilot
           </p>
         </div>
       </section>

@@ -175,7 +175,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
   }
 
   const { project, questionnaire, proposal, contract, payment } = d
-  const serviceKey = project.vendor?.primaryService as string | undefined
+  const serviceKey = (project.service || project.vendor?.primaryService) as string | undefined
   const serviceProfile = getServiceProfile(serviceKey)
   const STEPS = clientSteps(serviceKey)
   const done = {
@@ -188,20 +188,26 @@ export default function ClientJourney({ params }: { params: { token: string } })
   }
   // Never show Pay before an agreement exists and is signed.
   const waitingForAgreement = !!done.proposal && !contract
+  const waitingForQuote = done.questionnaire && !proposal
   let current: (typeof STEPS)[number]['key'] | 'done' = 'done'
   if (!done.questionnaire) current = 'questionnaire'
   else if (proposal && !done.proposal) current = 'proposal'
   else if (contract && !done.contract) current = 'contract'
-  else if (waitingForAgreement) current = 'done'
+  else if (waitingForAgreement || waitingForQuote) current = 'done'
   else if (payment && !done.payment) current = 'payment'
 
   const currentStep = STEPS.find(s => s.key === current)
-  const stepIndex = current === 'done'
-    ? STEPS.length
-    : Math.max(1, STEPS.findIndex(s => s.key === current) + 1)
-  const progressPct = current === 'done'
-    ? 100
-    : ((stepIndex - 1) / STEPS.length) * 100
+  // Waiting on vendor must not look “finished” (100%) — that misled clients.
+  const progressPct = (() => {
+    if (current === 'questionnaire') return 5
+    if (waitingForQuote) return Math.round((1 / STEPS.length) * 100)
+    if (current === 'proposal') return Math.round((1 / STEPS.length) * 100)
+    if (waitingForAgreement) return Math.round((2 / STEPS.length) * 100)
+    if (current === 'contract') return Math.round((2 / STEPS.length) * 100)
+    if (current === 'payment') return Math.round((3 / STEPS.length) * 100)
+    if (current === 'done') return 100
+    return Math.round((Math.max(0, STEPS.findIndex(s => s.key === current)) / STEPS.length) * 100)
+  })()
 
   const clientFirst = project.client?.name?.split(' ')[0]
   const projectTitle = project.title.replace(/\s*\(demo\)/i, '')
@@ -219,9 +225,11 @@ export default function ClientJourney({ params }: { params: { token: string } })
   const showDelivery = serviceProfile.features.showDelivery
 
   const nextLabel = current === 'done'
-    ? waitingForAgreement
-      ? 'Waiting for your agreement'
-      : (showDelivery && hasGallery && !deliveryApproved ? 'Review your files' : 'You’re booked')
+    ? waitingForQuote
+      ? `Waiting for ${vendorName}`
+      : waitingForAgreement
+        ? `Waiting for ${vendorName}`
+        : (showDelivery && hasGallery && !deliveryApproved ? 'Review your files' : 'You’re booked')
     : currentStep
       ? `Next: ${currentStep.label}`
       : 'Your event'
@@ -276,19 +284,19 @@ export default function ClientJourney({ params }: { params: { token: string } })
               With {vendorName}
             </div>
             <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
-              {!proposal
-                ? 'We’ve got your event details'
+              {waitingForQuote
+                ? `Wait for ${vendorName} to send your quote`
                 : waitingForAgreement
-                  ? 'Quote accepted — agreement coming next'
+                  ? `Wait for ${vendorName} to send your agreement`
                   : showDelivery && hasGallery && !deliveryApproved
                     ? 'Your files are ready'
                     : 'Nothing needed from you right now'}
             </div>
             <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
-              {!proposal
-                ? `Thanks — ${vendorName} will send your quote here. Message them anytime below.`
+              {waitingForQuote
+                ? `You’re not finished — ${vendorName} still needs to send a quote. You’ll see it on this page. Message them below if you have questions.`
                 : waitingForAgreement
-                  ? `${vendorName} will send your agreement here. You’ll sign it before any payment.`
+                  ? `${vendorName} will send your agreement here next. You’ll sign it before any payment.`
                   : showDelivery && hasGallery && !deliveryApproved
                     ? 'Open the files below, then approve when you’re happy.'
                     : `${vendorName} will update this page when they need you.`}
@@ -342,13 +350,14 @@ export default function ClientJourney({ params }: { params: { token: string } })
   )
 }
 
-// ---- steps (logic unchanged) ----------------------------------------
+// ---- steps -----------------------------------------------------------
 
 function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
-  const service = project?.vendor?.primaryService
+  const service = project?.service || project?.vendor?.primaryService
   const profile = getServiceProfile(service)
   const essentials = BASE_DETAIL_FIELDS
   const typeFields = detailQuestionsForService(project?.type ?? 'OTHER', service)
+  const requiredKeys = new Set(['mainContact', 'phone', 'date', 'venue'])
   const [values, setValues] = useState<Record<string, string>>(() => {
     const seed: Record<string, string> = { ...(existing || {}) }
     // Pre-fill the basics the vendor already knows so the client only confirms.
@@ -362,8 +371,9 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
   }
 
   function renderField(f: DetailField) {
+    const required = requiredKeys.has(f.key)
     return (
-      <Field key={f.key} label={f.label}>
+      <Field key={f.key} label={`${f.label}${required ? ' *' : ''}`}>
         {f.type === 'textarea' ? (
           <textarea value={values[f.key] ?? ''} onChange={e => set(f.key, e.target.value)} className={inputCls} rows={3} placeholder={f.placeholder} />
         ) : f.type === 'select' ? (
@@ -380,6 +390,7 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
             onChange={e => set(f.key, e.target.value)}
             className={inputCls}
             placeholder={f.placeholder}
+            required={required}
           />
         )}
       </Field>
@@ -387,9 +398,11 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
   }
 
   async function submit() {
-    const filled = Object.values(values).some(v => String(v ?? '').trim().length > 0)
-    if (!filled) {
-      toast.error('Add at least one detail before confirming.')
+    const missing = ['mainContact', 'phone', 'date', 'venue'].filter(
+      k => !String(values[k] ?? '').trim(),
+    )
+    if (missing.length) {
+      toast.error('Fill contact name, phone, date, and venue before confirming.')
       return
     }
     setBusy(true)
@@ -399,7 +412,7 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
     })
     setBusy(false)
     if (res.ok) {
-      toast.success('Thanks — your vendor can see your details now.')
+      toast.success(`Thanks — wait for ${project?.vendor?.businessName || 'your vendor'} to send your quote here.`)
       onDone()
     } else {
       const body = await res.json().catch(() => ({}))
@@ -613,7 +626,9 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
       ) : (
         <>
           <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
-            Pay by the method you agreed with your vendor, then tap below. They will confirm once it clears — this page does not take the money.
+            {method === 'stripe'
+              ? 'Online card pay isn’t available in this pilot yet. Pay by bank transfer (or the method your vendor agreed), then tap below so they can confirm.'
+              : 'Pay by the method you agreed with your vendor, then tap below. They will confirm once it clears — this page does not take the money.'}
           </p>
           <Primary onClick={declareManual} busy={busy}>I&apos;ve made the payment</Primary>
         </>

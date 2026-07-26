@@ -75,6 +75,33 @@ export default function AdminPilotUsersPage() {
     }
   }
 
+  async function setTempPassword(userId: string, email: string) {
+    if (busyId) return
+    const password = window.prompt(
+      `Set a temporary password for ${email}\n(min 8 characters — share it securely, then ask them to change it)`,
+    )
+    if (!password) return
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+    setBusyId(userId)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      const parsed = await parseJsonResponse<{ error?: string; message?: string }>(res)
+      if (!parsed.ok) throw new Error(parsed.data.error || 'Failed')
+      toast.success('Temporary password set — tell the vendor securely')
+    } catch (e: any) {
+      toast.error(e.message || 'Could not set password')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function copyLink(url: string) {
     try {
       await navigator.clipboard.writeText(url)
@@ -151,7 +178,7 @@ export default function AdminPilotUsersPage() {
                 <th className="hidden px-4 py-2.5 font-semibold sm:table-cell">Email</th>
                 <th className="px-4 py-2.5 font-semibold">Role</th>
                 <th className="px-4 py-2.5 font-semibold">Joined</th>
-                <th className="px-4 py-2.5 font-semibold">Reset</th>
+                <th className="px-4 py-2.5 font-semibold">Recovery</th>
               </tr>
             </thead>
             <tbody>
@@ -177,15 +204,25 @@ export default function AdminPilotUsersPage() {
                     })}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-forest-700 hover:text-forest-900"
-                      disabled={busyId === u.id}
-                      onClick={() => issueLink(u.id)}
-                    >
-                      {busyId === u.id ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
-                      Link
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-[12px] font-semibold text-forest-700 hover:text-forest-900"
+                        disabled={busyId === u.id}
+                        onClick={() => issueLink(u.id)}
+                      >
+                        {busyId === u.id ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                        Link
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[12px] font-semibold text-ink-500 hover:text-ink-800"
+                        disabled={busyId === u.id}
+                        onClick={() => setTempPassword(u.id, u.email)}
+                      >
+                        Set password
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

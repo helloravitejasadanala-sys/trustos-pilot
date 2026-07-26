@@ -37,8 +37,8 @@ export default function ShareLink({
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      toast.success('Booking link copied — send it to your client now')
-      setTimeout(() => setCopied(false), 2000)
+      toast.success('Link copied — paste it in WhatsApp or email and send it now')
+      setTimeout(() => setCopied(false), 2500)
     } catch {
       toast.error('Could not copy — select and copy the link manually.')
     }
@@ -61,6 +61,16 @@ export default function ShareLink({
   const btn = 'inline-flex items-center gap-1.5 rounded-lg border border-forest-200 px-3 py-1.5 text-[13px] font-medium text-forest-800 hover:bg-forest-50 transition'
 
   return (
+    <div className="space-y-2">
+      {copied ? (
+        <p className="text-[12.5px] font-medium text-forest-800">
+          Send this link to your client now — they open it with no account.
+        </p>
+      ) : (
+        <p className="text-[12.5px] text-forest-600">
+          One secure link. Copy or WhatsApp it — that starts their booking.
+        </p>
+      )}
     <div className="flex flex-wrap gap-2">
       <button type="button" onClick={copy} className={btn}>
         {copied ? <Check size={14} /> : <Copy size={14} />}Copy link
@@ -86,6 +96,7 @@ export default function ShareLink({
       >
         <Mail size={14} />Share by email
       </a>
+    </div>
     </div>
   )
 }

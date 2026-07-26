@@ -8,6 +8,8 @@ import { parseJsonResponse } from '@/lib/safe-json'
 import {
   defaultProjectTypeForService,
   projectTypesForService,
+  serviceOptions,
+  type ServiceKey,
 } from '@/lib/service-profiles'
 import { useVendorChrome } from '@/components/vendor/VendorShell'
 
@@ -20,10 +22,13 @@ export default function NewProjectModal({
 }) {
   const router = useRouter()
   const { primaryService } = useVendorChrome()
-  const types = useMemo(() => projectTypesForService(primaryService), [primaryService])
+  const [service, setService] = useState<ServiceKey>(
+    () => (primaryService as ServiceKey) || 'PHOTOGRAPHY',
+  )
+  const types = useMemo(() => projectTypesForService(service), [service])
   const [saving, setSaving] = useState(false)
   const [title, setTitle] = useState('')
-  const [type, setType] = useState(defaultProjectTypeForService(primaryService))
+  const [type, setType] = useState(() => defaultProjectTypeForService(primaryService))
   const [eventDate, setEventDate] = useState('')
   const [location, setLocation] = useState('')
   const [clientName, setClientName] = useState('')
@@ -31,8 +36,14 @@ export default function NewProjectModal({
   const [clientPhone, setClientPhone] = useState('')
 
   useEffect(() => {
-    setType(defaultProjectTypeForService(primaryService))
+    const next = (primaryService as ServiceKey) || 'PHOTOGRAPHY'
+    setService(next)
+    setType(defaultProjectTypeForService(next))
   }, [primaryService])
+
+  useEffect(() => {
+    setType(defaultProjectTypeForService(service))
+  }, [service])
 
   const grouped = useMemo(() => {
     const groups: Record<string, typeof types> = {}
@@ -52,6 +63,7 @@ export default function NewProjectModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
+          service,
           type,
           eventDate: eventDate || undefined,
           location: location || undefined,
@@ -68,9 +80,9 @@ export default function NewProjectModal({
       }>(res)
       if (!ok || !data.project?.slug) throw new Error(data.error || 'Failed to create project')
       if (data.clientReused) {
-        toast.success('Booking ready — your booking link is ready to share')
+        toast.success('Booking ready with your existing client — share the link now')
       } else if (data.invitation?.url) {
-        toast.success('Booking created — your booking link is ready to share')
+        toast.success('Booking created — share the secure link with your client now')
       } else {
         toast.success('Booking created — opening it now')
       }
@@ -96,7 +108,7 @@ export default function NewProjectModal({
 
         <div className="min-w-0 space-y-4 p-4 sm:p-5">
           <div className="min-w-0">
-            <label className="label">Project name <span className="text-red-400">*</span></label>
+            <label className="label">Booking name <span className="text-red-400">*</span></label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -107,7 +119,23 @@ export default function NewProjectModal({
           </div>
 
           <div className="min-w-0">
-            <label className="label">Project type</label>
+            <label className="label">Service for this booking <span className="text-red-400">*</span></label>
+            <select
+              value={service}
+              onChange={e => setService(e.target.value as ServiceKey)}
+              className="w-full max-w-full"
+            >
+              {serviceOptions().map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-forest-500">
+              Questionnaire and prep follow this booking — not only your Settings default.
+            </p>
+          </div>
+
+          <div className="min-w-0">
+            <label className="label">Job type</label>
             <select value={type} onChange={e => setType(e.target.value)} className="w-full max-w-full">
               {Object.entries(grouped).map(([group, items]) => (
                 <optgroup key={group} label={group}>
@@ -153,7 +181,7 @@ export default function NewProjectModal({
           </div>
 
           <button onClick={create} disabled={!canCreate || saving} className="btn-primary w-full">
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} className="mr-2" />Create project</>}
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} className="mr-2" />Create booking</>}
           </button>
         </div>
       </div>

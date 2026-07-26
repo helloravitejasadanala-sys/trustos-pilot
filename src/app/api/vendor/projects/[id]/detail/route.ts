@@ -57,6 +57,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     }
     const { invitations, ...rest } = project
 
+    const bookingService = (project as { service?: string }).service || vendor.primaryService
+
     return NextResponse.json({
       project: {
         ...rest,
@@ -66,8 +68,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
           primaryService: vendor.primaryService,
         },
       },
-      primaryService: vendor.primaryService,
-      // Card checkout needs Stripe Elements. Hide the Stripe option until ready.
+      /** Prefer per-booking service; Settings primary is fallback only. */
+      primaryService: bookingService,
       stripeConfigured: isStripeCheckoutReady(),
     })
   } catch (err: any) {

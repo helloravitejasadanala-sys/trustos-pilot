@@ -100,7 +100,9 @@ model Project {
   title       String
   slug        String        @unique
   status      ProjectStatus @default(LEAD)
-  completedAt DateTime?     @map("completed_at")
+  completedAt DateTime?      @map("completed_at")
+  /// Per-booking service (questionnaire / tabs). Defaults from vendor primary.
+  service     PrimaryService @default(PHOTOGRAPHY)
   type        ProjectType
   eventDate   DateTime?     @map("event_date")
   location    String?

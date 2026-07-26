@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
+import { missingRequiredDetails } from '@/lib/questionnaire-complete'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,15 +37,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (complete) {
-      const filled = Object.values(answers as Record<string, unknown>).some(v => {
-        if (v == null) return false
-        if (typeof v === 'string') return v.trim().length > 0
-        if (typeof v === 'number') return !Number.isNaN(v)
-        return true
-      })
-      if (!filled) {
+      const missing = missingRequiredDetails(answers as Record<string, unknown>)
+      if (missing.length > 0) {
         return NextResponse.json(
-          { error: 'Add at least one detail before confirming.' },
+          {
+            error:
+              'Please fill contact name, phone, date, and venue before confirming — so your vendor can prepare.',
+            missing,
+          },
           { status: 400 },
         )
       }

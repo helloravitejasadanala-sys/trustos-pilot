@@ -53,8 +53,9 @@ export async function resolveOrCreateClient(opts: {
       select: { id: true },
     })
     const orphanHere = await vendorOwnsOrphanClient(opts.vendorUserId, existing.id)
+    const invitedHere = await vendorKnowsClientEmail(opts.vendorId, email)
 
-    if (linkedHere || orphanHere) {
+    if (linkedHere || orphanHere || invitedHere) {
       const client = await prisma.user.update({
         where: { id: existing.id },
         data: {
@@ -105,7 +106,18 @@ export async function vendorOwnsOrphanClient(vendorUserId: string, clientId: str
   return logs.some(l => (l.metadata as { clientId?: string } | null)?.clientId === clientId)
 }
 
-/** Project-linked or directory-orphan client owned by this vendor. */
+/** True when this vendor invited or booked this client email (soft ownership). */
+export async function vendorKnowsClientEmail(vendorId: string, email: string) {
+  const normalized = email.trim().toLowerCase()
+  if (!normalized) return false
+  const hit = await prisma.invitation.findFirst({
+    where: { vendorId, email: normalized },
+    select: { id: true },
+  })
+  return !!hit
+}
+
+/** Project-linked, invite-linked, or directory-orphan client owned by this vendor. */
 export async function resolveVendorClient(clientId: string, vendorUserId: string) {
   const vendor = await prisma.vendorProfile.findUnique({ where: { userId: vendorUserId } })
   if (!vendor) throw Object.assign(new Error('Vendor profile not found'), { status: 404 })
@@ -119,9 +131,25 @@ export async function resolveVendorClient(clientId: string, vendorUserId: string
   const orphan = await prisma.user.findFirst({
     where: { id: clientId, role: 'CLIENT' },
   })
-  if (orphan && (await vendorOwnsOrphanClient(vendorUserId, clientId))) {
+  if (!orphan) throw Object.assign(new Error('Client not found'), { status: 404 })
+
+  if (await vendorOwnsOrphanClient(vendorUserId, clientId)) {
+    return { vendor, client: orphan }
+  }
+  if (await vendorKnowsClientEmail(vendor.id, orphan.email)) {
     return { vendor, client: orphan }
   }
 
   throw Object.assign(new Error('Client not found'), { status: 404 })
+}
+
+/** Record directory ownership so orphan clients remain editable after create. */
+export async function noteClientDirectory(vendorUserId: string, clientId: string, email: string, reused: boolean) {
+  await prisma.activityLog.create({
+    data: {
+      userId: vendorUserId,
+      event: 'client_directory_added',
+      metadata: { clientId, email, reused },
+    },
+  })
 }

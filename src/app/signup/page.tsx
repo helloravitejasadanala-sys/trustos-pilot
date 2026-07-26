@@ -86,7 +86,8 @@ export default function SignUpPage() {
             Create your workspace
           </h1>
           <p className="mt-2 text-sm text-ink-400">
-            This won’t take long. Under a minute. No card. We’ll keep each booking on one link so you’re not chasing WhatsApp.
+            This form <strong className="font-medium text-ink-600">is</strong> your workspace — one step, under a minute, no card.
+            Already signed up? Sign in instead. We’ll keep each booking on one link so you’re not chasing WhatsApp.
           </p>
         </div>
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PREFIX, isTestProject } from '@/lib/vendor-phase1'
+import { getServiceProfile, isServiceKey } from '@/lib/service-profiles'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,8 @@ async function ownedProject(slug: string, userId: string) {
 
 const patchSchema = z.object({
   title: z.string().min(1).optional(),
+  service: z.string().optional(),
+  type: z.string().optional(),
   eventDate: z.string().nullable().optional(),
   location: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -56,10 +59,35 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       notes = base || null
     }
 
+    if (body.service !== undefined && !isServiceKey(body.service)) {
+      return NextResponse.json({ error: 'Invalid service for this booking' }, { status: 400 })
+    }
+    // Keep service/type editable early; after quote accept, avoid silent journey breakage.
+    const locked = ['PROPOSAL_ACCEPTED', 'CONTRACT_SENT', 'CONTRACT_SIGNED', 'DEPOSIT_PAID', 'FULLY_PAID', 'COMPLETED'].includes(project.status)
+    if (locked && (body.service !== undefined || body.type !== undefined)) {
+      return NextResponse.json(
+        { error: 'Service can’t change after the quote is accepted. Start a new booking for a different service.' },
+        { status: 400 },
+      )
+    }
+    if (body.service || body.type) {
+      const nextService = body.service || (project as { service?: string }).service || 'PHOTOGRAPHY'
+      const nextType = body.type || project.type
+      const profile = getServiceProfile(nextService)
+      if (!profile.allowedProjectTypes.includes(nextType)) {
+        return NextResponse.json(
+          { error: `Pick a job type that matches ${profile.label}.` },
+          { status: 400 },
+        )
+      }
+    }
+
     const updated = await prisma.project.update({
       where: { id: project.id },
       data: {
         title: body.title,
+        service: body.service as any,
+        type: body.type as any,
         eventDate: body.eventDate === null ? null : body.eventDate ? new Date(body.eventDate) : undefined,
         location: body.location === null ? null : body.location,
         notes: (body.notes !== undefined || body.archive || body.unarchive) ? notes : undefined,

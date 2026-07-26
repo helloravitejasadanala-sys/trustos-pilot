@@ -41,7 +41,15 @@ export default function ProjectsPage() {
 
   return (
     <PageLayout>
-      <PageHeader title="Projects" />
+      <PageHeader
+        title="Projects"
+        description="Create bookings, assign clients, and open any job."
+        actions={
+          <button type="button" className="btn btn-forest shrink-0" onClick={openNewProject}>
+            ＋ New booking
+          </button>
+        }
+      />
 
       {/* Toolbar: segmented tabs + search */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">

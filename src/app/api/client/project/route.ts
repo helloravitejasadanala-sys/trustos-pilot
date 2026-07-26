@@ -22,6 +22,7 @@ export async function GET() {
         title: true,
         status: true,
         type: true,
+        service: true,
         eventDate: true,
         location: true,
         vendor: {

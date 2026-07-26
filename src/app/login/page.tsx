@@ -65,7 +65,7 @@ export default function LoginPage() {
     <AuthLayout
       brandName={PRODUCT_NAME}
       brandBadge={PRODUCT_BADGE}
-      nav={[{ href: '/signup', label: 'Create workspace' }]}
+      nav={[{ href: '/signup', label: 'Sign up' }]}
     >
       <AuthCard>
         <div className="mb-8 text-center">
@@ -73,7 +73,7 @@ export default function LoginPage() {
             Sign in to your workspace
           </h1>
           <p className="mt-2 text-sm text-ink-400">
-            Photographers, livestream, makeup &amp; DJs — and TrustOS HQ
+            Already created a workspace? Sign in here. New? Create one free — no invite needed.
           </p>
         </div>
 
@@ -125,7 +125,12 @@ export default function LoginPage() {
                 className="h-4 w-4 rounded border-[color:var(--line)] text-forest-700 focus:ring-0 accent-[color:var(--forest)]"
                 style={{ minHeight: 'auto' }}
               />
-              Remember me
+              <span>
+                Remember me
+                <span className="block text-[11px] text-[color:var(--faint)]">
+                  {remember ? 'Stay signed in for 7 days' : 'Sign out when you close the browser'}
+                </span>
+              </span>
             </label>
             <Link href="/forgot-password" className="text-sm font-medium text-forest-700 hover:text-forest-900">
               Forgot password?

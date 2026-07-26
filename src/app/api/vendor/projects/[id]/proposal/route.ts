@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { trackEvent } from '@/lib/analytics'
-import { isStripeConfigured, normalizePaymentMethod } from '@/lib/stripe-config'
+import { isStripeCheckoutReady, normalizePaymentMethod } from '@/lib/stripe-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,9 +35,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const method = normalizePaymentMethod(b.method)
     const free = method === 'free'
 
-    if (method === 'stripe' && !isStripeConfigured()) {
+    // Card checkout stays off until Elements are wired (STRIPE_CHECKOUT_ENABLED).
+    if (method === 'stripe' && !isStripeCheckoutReady()) {
       return NextResponse.json(
-        { error: 'Card payments aren’t set up yet. Choose Manual or Free collaboration.' },
+        { error: 'Online card payment is not available in this pilot yet. Choose Manual transfer or Free collaboration.' },
         { status: 400 }
       )
     }

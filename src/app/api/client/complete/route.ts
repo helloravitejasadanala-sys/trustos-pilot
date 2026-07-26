@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
  * Client confirms receipt of deliverables.
  *
  * Source of truth:
- * - Deliverables exist as File rows with type "gallery"
+ * - Deliverables exist as File rows with type "gallery" or "recording"
  * - Approval is recorded as an Approval row (not project status, not Review)
  * - Vendor "service completed" is independent (project.status COMPLETED)
  */

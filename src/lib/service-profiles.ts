@@ -325,6 +325,14 @@ export function getServiceProfile(service?: string | null): ServiceProfile {
   return SERVICE_PROFILES.PHOTOGRAPHY
 }
 
+/** Booking service wins; workspace primary is the fallback for older rows. */
+export function resolveBookingService(
+  projectService?: string | null,
+  vendorPrimary?: string | null,
+): ServiceKey {
+  return getServiceProfile(projectService || vendorPrimary).key
+}
+
 export function serviceOptions(): Array<{ value: ServiceKey; label: string; description: string }> {
   return SERVICE_KEYS.map(key => ({
     value: key,

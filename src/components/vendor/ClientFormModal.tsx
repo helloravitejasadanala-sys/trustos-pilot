@@ -34,8 +34,11 @@ export default function ClientFormModal({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
       if (initial?.id) toast.success('Client updated')
-      else if (data.reused) toast.success('Using existing client — details updated where needed')
-      else toast.success('Client created')
+      else if (data.reused) {
+        toast.success(data.message || 'Using existing client — create a booking when you’re ready')
+      } else {
+        toast.success(data.message || 'Client added — create a booking with them next')
+      }
       onSaved(data.client)
       onClose()
     } catch (e: any) {

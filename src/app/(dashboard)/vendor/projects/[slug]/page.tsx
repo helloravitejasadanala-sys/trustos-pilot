@@ -22,14 +22,19 @@ import {
 import { projectTypeLabel } from '@/lib/project-types'
 import {
   allDetailFieldsForService,
+  defaultProjectTypeForService,
   deliveryLockedCopy,
   deliveryOpenCopy,
   getServiceProfile,
   journeyStagesForService,
   prepFieldLabels,
   prepSaveLabel,
+  projectTypesForService,
+  resolveBookingService,
+  serviceOptions,
   vendorTabLabel,
   vendorTabsForService,
+  type ServiceKey,
 } from '@/lib/service-profiles'
 import { humanizeActivityEvent } from '@/lib/activity-labels'
 import { normalizePaymentMethod } from '@/lib/stripe-config'
@@ -95,9 +100,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     const p = detailJson.data.project
     setProject(p)
     setPrimaryService(
-      detailJson.data.primaryService
-      || p.vendor?.primaryService
-      || 'PHOTOGRAPHY',
+      resolveBookingService(
+        p.service || detailJson.data.primaryService,
+        p.vendor?.primaryService,
+      ),
     )
     setStripeConfigured(!!detailJson.data.stripeConfigured)
     const clientJson = await parseJsonResponse<{ clients?: any[] }>(clientRes)
@@ -509,6 +515,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         </span>
         <div className="min-w-0 flex-1 basis-[min(100%,12rem)]">
           <div className="mb-1 flex flex-wrap items-center gap-2">
+            <span className="chip" style={{ background: 'var(--forest-soft, #e8f2f0)', color: 'var(--forest)' }}>
+              {serviceProfile.label}
+            </span>
             <span className="chip" style={{ background: 'var(--gold-soft)', color: '#7a4a1e' }}>{typeLabel}</span>
             <span className="num" style={{ fontSize: 12, color: 'var(--muted)' }}>
               Stage {stageNum} of {stageOf}
@@ -764,6 +773,35 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 )}
               </div>
             </div>
+
+            {/* Per-booking service — changeable until quote is accepted */}
+            {!['PROPOSAL_ACCEPTED', 'CONTRACT_SENT', 'CONTRACT_SIGNED', 'DEPOSIT_PAID', 'FULLY_PAID', 'COMPLETED', 'CANCELLED'].includes(project.status) && (
+              <div className="panel" style={{ padding: 16, maxWidth: 520 }}>
+                <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Service for this booking</div>
+                <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--muted)' }}>
+                  Photography today, livestream tomorrow — each booking can be different. Prep and the client questionnaire follow this choice.
+                </p>
+                <select
+                  value={primaryService}
+                  className="w-full max-w-full"
+                  onChange={e => {
+                    const next = e.target.value as ServiceKey
+                    const nextType = projectTypesForService(next).some(t => t.value === project.type)
+                      ? project.type
+                      : defaultProjectTypeForService(next)
+                    run('service', async () => {
+                      await patchProject({ service: next, type: nextType })
+                      toast.success(`This booking is now ${getServiceProfile(next).label}`)
+                      await load()
+                    })
+                  }}
+                >
+                  {serviceOptions().map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Client questionnaire answers */}
             <div>
