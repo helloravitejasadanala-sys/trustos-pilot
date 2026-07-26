@@ -15,6 +15,7 @@ export function ClientPortalLayout({
   title,
   stepLabel,
   progressPct = 0,
+  showProgress = true,
 }: {
   children: ReactNode
   className?: string
@@ -27,6 +28,8 @@ export function ClientPortalLayout({
   stepLabel?: string
   /** 0–100 lime progress fill in the forest header. */
   progressPct?: number
+  /** Hide the progress bar (e.g. completed booking) while keeping stepLabel. */
+  showProgress?: boolean
 }) {
   if (centered) {
     return (
@@ -138,32 +141,34 @@ export function ClientPortalLayout({
                 <div className="num" style={{ fontSize: 13, color: 'rgba(255,255,255,.75)' }}>
                   {stepLabel}
                 </div>
-                <div
-                  role="progressbar"
-                  aria-valuenow={Math.round(progressPct)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={stepLabel}
-                  style={{
-                    width: '100%',
-                    maxWidth: 200,
-                    height: 6,
-                    borderRadius: 3,
-                    background: 'rgba(255,255,255,.18)',
-                    overflow: 'hidden',
-                    marginTop: 7,
-                  }}
-                  className="sm:!ml-auto"
-                >
-                  <i
+                {showProgress ? (
+                  <div
+                    role="progressbar"
+                    aria-valuenow={Math.round(progressPct)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={stepLabel}
                     style={{
-                      display: 'block',
-                      height: '100%',
-                      width: `${Math.min(100, Math.max(0, progressPct))}%`,
-                      background: 'var(--lime)',
+                      width: '100%',
+                      maxWidth: 200,
+                      height: 6,
+                      borderRadius: 3,
+                      background: 'rgba(255,255,255,.18)',
+                      overflow: 'hidden',
+                      marginTop: 7,
                     }}
-                  />
-                </div>
+                    className="sm:!ml-auto"
+                  >
+                    <i
+                      style={{
+                        display: 'block',
+                        height: '100%',
+                        width: `${Math.min(100, Math.max(0, progressPct))}%`,
+                        background: 'var(--lime)',
+                      }}
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

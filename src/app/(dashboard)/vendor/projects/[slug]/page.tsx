@@ -43,6 +43,7 @@ import { humanizeActivityEvent } from '@/lib/activity-labels'
 import { normalizePaymentMethod } from '@/lib/stripe-config'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
+import { useVisiblePoll } from '@/hooks/useVisiblePoll'
 import { parseVendorWorkspaceTab } from '@/lib/vendor-workspace'
 import { declaredPaymentMethodLabel } from '@/lib/payment-declare'
 
@@ -186,6 +187,10 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
 
   const projectId = project?.id as string | undefined
   const clientLabel = project?.client?.name || 'your client'
+  const slugRef = useRef(params.slug)
+  const tabRef = useRef(tab)
+  slugRef.current = params.slug
+  tabRef.current = tab
 
   useMessagePoll({
     enabled: state === 'ready' && tab === 'Chat' && !!projectId,
@@ -211,6 +216,35 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
       toast(`New message from ${from}${preview ? `: ${preview}` : ''}`, { id: 'vendor-msg-poll' })
       playMessageChime()
       if (projectId) markSeen(projectId)
+    },
+  })
+
+  // Soft detail refresh for payment declare / signed agreement / files — not a full
+  // load() (that would stomp Prep/Money draft fields and re-fetch clients).
+  // Visible-only, 8s; Chat messages stay owned by useMessagePoll (5s).
+  useVisiblePoll({
+    enabled: state === 'ready',
+    intervalMs: 8000,
+    tick: async () => {
+      const slug = slugRef.current
+      const res = await fetch(`/api/vendor/projects/${slug}/detail`)
+      const detailJson = await parseJsonResponse<{
+        project?: any
+        stripeConfigured?: boolean
+        code?: string
+      }>(res)
+      if (!detailJson.ok || !detailJson.data.project) return
+      const p = detailJson.data.project
+      setStripeConfigured(!!detailJson.data.stripeConfigured)
+      setProject((prev: any) => {
+        if (!prev) return p
+        const keepChat =
+          tabRef.current === 'Chat' && Array.isArray(prev.messages)
+        return {
+          ...p,
+          messages: keepChat ? prev.messages : (p.messages ?? prev.messages),
+        }
+      })
     },
   })
 

@@ -124,7 +124,7 @@ export default function ProjectsPage() {
         />
       ) : (
         <div
-          className="panel overflow-hidden"
+          className="panel overflow-visible"
           style={{ padding: 0 }}
         >
           <div className="divide-y" style={{ borderColor: 'var(--line-soft)' }}>

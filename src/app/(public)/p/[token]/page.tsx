@@ -13,6 +13,7 @@ import {
 import { ClientPortalLayout } from '@/components/layout'
 import TypingPreview from '@/components/ui/TypingPreview'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
+import { useVisiblePoll } from '@/hooks/useVisiblePoll'
 import {
   DECLARED_PAYMENT_OPTIONS,
   declaredPaymentMethodLabel,
@@ -156,6 +157,42 @@ export default function ClientJourney({ params }: { params: { token: string } })
     })()
     return () => { cancelled = true }
   }, [params.token])
+
+  // Soft state poll: project + payment only (not questionnaire/proposal/contract GETs).
+  // Visible-only, 8s — messages stay on useMessagePoll at 5s.
+  useVisiblePoll({
+    enabled: state === 'ready',
+    intervalMs: 8000,
+    tick: async () => {
+      const [project, payment] = await Promise.all([
+        fetch('/api/client/project', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+        fetch('/api/client/payment', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+      ])
+      if (!project.ok || !(project.data as any).project) return
+      const p = (project.data as any).project
+      setD(prev => {
+        if (!prev) return prev
+        const nextPayment = payment.ok
+          ? (payment.data as any).payment ?? null
+          : prev.payment
+        // Project embeds proposal — promote so a new quote appears without a third GET.
+        const nextProposal = p.proposal
+          ? { ...(prev.proposal || {}), ...p.proposal }
+          : prev.proposal
+        let nextContract = prev.contract
+        if (p.contract?.signedAt && prev.contract) {
+          nextContract = { ...prev.contract, signedAt: p.contract.signedAt }
+        }
+        return {
+          ...prev,
+          project: p,
+          payment: nextPayment,
+          proposal: nextProposal,
+          contract: nextContract,
+        }
+      })
+    },
+  })
 
   if (state === 'loading') {
     return (
@@ -316,8 +353,9 @@ export default function ClientJourney({ params }: { params: { token: string } })
       brandLetter={vendorInitial}
       forLine={`Your event with ${vendorName}`}
       title={projectTitle}
-      stepLabel={nextLabel}
+      stepLabel={clientClosed ? 'Complete' : nextLabel}
       progressPct={clientClosed ? 100 : progressPct}
+      showProgress={!clientClosed}
     >
       <div className="flex min-w-0 flex-col gap-4" style={{ maxWidth: 640, margin: '0 auto' }}>
         {bookingLine ? (
@@ -326,46 +364,93 @@ export default function ClientJourney({ params }: { params: { token: string } })
           </p>
         ) : null}
 
-        {/* After review: thank-you + files + messages only — no payment/waiting/delivery UI. */}
+        {/* After review: deliverable hero → warm line → quiet thank-you → quieter messages. */}
         {clientClosed ? (
           <>
-            <div className="panel" style={{ padding: 18 }}>
-              <div className="kicker" style={{ color: 'var(--success)', marginBottom: 8 }}>Finished</div>
-              <p className="serif" style={{ fontSize: 22, margin: '0 0 8px', color: 'var(--ink)', lineHeight: 1.15 }}>
-                You&apos;re all done
-              </p>
-              <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
-                Thanks for your feedback
-                {project.review?.overall ? ` (${project.review.overall}/5)` : ''}.
-                This booking is complete on your side — nothing more to do here.
-              </p>
-            </div>
-
-            {fileLinks.length > 0 && (
-              <div className="panel" style={{ padding: 18 }}>
-                <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>
+            {fileLinks.length > 0 ? (
+              <div className="panel" style={{ padding: 20 }}>
+                <div className="kicker" style={{ color: 'var(--forest)', marginBottom: 8 }}>
                   {filesLabel}
                 </div>
-                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
-                  {fileLinks.map((f: any) => (
-                    <li key={f.id}>
-                      <a
-                        href={f.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ fontSize: 14, color: 'var(--forest)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                <p className="serif" style={{ fontSize: 24, margin: '0 0 16px', color: 'var(--ink)', lineHeight: 1.15 }}>
+                  Your files from {vendorName}
+                </p>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                  {fileLinks.map((f: any, i: number) => (
+                    <li
+                      key={f.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        padding: '12px 0',
+                        borderTop: i === 0 ? undefined : '1px solid var(--line-soft)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 600,
+                          color: 'var(--ink)',
+                          overflowWrap: 'anywhere',
+                          minWidth: 0,
+                          flex: '1 1 140px',
+                        }}
                       >
-                        {f.name}
-                      </a>
+                        {f.name || 'File'}
+                      </span>
+                      <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <a
+                          href={f.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-forest"
+                          style={{ minHeight: 40, padding: '0 14px', fontSize: 13, textDecoration: 'none' }}
+                        >
+                          Open
+                        </a>
+                        <a
+                          href={f.url}
+                          download={f.name || true}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn"
+                          style={{
+                            minHeight: 40,
+                            padding: '0 14px',
+                            fontSize: 13,
+                            textDecoration: 'none',
+                            background: 'var(--canvas-2)',
+                            border: '1px solid var(--line)',
+                            color: 'var(--ink)',
+                          }}
+                        >
+                          Download
+                        </a>
+                      </span>
                     </li>
                   ))}
                 </ul>
               </div>
-            )}
+            ) : null}
 
-            <ClientMessages vendorName={vendorName} />
+            <p style={{ margin: 0, fontSize: 15, color: 'var(--ink)', lineHeight: 1.45 }}>
+              {fileLinks.length > 0
+                ? `${vendorName} shared these with you — keep them somewhere safe.`
+                : `${vendorName} has wrapped up this booking with you.`}
+            </p>
 
-            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
+              Thanks for your feedback
+              {project.review?.overall ? ` (${project.review.overall}/5)` : ''}.
+              Nothing more to do on this link.
+            </p>
+
+            <ClientMessages vendorName={vendorName} quiet />
+
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--faint)' }}>
               <HelpCircle size={13} />
               Need anything? Message {vendorName} above
               {project.vendor.phone ? `, or call ${project.vendor.phone}` : ''}.
@@ -992,7 +1077,7 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
   )
 }
 
-function ClientMessages({ vendorName }: { vendorName: string }) {
+function ClientMessages({ vendorName, quiet = false }: { vendorName: string; quiet?: boolean }) {
   const [messages, setMessages] = useState<any[]>([])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -1081,7 +1166,7 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
 
   if (!loaded) {
     return (
-      <div className="panel" style={{ padding: 18 }} aria-busy="true">
+      <div className="panel" style={{ padding: quiet ? 14 : 18 }} aria-busy="true">
         <div className="h-4 w-40 animate-pulse rounded mb-3" style={{ background: 'var(--line)' }} />
         <div className="h-16 w-3/4 animate-pulse rounded-xl mb-2" style={{ background: 'var(--line)' }} />
         <div className="h-16 w-1/2 animate-pulse rounded-xl ml-auto" style={{ background: 'var(--line)' }} />
@@ -1090,14 +1175,40 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
   }
 
   return (
-    <div>
-      <div style={{ font: 'var(--t-h2)', marginBottom: 12 }}>Messages · {vendorName}</div>
-      <div className="panel" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div className="space-y-3.5 max-h-64 overflow-y-auto" aria-live="polite" role="log">
+    <div style={quiet ? { opacity: 0.92 } : undefined}>
+      <div
+        style={{
+          font: quiet ? undefined : 'var(--t-h2)',
+          fontSize: quiet ? 13 : undefined,
+          fontWeight: quiet ? 600 : undefined,
+          color: quiet ? 'var(--muted)' : undefined,
+          marginBottom: quiet ? 8 : 12,
+        }}
+      >
+        {quiet ? `Message ${vendorName}` : `Messages · ${vendorName}`}
+      </div>
+      <div
+        className="panel"
+        style={{
+          padding: quiet ? 14 : 18,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: quiet ? 10 : 14,
+          background: quiet ? 'var(--canvas-2)' : undefined,
+          borderColor: quiet ? 'var(--line-soft)' : undefined,
+        }}
+      >
+        <div
+          className={`space-y-3.5 overflow-y-auto ${quiet ? 'max-h-44' : 'max-h-64'}`}
+          aria-live="polite"
+          role="log"
+        >
           {messages.length === 0 ? (
-            <div className="empty" style={{ padding: '24px 8px' }}>
-              <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
-                Quiet for now — message {vendorName} anytime.
+            <div className="empty" style={{ padding: quiet ? '12px 4px' : '24px 8px' }}>
+              <p style={{ margin: 0, fontSize: quiet ? 12.5 : 13.5, color: 'var(--muted)' }}>
+                {quiet
+                  ? `Still need something? Message ${vendorName} anytime.`
+                  : `Quiet for now — message ${vendorName} anytime.`}
               </p>
             </div>
           ) : messages.map(m => {
