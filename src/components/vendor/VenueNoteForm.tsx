@@ -143,6 +143,8 @@ export default function VenueNoteForm({
     )
   }
 
+  const venueLabel = (location || '').trim()
+
   if (saved) {
     const lines = noteSummary(saved)
     return (
@@ -153,7 +155,7 @@ export default function VenueNoteForm({
             <div>
               <div style={{ font: 'var(--t-h2)', fontSize: 15 }}>Venue note · Saved</div>
               <p style={{ margin: '2px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-                Your notes for {location.trim()} — shown when you book here again.
+                Your notes for {venueLabel} — shown when you book here again.
               </p>
             </div>
           </div>
@@ -196,7 +198,7 @@ export default function VenueNoteForm({
               <div style={{ font: 'var(--t-h2)', fontSize: 15 }}>Venue note</div>
             </div>
             <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-              Optional — capture what you want to remember about {location.trim()} for your next visit.
+              Optional — capture what you want to remember about {venueLabel} for your next visit.
             </p>
           </div>
           <button
