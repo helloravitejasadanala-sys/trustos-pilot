@@ -56,7 +56,7 @@ export default function ProjectsPage() {
         title="Projects"
         description="Create bookings, assign clients, and open any job."
         actions={
-          <button type="button" className="btn btn-forest shrink-0" onClick={openNewProject}>
+          <button type="button" className="btn btn-forest shrink-0" onClick={() => openNewProject()}>
             ＋ New booking
           </button>
         }
@@ -117,7 +117,7 @@ export default function ProjectsPage() {
             ? 'When you’re ready, create a booking and share one secure link with your client.'
             : 'Finished bookings you archive will rest here — peaceful and out of the way.'}
           action={tab === 'active' ? (
-            <button type="button" className="btn btn-forest" onClick={openNewProject}>
+            <button type="button" className="btn btn-forest" onClick={() => openNewProject()}>
               ＋ New booking
             </button>
           ) : undefined}

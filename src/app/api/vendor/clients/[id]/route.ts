@@ -19,6 +19,45 @@ const patchSchema = z.object({
   unarchive: z.boolean().optional(),
 })
 
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const user = await requireAuth(['VENDOR'])
+    const { vendor, client } = await vendorClient(params.id, user.id)
+    const projects = await prisma.project.findMany({
+      where: { clientId: client.id, vendorId: vendor.id },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        eventDate: true,
+        location: true,
+        service: true,
+        type: true,
+        updatedAt: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    return NextResponse.json({
+      client: {
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        phone: client.phone,
+        archived: client.avatar === 'archived',
+        createdAt: client.createdAt,
+        projects: projects.map(p => ({
+          ...p,
+          eventDate: p.eventDate,
+        })),
+      },
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Error' }, { status: error.status || 500 })
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = await requireAuth(['VENDOR'])

@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast'
 import { ActionMenu, ActionMenuItem, StatusChip } from '@/components/ui'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ProjectDeleteDialog } from '@/components/vendor/ProjectDeleteDialog'
+import { RenameBookingDialog } from '@/components/vendor/RenameBookingDialog'
 import { hasUnread } from '@/lib/unread'
 import {
   isArchivedProject,
@@ -16,7 +17,7 @@ import {
   type VendorProject,
 } from '@/lib/vendor-phase1'
 
-type ConfirmKind = 'archive' | 'cancel' | 'delete' | null
+type ConfirmKind = 'archive' | 'cancel' | 'delete' | 'rename' | null
 
 export default function ProjectCard({
   project,
@@ -126,13 +127,10 @@ export default function ProjectCard({
               <ActionMenuItem
                 onSelect={() => {
                   close()
-                  const title = prompt('Project title', project.title)
-                  if (title?.trim()) {
-                    void patch({ title: title.trim() }, 'Project updated')
-                  }
+                  setConfirm('rename')
                 }}
               >
-                Edit
+                Rename
               </ActionMenuItem>
               {!archived && (
                 <ActionMenuItem
@@ -179,6 +177,14 @@ export default function ProjectCard({
           )}
         </ActionMenu>
       </div>
+
+      <RenameBookingDialog
+        open={confirm === 'rename'}
+        initialTitle={project.title}
+        busy={busy}
+        onClose={() => !busy && setConfirm(null)}
+        onSave={title => patch({ title }, 'Booking name updated')}
+      />
 
       <ConfirmDialog
         open={confirm === 'archive'}

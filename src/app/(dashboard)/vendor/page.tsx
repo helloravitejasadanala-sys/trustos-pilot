@@ -354,7 +354,7 @@ export default function TodayPage() {
           <p className="mb-5 max-w-[48ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
             Add the client and job. You’ll get a secure link to share — they don’t need an account.
           </p>
-          <button type="button" className="btn btn-lime" onClick={openNewProject}>
+          <button type="button" className="btn btn-lime" onClick={() => openNewProject()}>
             ＋ New booking
           </button>
         </div>
@@ -399,13 +399,22 @@ export default function TodayPage() {
             <p className="mt-1 text-[12.5px] text-[color:var(--muted)]">{summaryBits.join(' · ')}</p>
           )}
         </div>
-        <span
+        <Link
+          href="/vendor/settings"
           className="marker"
-          style={{ width: 40, height: 40, borderRadius: 11, background: 'var(--forest)', color: '#fff' }}
-          aria-hidden
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 11,
+            background: 'var(--forest)',
+            color: '#fff',
+            textDecoration: 'none',
+          }}
+          aria-label="Open settings"
+          title="Settings"
         >
           {avatarLetter || '·'}
-        </span>
+        </Link>
       </div>
 
       {/* Desktop greeting */}

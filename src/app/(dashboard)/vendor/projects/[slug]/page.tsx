@@ -56,6 +56,7 @@ import { parseVendorWorkspaceTab } from '@/lib/vendor-workspace'
 import { declaredPaymentMethodLabel } from '@/lib/payment-declare'
 import PaymentScheduleEditor from '@/components/vendor/PaymentScheduleEditor'
 import { ProjectDeleteDialog } from '@/components/vendor/ProjectDeleteDialog'
+import { RenameBookingDialog } from '@/components/vendor/RenameBookingDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type Tab = string
@@ -90,7 +91,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const [state, setState] = useState<'loading' | 'error' | 'transient' | 'ready'>('loading')
   const [busy, setBusy] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [confirmKind, setConfirmKind] = useState<'archive' | 'cancel' | 'delete' | null>(null)
+  const [confirmKind, setConfirmKind] = useState<'archive' | 'cancel' | 'delete' | 'rename' | null>(null)
   const [clientModal, setClientModal] = useState(false)
   const [primaryService, setPrimaryService] = useState('PHOTOGRAPHY')
   const [quote, setQuote] = useState({ method: 'manual', title: '', price: '', deposit: '', description: '' })
@@ -748,12 +749,9 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             type="button"
             className="btn btn-ghost"
             style={{ minHeight: 38 }}
-            onClick={() => {
-              const title = prompt('Project title', project.title)
-              if (title?.trim()) run('edit', async () => { await patchProject({ title: title.trim() }); toast.success('Booking name updated') })
-            }}
+            onClick={() => setConfirmKind('rename')}
           >
-            Edit
+            Rename
           </button>
           <ActionMenu
             closeKey={tab}
@@ -1966,6 +1964,20 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           }}
         />
       )}
+
+      <RenameBookingDialog
+        open={confirmKind === 'rename'}
+        initialTitle={project.title}
+        busy={busy === 'edit'}
+        onClose={() => !busy && setConfirmKind(null)}
+        onSave={title =>
+          run('edit', async () => {
+            await patchProject({ title })
+            toast.success('Booking name updated')
+            setConfirmKind(null)
+          })
+        }
+      />
 
       <ConfirmDialog
         open={confirmKind === 'archive'}

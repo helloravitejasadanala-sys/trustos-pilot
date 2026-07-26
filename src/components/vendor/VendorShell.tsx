@@ -39,8 +39,14 @@ const NAV = [
   { href: '/vendor/settings', label: 'Settings', icon: Settings },
 ] as const
 
+export type NewBookingPrefill = {
+  clientName?: string
+  clientEmail?: string
+  clientPhone?: string | null
+}
+
 type VendorChromeValue = {
-  openNewProject: () => void
+  openNewProject: (prefill?: NewBookingPrefill) => void
   businessName: string
   userName: string
   primaryService: string
@@ -96,6 +102,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [firstUnreadSlug, setFirstUnreadSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [createPrefill, setCreatePrefill] = useState<NewBookingPrefill | null>(null)
   const [projectsList, setProjectsList] = useState<VendorProject[] | null>(null)
   const [projectsListAt, setProjectsListAt] = useState(0)
   const lastInboundRef = useRef<Record<string, string>>({})
@@ -254,7 +261,10 @@ export default function VendorShell({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- publishProjectsList is stable
   }, [publishProjectsList])
 
-  const openNewProject = useCallback(() => setShowCreate(true), [])
+  const openNewProject = useCallback((prefill?: NewBookingPrefill) => {
+    setCreatePrefill(prefill ?? null)
+    setShowCreate(true)
+  }, [])
 
   const chrome = useMemo(
     () => ({
@@ -344,7 +354,11 @@ export default function VendorShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="vendor-rail__profile">
+          <Link
+            href="/vendor/settings"
+            className="vendor-rail__profile"
+            aria-label="Open settings"
+          >
             <span className="vendor-rail__avatar" aria-hidden>
               {showIdentity ? profileInitial : '·'}
             </span>
@@ -352,7 +366,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
               {showIdentity && profileLabel ? (
                 <>
                   <div className="truncate text-[13px] font-semibold">{profileLabel}</div>
-                  <div className="text-[12px] text-[color:var(--on-dark-mut)]">Owner</div>
+                  <div className="text-[12px] text-[color:var(--on-dark-mut)]">Settings</div>
                 </>
               ) : (
                 <>
@@ -362,7 +376,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
                 </>
               )}
             </div>
-          </div>
+          </Link>
         </aside>
 
         <div className="vendor-main">
@@ -386,7 +400,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               className="btn btn-forest"
-              onClick={openNewProject}
+              onClick={() => openNewProject()}
             >
               ＋ New booking
             </button>
@@ -401,7 +415,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
                 type="button"
                 className="btn btn-forest"
                 style={{ minHeight: 40, padding: '0 14px', fontSize: 13 }}
-                onClick={openNewProject}
+                onClick={() => openNewProject()}
               >
                 ＋ New booking
               </button>
@@ -438,8 +452,15 @@ export default function VendorShell({ children }: { children: ReactNode }) {
 
       {showCreate && (
         <NewProjectModal
-          onClose={() => setShowCreate(false)}
-          onCreated={() => setShowCreate(false)}
+          prefill={createPrefill ?? undefined}
+          onClose={() => {
+            setShowCreate(false)
+            setCreatePrefill(null)
+          }}
+          onCreated={() => {
+            setShowCreate(false)
+            setCreatePrefill(null)
+          }}
         />
       )}
     </VendorChromeContext.Provider>

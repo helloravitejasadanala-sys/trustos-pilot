@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Mail, Phone } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Mail, Phone, Plus, Search } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
 import { ActionMenu, ActionMenuItem, CardSkeleton, EmptyState } from '@/components/ui'
@@ -20,6 +21,7 @@ type ClientRow = {
 }
 
 export default function ClientsPage() {
+  const router = useRouter()
   const [clients, setClients] = useState<ClientRow[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -84,18 +86,24 @@ export default function ClientsPage() {
         <div className="inline-flex rounded-lg border border-forest-100 bg-white p-0.5 self-start">
           {(['active', 'archived'] as const).map(key => (
             <button key={key} onClick={() => setTab(key)}
-              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${tab === key ? 'bg-forest-950 text-paper-50' : 'text-forest-600 hover:text-forest-900'}`}>
+              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${tab === key ? 'bg-forest-950 text-paper-50' : 'text-forest-600 hover:text-forest-950'}`}>
               {key === 'active' ? 'Active' : 'Archived'}
             </button>
           ))}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0">
+          <Search
+            size={15}
+            aria-hidden
+            className="pointer-events-none absolute left-3.5 top-1/2 z-[1] -translate-y-1/2 text-[color:var(--faint)]"
+          />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search by name or email"
             aria-label="Search clients by name or email"
-            className="w-full !min-h-0 py-2.5 px-3.5 text-[13px]"
+            className="w-full border-[color:var(--line)] bg-[color:var(--panel)] text-[13px] text-[color:var(--ink)]"
+            style={{ paddingLeft: 40, minHeight: 40, paddingTop: 8, paddingBottom: 8 }}
           />
         </div>
       </div>
@@ -115,24 +123,32 @@ export default function ClientsPage() {
           {filtered.map(client => (
             <div
               key={client.id}
-              className="relative z-0 flex items-start justify-between gap-3 px-4 py-3 hover:bg-forest-50/40 transition-colors"
+              className="relative z-0 flex items-stretch gap-2 px-2 py-1 hover:bg-forest-50/40 transition-colors sm:px-3"
             >
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-forest-950">{client.name}</p>
+              <button
+                type="button"
+                className="min-w-0 flex-1 rounded-lg px-2 py-3 text-left"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                onClick={() => router.push(`/vendor/clients/${client.id}`)}
+              >
+                <p className="text-[14px] font-semibold text-forest-950 truncate">{client.name}</p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[13px] text-[color:var(--muted)]">
-                  <span className="inline-flex items-center gap-1"><Mail size={12} />{client.email}</span>
-                  {client.phone && <span className="inline-flex items-center gap-1"><Phone size={12} />{client.phone}</span>}
-                  <span>{client.projects.length} project{client.projects.length === 1 ? '' : 's'}</span>
+                  <span className="inline-flex items-center gap-1 min-w-0">
+                    <Mail size={12} className="shrink-0" />
+                    <span className="truncate">{client.email}</span>
+                  </span>
+                  {client.phone && (
+                    <span className="inline-flex items-center gap-1">
+                      <Phone size={12} />
+                      {client.phone}
+                    </span>
+                  )}
+                  <span>
+                    {client.projects.length} booking{client.projects.length === 1 ? '' : 's'}
+                  </span>
                 </div>
-                {client.projects.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                    {client.projects.map(p => (
-                      <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="text-[13px] text-forest-700 hover:underline">{p.title}</Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="relative shrink-0">
+              </button>
+              <div className="relative shrink-0 self-center" onClick={e => e.stopPropagation()}>
                 <ActionMenu
                   closeKey={`${tab}:${query}`}
                   ariaLabel={`Actions for ${client.name}`}
@@ -141,6 +157,14 @@ export default function ClientsPage() {
                 >
                   {({ close }) => (
                     <>
+                      <ActionMenuItem
+                        onSelect={() => {
+                          close()
+                          router.push(`/vendor/clients/${client.id}`)
+                        }}
+                      >
+                        Open
+                      </ActionMenuItem>
                       <ActionMenuItem
                         onSelect={() => {
                           close()
@@ -190,7 +214,13 @@ export default function ClientsPage() {
       )}
 
       {modal?.mode === 'create' && <ClientFormModal onClose={() => setModal(null)} onSaved={load} />}
-      {modal?.mode === 'edit' && <ClientFormModal initial={{ id: modal.client.id, name: modal.client.name, email: modal.client.email, phone: modal.client.phone }} onClose={() => setModal(null)} onSaved={load} />}
+      {modal?.mode === 'edit' && (
+        <ClientFormModal
+          initial={{ id: modal.client.id, name: modal.client.name, email: modal.client.email, phone: modal.client.phone }}
+          onClose={() => setModal(null)}
+          onSaved={load}
+        />
+      )}
     </PageLayout>
   )
 }

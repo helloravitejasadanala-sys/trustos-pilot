@@ -11,15 +11,17 @@ import {
   serviceOptions,
   type ServiceKey,
 } from '@/lib/service-profiles'
-import { useVendorChrome } from '@/components/vendor/VendorShell'
+import { useVendorChrome, type NewBookingPrefill } from '@/components/vendor/VendorShell'
 import VenueMemoryPanel from '@/components/vendor/VenueMemoryPanel'
 
 export default function NewProjectModal({
   onClose,
   onCreated,
+  prefill,
 }: {
   onClose: () => void
   onCreated: () => void
+  prefill?: NewBookingPrefill
 }) {
   const router = useRouter()
   const { primaryService } = useVendorChrome()
@@ -34,9 +36,9 @@ export default function NewProjectModal({
   const [location, setLocation] = useState('')
   /** Set on Location blur only — drives venue memory lookup. */
   const [lookupLocation, setLookupLocation] = useState('')
-  const [clientName, setClientName] = useState('')
-  const [clientEmail, setClientEmail] = useState('')
-  const [clientPhone, setClientPhone] = useState('')
+  const [clientName, setClientName] = useState(() => prefill?.clientName?.trim() || '')
+  const [clientEmail, setClientEmail] = useState(() => prefill?.clientEmail?.trim() || '')
+  const [clientPhone, setClientPhone] = useState(() => prefill?.clientPhone?.trim() || '')
 
   useEffect(() => {
     const next = (primaryService as ServiceKey) || 'PHOTOGRAPHY'
