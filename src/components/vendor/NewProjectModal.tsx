@@ -12,6 +12,7 @@ import {
   type ServiceKey,
 } from '@/lib/service-profiles'
 import { useVendorChrome } from '@/components/vendor/VendorShell'
+import VenueMemoryPanel from '@/components/vendor/VenueMemoryPanel'
 
 export default function NewProjectModal({
   onClose,
@@ -31,6 +32,8 @@ export default function NewProjectModal({
   const [type, setType] = useState(() => defaultProjectTypeForService(primaryService))
   const [eventDate, setEventDate] = useState('')
   const [location, setLocation] = useState('')
+  /** Set on Location blur only — drives venue memory lookup. */
+  const [lookupLocation, setLookupLocation] = useState('')
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [clientPhone, setClientPhone] = useState('')
@@ -154,9 +157,17 @@ export default function NewProjectModal({
             </div>
             <div className="min-w-0">
               <label className="label">Location</label>
-              <input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. City or venue" className="w-full max-w-full" />
+              <input
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                onBlur={() => setLookupLocation(location.trim())}
+                placeholder="e.g. City or venue"
+                className="w-full max-w-full"
+              />
             </div>
           </div>
+
+          <VenueMemoryPanel location={lookupLocation} city="" variant="modal" />
 
           <div className="min-w-0 space-y-4 rounded-xl border border-forest-100 bg-forest-50/40 p-3.5 sm:p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-forest-600">Client</p>

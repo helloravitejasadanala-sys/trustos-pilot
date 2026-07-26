@@ -10,6 +10,8 @@ import {
 import BackLink from '@/components/vendor/BackLink'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
 import ShareLink from '@/components/vendor/ShareLink'
+import VenueNoteForm from '@/components/vendor/VenueNoteForm'
+import VenueMemoryPanel from '@/components/vendor/VenueMemoryPanel'
 import { WorkspaceLayout, WorkspaceTabs } from '@/components/layout'
 import { hasUnread, markSeen } from '@/lib/unread'
 import { playMessageChime } from '@/lib/notify'
@@ -79,6 +81,8 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   // Preparation is edited as controlled state and saved with one button,
   // so values reliably persist and reload (no blur races / defaultValue drift).
   const [prep, setPrep] = useState({ eventDate: '', location: '', notes: '', moodboard: '' })
+  /** Prep location value used for venue memory lookup — set on blur / after load. */
+  const [prepLookupLocation, setPrepLookupLocation] = useState('')
   const [gallery, setGallery] = useState({ name: 'Files', url: '' })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   // Read the datetime-local's live DOM value at save time as a fallback:
@@ -115,12 +119,14 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       deposit: p.proposal ? String(p.proposal.depositAmount ?? p.proposal.deposit ?? '') : q.deposit,
       description: p.proposal?.description || q.description,
     }))
+    const nextLocation = p.location || ''
     setPrep({
       eventDate: p.eventDate ? new Date(p.eventDate).toISOString().slice(0, 16) : '',
-      location: p.location || '',
+      location: nextLocation,
       notes: (p.notes || '').replace(ARCHIVED_PREFIX, '').trim(),
       moodboard: (p.files || []).find((f: any) => f.type === 'moodboard')?.url || '',
     })
+    setPrepLookupLocation(nextLocation.trim())
     setState('ready')
   }
 
@@ -1247,8 +1253,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <input
                   value={prep.location}
                   onChange={e => setPrep(p => ({ ...p, location: e.target.value }))}
+                  onBlur={() => setPrepLookupLocation(prep.location.trim())}
                   placeholder={prepFieldLabels('location', primaryService).placeholder}
                 />
+                <VenueMemoryPanel location={prepLookupLocation} city="" variant="panel" />
               </div>
             )}
             {(prepFields.includes('moodboard') || prepFields.includes('music')) && (
@@ -1315,6 +1323,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                       : 'Mark service complete →'}
                 </button>
               </div>
+            )}
+            {!serviceProfile.features.showDelivery && project.status === 'COMPLETED' && (
+              <VenueNoteForm
+                projectId={project.id}
+                location={project.location || prep.location}
+              />
             )}
           </div>
         </div>
@@ -1423,6 +1437,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                   Archive booking
                 </button>
               </div>
+
+              {project.status === 'COMPLETED' && (
+                <VenueNoteForm
+                  projectId={project.id}
+                  location={project.location || prep.location}
+                />
+              )}
             </>
           )}
         </div>
