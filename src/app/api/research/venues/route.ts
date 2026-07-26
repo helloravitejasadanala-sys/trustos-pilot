@@ -12,7 +12,7 @@ function trim(v: unknown, max = 500) {
  * Public venue research intake.
  * Supports:
  * - Classic admin archive form (name/address/city/country + contributor)
- * - Fast experience survey (under a minute — venue + role + issues + optional tip)
+ * - Fast experience survey (under a minute — venue + role + issues; tip optional)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -56,12 +56,7 @@ export async function POST(req: NextRequest) {
       if (issues.length === 0) {
         return NextResponse.json({ error: 'Pick at least one real issue.' }, { status: 400 })
       }
-      if (advice.length < 12) {
-        return NextResponse.json(
-          { error: 'Add one concrete tip for the next vendor.' },
-          { status: 400 },
-        )
-      }
+      // Tip is optional — venue + role + issues already carry the signal.
 
       answers.form = 'venue_experience'
       answers.survey_version = '2.1.0'

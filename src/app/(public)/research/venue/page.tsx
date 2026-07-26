@@ -37,7 +37,6 @@ const PROGRESS_NOTES = [
 ] as const
 
 const TIP_LIMIT = 200
-const TIP_MIN = 12
 const MAX_ISSUES = 3
 const TOTAL_STEPS = 3
 
@@ -85,11 +84,9 @@ export default function VenueResearchFormPage() {
     if (n === 2 && !form.role) return 'Tap what you do.'
     if (n === 2 && form.issues.length === 0) return 'Tap at least one real issue.'
     if (n === 3) {
-      const tip = form.tip.trim()
-      if (tip.length < TIP_MIN) {
-        return 'Add one concrete tip (gate, power, ban, quiet room…).'
+      if (form.tip.trim().length > TIP_LIMIT) {
+        return `Keep the tip under ${TIP_LIMIT} characters.`
       }
-      if (tip.length > TIP_LIMIT) return `Keep the tip under ${TIP_LIMIT} characters.`
     }
     return null
   }
@@ -339,7 +336,7 @@ export default function VenueResearchFormPage() {
                   One tip for the next vendor
                 </legend>
                 <p className="mt-2 text-[13.5px] text-ink-500">
-                  Required. Be specific — this is the data that helps them grow.
+                  Optional. A short note helps — skip if you have nothing useful.
                 </p>
                 <label className="label mt-5" htmlFor="tip">
                   Tip
@@ -386,7 +383,7 @@ export default function VenueResearchFormPage() {
               onClick={goNext}
               disabled={submitting}
             >
-              {step === TOTAL_STEPS ? (submitting ? 'Sending…' : 'Send tip') : 'Continue'}
+              {step === TOTAL_STEPS ? (submitting ? 'Sending…' : 'Submit') : 'Continue'}
             </button>
           </div>
         </div>

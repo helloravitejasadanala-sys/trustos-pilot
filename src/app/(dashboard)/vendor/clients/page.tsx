@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Plus, MoreVertical, Mail, Phone } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -26,6 +26,7 @@ export default function ClientsPage() {
   const [tab, setTab] = useState<'active' | 'archived'>('active')
   const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; client: ClientRow } | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
 
   async function load() {
     setLoading(true)
@@ -39,6 +40,30 @@ export default function ClientsPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    setMenu(null)
+  }, [tab, query])
+
+  useEffect(() => {
+    if (!menu) return
+    function onPointerDown(e: MouseEvent | TouchEvent) {
+      const t = e.target as Node
+      if (menuRef.current?.contains(t)) return
+      setMenu(null)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenu(null)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('touchstart', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('touchstart', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menu])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -136,12 +161,18 @@ export default function ClientsPage() {
                   </div>
                 )}
               </div>
-              <div className="relative shrink-0">
+              <div
+                className="relative shrink-0"
+                ref={menuOpen ? menuRef : undefined}
+              >
                 <button
                   type="button"
                   aria-expanded={menuOpen}
                   aria-haspopup="menu"
-                  onClick={() => setMenu(menuOpen ? null : client.id)}
+                  onClick={e => {
+                    e.stopPropagation()
+                    setMenu(menuOpen ? null : client.id)
+                  }}
                   className="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--muted)] hover:bg-forest-100 hover:text-forest-700"
                 >
                   <MoreVertical size={17} />
