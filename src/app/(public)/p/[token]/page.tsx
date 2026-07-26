@@ -63,11 +63,11 @@ function clientSteps(service?: string | null) {
 }
 
 export default function ClientJourney({ params }: { params: { token: string } }) {
-  const [state, setState] = useState<'loading' | 'invalid' | 'session' | 'ready'>('loading')
+  const [state, setState] = useState<'loading' | 'invalid' | 'session' | 'transient' | 'ready'>('loading')
   const [d, setD] = useState<Data | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function refresh(): Promise<'ok' | 'session' | 'error'> {
+  async function refresh(): Promise<'ok' | 'session' | 'transient' | 'error'> {
     const [project, questionnaire, proposal, contract, payment] = await Promise.all([
       fetch('/api/client/project', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
       fetch('/api/client/questionnaire', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
@@ -76,7 +76,14 @@ export default function ClientJourney({ params }: { params: { token: string } })
       fetch('/api/client/payment', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
     ])
     if (!project.ok) {
-      return project.status === 401 ? 'session' : 'error'
+      if (project.status === 401) return 'session'
+      if (
+        project.status >= 500 ||
+        (project.data as any)?.code === 'DB_UNAVAILABLE'
+      ) {
+        return 'transient'
+      }
+      return 'error'
     }
     if (!(project.data as any).project) return 'error'
     setD({
@@ -98,24 +105,38 @@ export default function ClientJourney({ params }: { params: { token: string } })
         return
       }
 
-      async function exchange(): Promise<boolean> {
+      async function exchange(): Promise<'ok' | 'invalid' | 'transient'> {
         const res = await fetch(`/api/client/invite/${encodeURIComponent(token)}`, {
           method: 'POST',
           credentials: 'same-origin',
         })
         const parsed = await parseJsonResponse(res)
-        return parsed.ok
+        if (parsed.ok) return 'ok'
+        if (
+          res.status >= 500 ||
+          (parsed.data as any)?.code === 'DB_UNAVAILABLE'
+        ) {
+          return 'transient'
+        }
+        return 'invalid'
       }
 
       try {
         // One retry covers Neon/Vercel cold-start blips that otherwise surface as "invalid".
         let invited = await exchange()
-        if (!invited) {
+        if (invited !== 'ok') {
           await new Promise(r => setTimeout(r, 600))
           invited = await exchange()
         }
         if (cancelled) return
-        if (!invited) { setState('invalid'); return }
+        if (invited === 'transient') {
+          setState('transient')
+          return
+        }
+        if (invited === 'invalid') {
+          setState('invalid')
+          return
+        }
 
         let result = await refresh()
         if (result === 'session') {
@@ -127,9 +148,10 @@ export default function ClientJourney({ params }: { params: { token: string } })
         if (cancelled) return
         if (result === 'ok') setState('ready')
         else if (result === 'session') setState('session')
+        else if (result === 'transient') setState('transient')
         else setState('invalid')
       } catch {
-        if (!cancelled) setState('session')
+        if (!cancelled) setState('transient')
       }
     })()
     return () => { cancelled = true }
@@ -143,6 +165,32 @@ export default function ClientJourney({ params }: { params: { token: string } })
           <div className="h-4 w-3/4 animate-pulse rounded" style={{ background: 'var(--line)' }} />
           <div className="mt-6 h-40 w-full animate-pulse rounded-[var(--r-lg)]" style={{ background: 'var(--line)' }} />
           <div className="h-24 w-full animate-pulse rounded-[var(--r-lg)]" style={{ background: 'var(--line)' }} />
+        </div>
+      </ClientPortalLayout>
+    )
+  }
+
+  if (state === 'transient') {
+    return (
+      <ClientPortalLayout centered>
+        <div className="max-w-md text-center">
+          <div className="banner banner-error mb-4" style={{ justifyContent: 'center' }}>
+            Temporary problem
+          </div>
+          <h1 className="serif" style={{ fontSize: 28, margin: '0 0 10px', color: 'var(--ink)' }}>
+            Something went wrong
+          </h1>
+          <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
+            Please try again in a moment. Your booking is safe — this is a temporary connection issue, not a problem with your link.
+          </p>
+          <button
+            type="button"
+            className="btn btn-forest"
+            style={{ marginTop: 18, minHeight: 44 }}
+            onClick={() => window.location.reload()}
+          >
+            Try again
+          </button>
         </div>
       </ClientPortalLayout>
     )

@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
 import { isStripeCheckoutReady } from '@/lib/stripe-config'
+import { DB_UNAVAILABLE_USER_MESSAGE, isDbInfrastructureError } from '@/lib/db-errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,6 +74,20 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       stripeConfigured: isStripeCheckoutReady(),
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Error' }, { status: err.status || 500 })
+    if (err?.status === 401 || err?.status === 403) {
+      return NextResponse.json({ error: err.message || 'Unauthorized' }, { status: err.status })
+    }
+    if (isDbInfrastructureError(err)) {
+      console.error('[project detail] database unavailable:', err?.message || err)
+      return NextResponse.json(
+        { error: DB_UNAVAILABLE_USER_MESSAGE, code: 'DB_UNAVAILABLE' },
+        { status: 503 },
+      )
+    }
+    console.error('[project detail]', err?.message || err)
+    return NextResponse.json(
+      { error: DB_UNAVAILABLE_USER_MESSAGE },
+      { status: err.status || 500 },
+    )
   }
 }

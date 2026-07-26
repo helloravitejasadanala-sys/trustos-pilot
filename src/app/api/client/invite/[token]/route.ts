@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateInvitationToken, createClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
+import { DB_UNAVAILABLE_USER_MESSAGE, isDbInfrastructureError } from '@/lib/db-errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,9 +51,15 @@ export async function POST(
     return res
   } catch (error: any) {
     console.error('Client invite error:', error)
+    if (isDbInfrastructureError(error)) {
+      return NextResponse.json(
+        { error: DB_UNAVAILABLE_USER_MESSAGE, code: 'DB_UNAVAILABLE' },
+        { status: 503 },
+      )
+    }
     return NextResponse.json(
-      { error: error.message || 'Could not open invitation. Please try again.' },
-      { status: 500 }
+      { error: DB_UNAVAILABLE_USER_MESSAGE },
+      { status: 500 },
     )
   }
 }

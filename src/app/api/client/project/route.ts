@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
+import { DB_UNAVAILABLE_USER_MESSAGE, isDbInfrastructureError } from '@/lib/db-errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,9 +67,20 @@ export async function GET() {
 
     return NextResponse.json({ project })
   } catch (err: any) {
+    if (err?.status === 401) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (isDbInfrastructureError(err)) {
+      console.error('[client project] database unavailable:', err?.message || err)
+      return NextResponse.json(
+        { error: DB_UNAVAILABLE_USER_MESSAGE, code: 'DB_UNAVAILABLE' },
+        { status: 503 },
+      )
+    }
+    console.error('[client project]', err?.message || err)
     return NextResponse.json(
-      { error: err.status === 401 ? 'Unauthorized' : 'Something went wrong' },
-      { status: err.status ?? 500 }
+      { error: DB_UNAVAILABLE_USER_MESSAGE },
+      { status: 500 },
     )
   }
 }

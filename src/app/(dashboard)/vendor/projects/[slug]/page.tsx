@@ -74,7 +74,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const [project, setProject] = useState<any>(null)
   const [clients, setClients] = useState<any[]>([])
   const [tab, setTab] = useState<Tab>(() => parseVendorWorkspaceTab(searchParams.get('tab')) || 'Overview')
-  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading')
+  const [state, setState] = useState<'loading' | 'error' | 'transient' | 'ready'>('loading')
   const [busy, setBusy] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -132,8 +132,21 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
       primaryService?: string
       stripeConfigured?: boolean
       error?: string
+      code?: string
     }>(detail)
-    if (!detailJson.ok || !detailJson.data.project) { setState('error'); return }
+    if (!detailJson.ok || !detailJson.data.project) {
+      // Infra/DB failures must not look like "archived / wrong workspace".
+      if (
+        detail.status >= 500 ||
+        detailJson.data?.code === 'DB_UNAVAILABLE' ||
+        /something went wrong|try again|EMAXCONN|database/i.test(detailJson.data?.error || '')
+      ) {
+        setState('transient')
+        return
+      }
+      setState('error')
+      return
+    }
     const p = detailJson.data.project
     setProject(p)
     setPrimaryService(
@@ -416,6 +429,23 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           </div>
           <div className="action animate-pulse" style={{ minHeight: 160 }} />
           <div className="panel animate-pulse" style={{ minHeight: 100, padding: 20 }} />
+        </div>
+      </WorkspaceLayout>
+    )
+  }
+
+  if (state === 'transient') {
+    return (
+      <WorkspaceLayout width="narrow">
+        <div className="banner banner-error mb-4">Temporary problem</div>
+        <div className="empty panel">
+          <p className="serif" style={{ fontSize: 22, margin: '0 0 8px' }}>Something went wrong</p>
+          <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 16px', maxWidth: '42ch', marginInline: 'auto' }}>
+            Please try again in a moment. Your bookings are safe — this is a temporary connection issue, not a problem with this booking.
+          </p>
+          <button type="button" className="btn btn-forest" onClick={() => { setState('loading'); load() }}>
+            Try again
+          </button>
         </div>
       </WorkspaceLayout>
     )
