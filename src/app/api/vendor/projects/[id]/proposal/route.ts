@@ -50,12 +50,55 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const price = free ? 0 : Number(b.price)
     const deposit = free ? 0 : Number(b.deposit ?? b.depositAmount ?? 0)
 
+    // Money locked once a COMPLETED deposit (or free settlement) exists.
+    const moneyLockedPay = await prisma.payment.findFirst({
+      where: {
+        projectId: project.id,
+        status: 'COMPLETED',
+        OR: [{ type: 'DEPOSIT' }, { method: 'free' }],
+      },
+      select: { id: true },
+    })
+    const moneyLocked = !!moneyLockedPay
+
+    if (moneyLocked) {
+      const existing = await prisma.proposal.findUnique({ where: { projectId: project.id } })
+      if (!existing) {
+        return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+      }
+      const existingPrice = Number(existing.price)
+      const existingDeposit = Number(existing.depositAmount ?? (existing as { deposit?: unknown }).deposit ?? 0)
+      const existingMethod = normalizePaymentMethod(project.paymentMethod)
+      if (price !== existingPrice || deposit !== existingDeposit || method !== existingMethod) {
+        return NextResponse.json(
+          { error: "This quote's amounts are locked because a deposit has been paid." },
+          { status: 400 },
+        )
+      }
+      await prisma.proposal.update({
+        where: { projectId: project.id },
+        data: {
+          title: b.title,
+          description: b.description ?? '',
+        },
+      })
+      await trackEvent('proposal_sent', {
+        projectId: project.id,
+        userId: user.id,
+        metadata: { method: existingMethod, price: existingPrice, deposit: existingDeposit, moneyLocked: true },
+      })
+      return NextResponse.json({ ok: true, method: existingMethod, free: existingMethod === 'free', moneyLocked: true })
+    }
+
     if (!free) {
       if (isNaN(price) || price <= 0) {
         return NextResponse.json({ error: 'Enter a valid total amount' }, { status: 400 })
       }
-      if (isNaN(deposit) || deposit < 0) {
-        return NextResponse.json({ error: 'Enter a valid deposit amount' }, { status: 400 })
+      if (isNaN(deposit) || deposit <= 0) {
+        return NextResponse.json(
+          { error: 'Enter a deposit greater than £0, or choose Free collaboration.' },
+          { status: 400 },
+        )
       }
       if (deposit > price) {
         return NextResponse.json({ error: 'The deposit cannot be more than the total' }, { status: 400 })
@@ -75,9 +118,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         expiryDate: b.expiryDays ? new Date(Date.now() + b.expiryDays * 86400000) : null,
       },
     })
+
+    // Never rewind status after money is settled (or terminal).
+    const preMoneyLane = new Set([
+      'LEAD',
+      'QUESTIONNAIRE_SENT',
+      'QUESTIONNAIRE_COMPLETED',
+      'PROPOSAL_SENT',
+      'PROPOSAL_ACCEPTED',
+      'CONTRACT_SENT',
+      'CONTRACT_SIGNED',
+    ])
     await prisma.project.update({
       where: { id: project.id },
-      data: { status: 'PROPOSAL_SENT', paymentMethod: method },
+      data: preMoneyLane.has(project.status)
+        ? { status: 'PROPOSAL_SENT', paymentMethod: method }
+        : { paymentMethod: method },
     })
     await trackEvent('proposal_sent', { projectId: project.id, userId: user.id, metadata: { method, price, deposit } })
     return NextResponse.json({ ok: true, method, free })

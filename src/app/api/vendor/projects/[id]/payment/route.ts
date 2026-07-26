@@ -34,6 +34,30 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const amount = type === 'DEPOSIT' ? deposit : Math.max(0, price - deposit)
     const resolvedMethod = method || project.paymentMethod || 'manual'
 
+    // Full deposit (or deposit covering the total) means money is settled.
+    const depositCoversTotal = type === 'DEPOSIT' && deposit > 0 && deposit >= price
+    const newStatus =
+      type === 'FINAL' || depositCoversTotal || price === 0 ? 'FULLY_PAID' : 'DEPOSIT_PAID'
+
+    // Already confirmed this type — do not create a second COMPLETED row.
+    const alreadyCompleted = await prisma.payment.findFirst({
+      where: { projectId: project.id, type, status: 'COMPLETED' },
+      select: { id: true },
+    })
+    if (alreadyCompleted) {
+      if (project.status !== newStatus && project.status !== 'COMPLETED' && project.status !== 'CANCELLED') {
+        await prisma.project.update({
+          where: { id: project.id },
+          data: { status: newStatus },
+        })
+      }
+      return NextResponse.json({
+        ok: true,
+        alreadyConfirmed: true,
+        status: project.status === 'COMPLETED' || project.status === 'CANCELLED' ? project.status : newStatus,
+      })
+    }
+
     // If the client already declared a manual payment (PENDING), confirm
     // that same row rather than creating a duplicate — so the breakdown
     // never double-counts and the audit trail stays clean.
@@ -59,10 +83,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       })
     }
 
-    // Full deposit (or deposit covering the total) means money is settled.
-    const depositCoversTotal = type === 'DEPOSIT' && deposit > 0 && deposit >= price
-    const newStatus =
-      type === 'FINAL' || depositCoversTotal || price === 0 ? 'FULLY_PAID' : 'DEPOSIT_PAID'
     await prisma.project.update({
       where: { id: project.id },
       data: { status: newStatus },

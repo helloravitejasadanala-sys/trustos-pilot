@@ -250,21 +250,28 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   async function sendQuote() {
     const free = quote.method === 'free'
     const price = Number(quote.price)
-    const deposit = Number(quote.deposit || 0)
+    const depositAmt = Number(quote.deposit || 0)
+    const locked = (project?.payments || []).some(
+      (p: any) => p.status === 'COMPLETED' && (p.type === 'DEPOSIT' || p.method === 'free'),
+    )
     if (!quote.title.trim()) return toast.error('Add a title for the quote')
-    if (!free) {
+    if (!free && !locked) {
       if (isNaN(price) || price <= 0) return toast.error('Enter a valid total amount')
-      if (isNaN(deposit) || deposit < 0) return toast.error('Enter a valid deposit amount')
-      if (deposit > price) return toast.error('The deposit cannot be more than the total')
+      if (isNaN(depositAmt) || depositAmt <= 0) {
+        return toast.error('Enter a deposit greater than £0, or choose Free collaboration.')
+      }
+      if (depositAmt > price) return toast.error('The deposit cannot be more than the total')
     }
     await post('proposal', {
       title: quote.title.trim(), description: quote.description,
-      price, deposit, method: quote.method,
+      price, deposit: depositAmt, method: quote.method,
     })
     toast.success(
       free
         ? 'Sent — your client will see this on their booking page'
-        : 'Quote sent — your client can review and accept it now',
+        : locked
+          ? 'Quote text updated — amounts stay locked'
+          : 'Quote sent — your client can review and accept it now',
     )
     await load()
   }
@@ -399,6 +406,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const deliveryApproved = hasDeliveryApproval(project)
   const method = normalizePaymentMethod(project.paymentMethod || quote.method)
   const deposit = (project.payments || []).find((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
+  /** Amounts locked after a COMPLETED deposit or free settlement. */
+  const moneyLocked = (project.payments || []).some(
+    (p: any) => p.status === 'COMPLETED' && (p.type === 'DEPOSIT' || p.method === 'free'),
+  )
   const test = isTestProject(project)
   const detailsDone = !!project.questionnaire?.completedAt
   // After agreement: Stripe wait = client; manual/free = vendor confirms receipt.
@@ -460,11 +471,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   const priceNum = Number(quote.price)
   const depositNum = Number(quote.deposit || 0)
   const quoteError =
+    moneyLocked ? null :
     quote.method === 'free' ? null :
     !quote.price ? null :
     isNaN(priceNum) || priceNum <= 0 ? 'Enter a valid total' :
-    isNaN(depositNum) || depositNum < 0 ? 'Enter a valid deposit' :
-    depositNum > priceNum ? 'Deposit cannot exceed the total' : null
+    isNaN(depositNum) || depositNum <= 0
+      ? 'Enter a deposit greater than £0, or choose Free collaboration.'
+      : depositNum > priceNum ? 'Deposit cannot exceed the total' : null
 
   const clientName = project.client?.name || 'your client'
   const typeLabel = projectTypeLabel(project.type)
@@ -1025,7 +1038,8 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <button
                   key={m.v}
                   type="button"
-                  onClick={() => setQuote(q => ({ ...q, method: m.v }))}
+                  disabled={moneyLocked}
+                  onClick={() => { if (!moneyLocked) setQuote(q => ({ ...q, method: m.v })) }}
                   className={selected ? 'action-outline' : 'panel'}
                   style={{
                     display: 'block',
@@ -1034,7 +1048,8 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     padding: 16,
                     marginBottom: 10,
                     boxShadow: selected ? undefined : 'none',
-                    cursor: 'pointer',
+                    cursor: moneyLocked ? 'not-allowed' : 'pointer',
+                    opacity: moneyLocked && !selected ? 0.55 : 1,
                   }}
                 >
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -1082,10 +1097,17 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
           <div className="panel" style={{ padding: 18 }}>
             <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Quote</div>
             <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)', maxWidth: '48ch' }}>
-              {project.proposal
-                ? 'Edit anything, then send again — your client sees the update on their booking page.'
-                : 'Treat this as a first draft: title, total, what’s included. Edit freely — they only see it when you send.'}
+              {moneyLocked
+                ? 'You can still update the title and what’s included. Amounts stay as paid.'
+                : project.proposal
+                  ? 'Edit anything, then send again — your client sees the update on their booking page.'
+                  : 'Treat this as a first draft: title, total, what’s included. Edit freely — they only see it when you send.'}
             </p>
+            {moneyLocked && (
+              <div className="banner banner-error" style={{ marginBottom: 12 }}>
+                This quote&apos;s amounts are locked because a deposit has been paid.
+              </div>
+            )}
             <div className="grid gap-3">
               <div>
                 <label className="label">Quote title <span style={{ color: 'var(--coral)' }}>*</span></label>
@@ -1095,11 +1117,11 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label">Total (£) <span style={{ color: 'var(--coral)' }}>*</span></label>
-                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.price} onChange={e => setQuote(q => ({ ...q, price: e.target.value }))} placeholder="0.00" />
+                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.price} onChange={e => setQuote(q => ({ ...q, price: e.target.value }))} placeholder="0.00" disabled={moneyLocked} />
                   </div>
                   <div>
                     <label className="label">Deposit (£)</label>
-                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.deposit} onChange={e => setQuote(q => ({ ...q, deposit: e.target.value }))} placeholder="0.00" />
+                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.deposit} onChange={e => setQuote(q => ({ ...q, deposit: e.target.value }))} placeholder="0.00" disabled={moneyLocked} />
                   </div>
                 </div>
               )}
