@@ -4,10 +4,11 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import {
-  Loader2, Copy, Check, MoreVertical,
+  Loader2, Copy, Check,
   Send, FileText, Link as LinkIcon, MessageSquare,
   Eye, Gift,
 } from 'lucide-react'
+import { ActionMenu, ActionMenuItem } from '@/components/ui'
 import BackLink from '@/components/vendor/BackLink'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
 import ShareLink from '@/components/vendor/ShareLink'
@@ -89,7 +90,6 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const [state, setState] = useState<'loading' | 'error' | 'transient' | 'ready'>('loading')
   const [busy, setBusy] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [confirmKind, setConfirmKind] = useState<'archive' | 'cancel' | 'delete' | null>(null)
   const [clientModal, setClientModal] = useState(false)
   const [primaryService, setPrimaryService] = useState('PHOTOGRAPHY')
@@ -755,69 +755,58 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           >
             Edit
           </button>
-          <button
-            type="button"
-            onClick={() => setMenuOpen(v => !v)}
-            className="btn btn-ghost"
-            style={{ minHeight: 38, width: 38, padding: 0 }}
-            aria-label="More actions"
+          <ActionMenu
+            closeKey={tab}
+            disabled={!!busy}
+            ariaLabel="More actions"
+            triggerClassName="btn btn-ghost"
+            triggerStyle={{ minHeight: 38, width: 38, padding: 0 }}
           >
-            <MoreVertical size={17} />
-          </button>
-          {menuOpen && (
-            <div
-              className="panel absolute right-0 top-11 z-10 w-44 py-1 text-sm"
-              style={{ padding: '4px 0' }}
-            >
-              {archived ? (
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    void run('restore', restoreBooking)
-                  }}
-                >
-                  Restore
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    setConfirmKind('archive')
-                  }}
-                >
-                  Archive
-                </button>
-              )}
-              {project.status !== 'CANCELLED' && (
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    setConfirmKind('cancel')
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
-              {test && (
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left text-[color:var(--coral-deep)] hover:bg-[color:var(--coral-soft)]"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    setConfirmKind('delete')
-                  }}
-                >
-                  Delete test project
-                </button>
-              )}
-            </div>
-          )}
+            {({ close }) => (
+              <>
+                {archived ? (
+                  <ActionMenuItem
+                    onSelect={() => {
+                      close()
+                      void run('restore', restoreBooking)
+                    }}
+                  >
+                    Restore
+                  </ActionMenuItem>
+                ) : (
+                  <ActionMenuItem
+                    onSelect={() => {
+                      close()
+                      setConfirmKind('archive')
+                    }}
+                  >
+                    Archive
+                  </ActionMenuItem>
+                )}
+                {project.status !== 'CANCELLED' && (
+                  <ActionMenuItem
+                    onSelect={() => {
+                      close()
+                      setConfirmKind('cancel')
+                    }}
+                  >
+                    Cancel
+                  </ActionMenuItem>
+                )}
+                {test && (
+                  <ActionMenuItem
+                    tone="danger"
+                    onSelect={() => {
+                      close()
+                      setConfirmKind('delete')
+                    }}
+                  >
+                    Delete test project
+                  </ActionMenuItem>
+                )}
+              </>
+            )}
+          </ActionMenu>
         </div>
       </div>
 

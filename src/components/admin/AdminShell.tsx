@@ -14,7 +14,7 @@ import {
   Menu,
   X,
 } from 'lucide-react'
-import { ReactNode, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 type NavItem = {
@@ -68,6 +68,20 @@ function isActive(pathname: string, href: string, exact?: boolean) {
 export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+
+  // Mobile nav: same dismiss discipline as ActionMenu (route / Escape / outside).
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
 
   const nav = (
     <nav className="flex flex-col gap-4 px-2 py-3" aria-label="TrustOS HQ">

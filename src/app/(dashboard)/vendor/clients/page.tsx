@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Plus, MoreVertical, Mail, Phone } from 'lucide-react'
+import { Plus, Mail, Phone } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
-import { CardSkeleton, EmptyState } from '@/components/ui'
+import { ActionMenu, ActionMenuItem, CardSkeleton, EmptyState } from '@/components/ui'
 import { PageHeader, PageLayout } from '@/components/layout'
 import { isTestClient } from '@/lib/vendor-phase1'
 import { parseJsonResponse } from '@/lib/safe-json'
@@ -25,8 +25,6 @@ export default function ClientsPage() {
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<'active' | 'archived'>('active')
   const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; client: ClientRow } | null>(null)
-  const [menu, setMenu] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
 
   async function load() {
     setLoading(true)
@@ -40,30 +38,6 @@ export default function ClientsPage() {
   }
 
   useEffect(() => { load() }, [])
-
-  useEffect(() => {
-    setMenu(null)
-  }, [tab, query])
-
-  useEffect(() => {
-    if (!menu) return
-    function onPointerDown(e: MouseEvent | TouchEvent) {
-      const t = e.target as Node
-      if (menuRef.current?.contains(t)) return
-      setMenu(null)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenu(null)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('touchstart', onPointerDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('touchstart', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [menu])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -138,13 +112,10 @@ export default function ClientsPage() {
         />
       ) : (
         <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-visible">
-          {filtered.map((client, index) => {
-            const menuOpen = menu === client.id
-            const openUp = index >= filtered.length - 2
-            return (
+          {filtered.map(client => (
             <div
               key={client.id}
-              className={`flex items-start justify-between gap-3 px-4 py-3 hover:bg-forest-50/40 transition-colors ${menuOpen ? 'relative z-20' : 'relative z-0'}`}
+              className="relative z-0 flex items-start justify-between gap-3 px-4 py-3 hover:bg-forest-50/40 transition-colors"
             >
               <div className="min-w-0">
                 <p className="text-[14px] font-semibold text-forest-950">{client.name}</p>
@@ -161,65 +132,60 @@ export default function ClientsPage() {
                   </div>
                 )}
               </div>
-              <div
-                className="relative shrink-0"
-                ref={menuOpen ? menuRef : undefined}
-              >
-                <button
-                  type="button"
-                  aria-expanded={menuOpen}
-                  aria-haspopup="menu"
-                  onClick={e => {
-                    e.stopPropagation()
-                    setMenu(menuOpen ? null : client.id)
-                  }}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--muted)] hover:bg-forest-100 hover:text-forest-700"
+              <div className="relative shrink-0">
+                <ActionMenu
+                  closeKey={`${tab}:${query}`}
+                  ariaLabel={`Actions for ${client.name}`}
+                  triggerClassName="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--muted)] hover:bg-forest-100 hover:text-forest-700"
+                  triggerStyle={{}}
                 >
-                  <MoreVertical size={17} />
-                </button>
-                {menuOpen && (
-                  <div
-                    role="menu"
-                    className={`absolute right-0 w-44 rounded-xl border border-forest-100 bg-white shadow-elevated z-50 py-1 text-sm ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}
-                  >
-                    <button type="button" role="menuitem" className="w-full text-left px-3 py-2.5 hover:bg-forest-50" onClick={() => { setModal({ mode: 'edit', client }); setMenu(null) }}>Edit</button>
-                    {!client.archived && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="w-full text-left px-3 py-2.5 hover:bg-forest-50"
-                        onClick={() => {
-                          setMenu(null)
-                          patchClient(client.id, { archive: true }).catch(e => toast.error(e.message))
+                  {({ close }) => (
+                    <>
+                      <ActionMenuItem
+                        onSelect={() => {
+                          close()
+                          setModal({ mode: 'edit', client })
                         }}
                       >
-                        Archive
-                      </button>
-                    )}
-                    {client.archived && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="w-full text-left px-3 py-2.5 hover:bg-forest-50"
-                        onClick={() => {
-                          setMenu(null)
-                          patchClient(client.id, { unarchive: true }).catch(e => toast.error(e.message))
-                        }}
-                      >
-                        Restore
-                      </button>
-                    )}
-                    {isTestClient(client) && (
-                      <button type="button" role="menuitem" className="w-full text-left px-3 py-2.5 text-red-700 hover:bg-red-50" onClick={() => { setMenu(null); deleteClient(client) }}>
-                        Delete test client
-                      </button>
-                    )}
-                  </div>
-                )}
+                        Edit
+                      </ActionMenuItem>
+                      {!client.archived && (
+                        <ActionMenuItem
+                          onSelect={() => {
+                            close()
+                            patchClient(client.id, { archive: true }).catch(e => toast.error(e.message))
+                          }}
+                        >
+                          Archive
+                        </ActionMenuItem>
+                      )}
+                      {client.archived && (
+                        <ActionMenuItem
+                          onSelect={() => {
+                            close()
+                            patchClient(client.id, { unarchive: true }).catch(e => toast.error(e.message))
+                          }}
+                        >
+                          Restore
+                        </ActionMenuItem>
+                      )}
+                      {isTestClient(client) && (
+                        <ActionMenuItem
+                          tone="danger"
+                          onSelect={() => {
+                            close()
+                            deleteClient(client)
+                          }}
+                        >
+                          Delete test client
+                        </ActionMenuItem>
+                      )}
+                    </>
+                  )}
+                </ActionMenu>
               </div>
             </div>
-            )
-          })}
+          ))}
         </div>
       )}
 

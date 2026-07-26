@@ -1,11 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Calendar, MoreVertical } from 'lucide-react'
+import { useState } from 'react'
+import { Calendar } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { StatusChip } from '@/components/ui'
+import { ActionMenu, ActionMenuItem, StatusChip } from '@/components/ui'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ProjectDeleteDialog } from '@/components/vendor/ProjectDeleteDialog'
 import { hasUnread } from '@/lib/unread'
@@ -17,11 +16,6 @@ import {
   type VendorProject,
 } from '@/lib/vendor-phase1'
 
-const MENU_WIDTH = 176
-/** Enough room for Edit / Archive / Cancel / Delete test. */
-const MENU_EST_HEIGHT = 220
-
-type MenuPos = { top?: number; bottom?: number; left: number }
 type ConfirmKind = 'archive' | 'cancel' | 'delete' | null
 
 export default function ProjectCard({
@@ -31,73 +25,14 @@ export default function ProjectCard({
   project: VendorProject
   onChanged: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmKind>(null)
-  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
-  const [mounted, setMounted] = useState(false)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
   const na = projectNextAction(project.status)
   const archived = isArchivedProject(project)
   const test = isTestProject(project)
   const unread = hasUnread(project.id, project.lastClientMessageAt)
   const closed = isVendorClosedProject(project)
   const paymentCount = (project.payments || []).length
-
-  useEffect(() => { setMounted(true) }, [])
-
-  function placeMenu() {
-    const btn = buttonRef.current
-    if (!btn) return
-    const rect = btn.getBoundingClientRect()
-    const spaceBelow = window.innerHeight - rect.bottom
-    const openUp = spaceBelow < MENU_EST_HEIGHT && rect.top > spaceBelow
-    let left = rect.right - MENU_WIDTH
-    left = Math.max(8, Math.min(left, window.innerWidth - MENU_WIDTH - 8))
-    if (openUp) {
-      setMenuPos({ bottom: window.innerHeight - rect.top + 4, left })
-    } else {
-      setMenuPos({ top: rect.bottom + 4, left })
-    }
-  }
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setMenuPos(null)
-      return
-    }
-    placeMenu()
-    function onReposition() {
-      placeMenu()
-    }
-    window.addEventListener('resize', onReposition)
-    window.addEventListener('scroll', onReposition, true)
-    return () => {
-      window.removeEventListener('resize', onReposition)
-      window.removeEventListener('scroll', onReposition, true)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    function onPointerDown(e: MouseEvent | TouchEvent) {
-      const t = e.target as Node
-      if (buttonRef.current?.contains(t) || menuRef.current?.contains(t)) return
-      setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('touchstart', onPointerDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('touchstart', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
 
   async function patch(body: Record<string, unknown>, success: string) {
     if (busy) return
@@ -117,7 +52,6 @@ export default function ProjectCard({
       toast.error(e.message)
     } finally {
       setBusy(false)
-      setOpen(false)
     }
   }
 
@@ -135,104 +69,8 @@ export default function ProjectCard({
       toast.error(e.message)
     } finally {
       setBusy(false)
-      setOpen(false)
     }
   }
-
-  const menu = open && mounted && menuPos
-    ? createPortal(
-        <div
-          ref={menuRef}
-          role="menu"
-          className="py-1 text-sm shadow-[var(--sh)]"
-          style={{
-            position: 'fixed',
-            top: menuPos.top,
-            bottom: menuPos.bottom,
-            left: menuPos.left,
-            width: MENU_WIDTH,
-            zIndex: 80,
-            borderRadius: 'var(--r-lg)',
-            border: '1px solid var(--line)',
-            background: 'var(--panel)',
-            color: 'var(--ink)',
-          }}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            className="w-full px-3 py-2.5 text-left"
-            style={{ color: 'var(--ink)' }}
-            onClick={() => {
-              setOpen(false)
-              const title = prompt('Project title', project.title)
-              if (title?.trim()) {
-                void patch({ title: title.trim() }, 'Project updated')
-              }
-            }}
-          >
-            Edit
-          </button>
-          {!archived && (
-            <button
-              type="button"
-              role="menuitem"
-              className="w-full px-3 py-2.5 text-left"
-              style={{ color: 'var(--ink)' }}
-              onClick={() => {
-                setOpen(false)
-                setConfirm('archive')
-              }}
-            >
-              Archive
-            </button>
-          )}
-          {archived && (
-            <button
-              type="button"
-              role="menuitem"
-              className="w-full px-3 py-2.5 text-left"
-              style={{ color: 'var(--ink)' }}
-              onClick={() => {
-                setOpen(false)
-                void patch({ unarchive: true }, 'Booking restored to your active list')
-              }}
-            >
-              Restore
-            </button>
-          )}
-          {project.status !== 'CANCELLED' && (
-            <button
-              type="button"
-              role="menuitem"
-              className="w-full px-3 py-2.5 text-left"
-              style={{ color: 'var(--ink)' }}
-              onClick={() => {
-                setOpen(false)
-                setConfirm('cancel')
-              }}
-            >
-              Cancel
-            </button>
-          )}
-          {test && (
-            <button
-              type="button"
-              role="menuitem"
-              className="w-full px-3 py-2.5 text-left"
-              style={{ color: 'var(--coral-deep)' }}
-              onClick={() => {
-                setOpen(false)
-                setConfirm('delete')
-              }}
-            >
-              Delete test project
-            </button>
-          )}
-        </div>,
-        document.body,
-      )
-    : null
 
   return (
     <div
@@ -282,20 +120,64 @@ export default function ProjectCard({
         </p>
       </Link>
       <div className="relative shrink-0">
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => setOpen(v => !v)}
-          disabled={busy}
-          className="flex h-10 w-10 items-center justify-center rounded-[var(--r-md)]"
-          style={{ color: 'var(--muted)' }}
-          aria-label="Project actions"
-          aria-expanded={open}
-          aria-haspopup="menu"
-        >
-          <MoreVertical size={17} />
-        </button>
-        {menu}
+        <ActionMenu disabled={busy} ariaLabel="Project actions">
+          {({ close }) => (
+            <>
+              <ActionMenuItem
+                onSelect={() => {
+                  close()
+                  const title = prompt('Project title', project.title)
+                  if (title?.trim()) {
+                    void patch({ title: title.trim() }, 'Project updated')
+                  }
+                }}
+              >
+                Edit
+              </ActionMenuItem>
+              {!archived && (
+                <ActionMenuItem
+                  onSelect={() => {
+                    close()
+                    setConfirm('archive')
+                  }}
+                >
+                  Archive
+                </ActionMenuItem>
+              )}
+              {archived && (
+                <ActionMenuItem
+                  onSelect={() => {
+                    close()
+                    void patch({ unarchive: true }, 'Booking restored to your active list')
+                  }}
+                >
+                  Restore
+                </ActionMenuItem>
+              )}
+              {project.status !== 'CANCELLED' && (
+                <ActionMenuItem
+                  onSelect={() => {
+                    close()
+                    setConfirm('cancel')
+                  }}
+                >
+                  Cancel
+                </ActionMenuItem>
+              )}
+              {test && (
+                <ActionMenuItem
+                  tone="danger"
+                  onSelect={() => {
+                    close()
+                    setConfirm('delete')
+                  }}
+                >
+                  Delete test project
+                </ActionMenuItem>
+              )}
+            </>
+          )}
+        </ActionMenu>
       </div>
 
       <ConfirmDialog
