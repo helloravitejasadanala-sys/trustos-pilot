@@ -106,7 +106,7 @@ export default function AdminOverviewPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight text-ink-900">TrustOS HQ</h1>
-        <p className="mt-1 text-sm text-ink-500">What needs attention next — pilot, venues, and feedback.</p>
+        <p className="mt-1 text-sm text-ink-500">We know what matters next — pilots, venues, and feedback.</p>
       </div>
 
       {nextAction && (

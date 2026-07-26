@@ -182,16 +182,21 @@ export default function TodayPage() {
           Welcome{firstName ? `, ${firstName}` : ''}
         </h1>
         <p className="mt-1 mb-6 text-[color:var(--muted)]">
-          Your workspace is ready.
+          Everything is under control — start with your first booking.
         </p>
+        <ol className="mb-5 max-w-[42ch] space-y-1.5 text-[13.5px] text-[color:var(--muted)]" style={{ margin: '0 0 20px', paddingLeft: 18 }}>
+          <li><span style={{ color: 'var(--ink)', fontWeight: 600 }}>01</span> Create a booking</li>
+          <li><span style={{ color: 'var(--ink)', fontWeight: 600 }}>02</span> Share the secure link</li>
+          <li><span style={{ color: 'var(--ink)', fontWeight: 600 }}>03</span> Your client confirms — no account for them</li>
+        </ol>
         <div className="action" style={{ maxWidth: 620 }}>
           <div className="kicker mb-2.5 text-[color:var(--lime)]">Do this first</div>
-          <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>Create your first project</div>
+          <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>Create your first booking</div>
           <p className="mb-5 max-w-[48ch] text-[13.5px] text-[color:var(--on-dark-mut)]">
-            Add a client and job type. They get a secure link to confirm details.
+            Add the client and job. You’ll get a secure link to share — they don’t need an account.
           </p>
           <button type="button" className="btn btn-lime" onClick={openNewProject}>
-            ＋ New project
+            ＋ New booking
           </button>
         </div>
       </div>
@@ -202,11 +207,11 @@ export default function TodayPage() {
   const clientLabel = focusProject?.client?.name?.split(' ')[0] || focusProject?.title || 'your client'
   const focusEventDate = focusProject?.eventDate ? new Date(focusProject.eventDate) : null
 
-  let headline = 'You\'re all caught up'
+  let headline = 'No bookings need you today'
   let why = waitingClient.length > 0
-    ? `${waitingClient.length} job${waitingClient.length === 1 ? '' : 's'} waiting on clients.`
-    : 'Nothing needs you right now.'
-  let cta = 'Browse projects →'
+    ? `You’re waiting on ${waitingClient.length} client${waitingClient.length === 1 ? '' : 's'} — everything else is under control.`
+    : 'Everything is under control.'
+  let cta = 'Browse bookings →'
   let ctaHref = '/vendor/projects'
   let focusMarker = focusProject
 
@@ -266,7 +271,7 @@ export default function TodayPage() {
           {greetingLine}
         </h1>
         <p className="mt-1 text-[color:var(--muted)]">
-          {summaryBits.length > 0 ? summaryBits.join(' · ') : 'Nothing needs you right now'}
+          {summaryBits.length > 0 ? summaryBits.join(' · ') : 'No bookings need you right now'}
         </p>
       </div>
 

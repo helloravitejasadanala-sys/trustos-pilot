@@ -63,7 +63,7 @@ export default function SignUpPage() {
         }
         throw new Error(data.error || 'Could not create your account')
       }
-      toast.success(`Welcome to ${PRODUCT_NAME}, ${data.user?.name?.split(' ')[0] || 'there'}`)
+      toast.success('Your workspace is ready — create your first booking when you are.')
       router.push('/vendor')
       router.refresh()
     } catch (err: any) {
@@ -86,7 +86,7 @@ export default function SignUpPage() {
             Create your workspace
           </h1>
           <p className="mt-2 text-sm text-ink-400">
-            This creates your business workspace in under a minute. No card required.
+            This won’t take long. Under a minute. No card. We’ll keep each booking on one link so you’re not chasing WhatsApp.
           </p>
         </div>
 

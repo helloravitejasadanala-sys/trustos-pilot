@@ -93,13 +93,13 @@ export default function ProjectsPage() {
         <div className="space-y-2.5"><CardSkeleton /><CardSkeleton /></div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={tab === 'active' ? 'No projects yet' : 'No archived projects'}
+          title={tab === 'active' ? 'No bookings yet' : 'No archived bookings'}
           description={tab === 'active'
-            ? 'Create a project to invite your first client.'
-            : 'Archived projects will show here.'}
+            ? 'When you’re ready, create a booking and share one secure link with your client.'
+            : 'Finished bookings you archive will rest here — peaceful and out of the way.'}
           action={tab === 'active' ? (
             <button type="button" className="btn btn-forest" onClick={openNewProject}>
-              ＋ New project
+              ＋ New booking
             </button>
           ) : undefined}
         />

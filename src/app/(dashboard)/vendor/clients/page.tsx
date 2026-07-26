@@ -102,8 +102,8 @@ export default function ClientsPage() {
         <EmptyState
           title={tab === 'active' ? 'No clients yet' : 'No archived clients'}
           description={tab === 'active'
-            ? 'Add a client, or create a project with their email.'
-            : 'Archived clients will show here.'}
+            ? 'Add someone here, or create a booking with their email — they get a secure link, no account.'
+            : 'People you archive will rest here — out of the way until you need them.'}
           action={tab === 'active' ? <button className="btn-primary" onClick={() => setModal({ mode: 'create' })}>＋ New client</button> : undefined}
         />
       ) : (

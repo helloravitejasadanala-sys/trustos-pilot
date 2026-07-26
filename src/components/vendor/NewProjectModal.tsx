@@ -68,11 +68,11 @@ export default function NewProjectModal({
       }>(res)
       if (!ok || !data.project?.slug) throw new Error(data.error || 'Failed to create project')
       if (data.clientReused) {
-        toast.success('Project created with existing client — copy their secure link next')
+        toast.success('Booking ready — your booking link is ready to share')
       } else if (data.invitation?.url) {
-        toast.success('Project created — copy and send the secure client link')
+        toast.success('Booking created — your booking link is ready to share')
       } else {
-        toast.success('Project created — opening it now')
+        toast.success('Booking created — opening it now')
       }
       onCreated()
       onClose()
@@ -88,7 +88,7 @@ export default function NewProjectModal({
     <div className="fixed inset-0 z-50 flex items-end justify-center overflow-x-hidden bg-black/30 p-3 backdrop-blur-sm sm:items-center sm:p-4">
       <div className="max-h-[90vh] w-full max-w-lg min-w-0 overflow-x-hidden overflow-y-auto rounded-2xl bg-white shadow-float">
         <div className="flex items-center justify-between gap-3 border-b border-forest-100 px-4 py-3.5 sm:px-5 sm:py-4">
-          <h2 className="min-w-0 break-words text-lg font-semibold text-forest-950">New project</h2>
+          <h2 className="min-w-0 break-words text-lg font-semibold text-forest-950">New booking</h2>
           <button onClick={onClose} className="shrink-0 rounded-lg p-2 text-forest-500 hover:bg-forest-50" aria-label="Close">
             <X size={18} />
           </button>

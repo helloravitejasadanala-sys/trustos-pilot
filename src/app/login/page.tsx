@@ -37,7 +37,7 @@ export default function LoginPage() {
         return
       }
 
-      toast.success(`Welcome, ${data.user.name}`)
+      toast.success(`Welcome back${data.user.name ? `, ${String(data.user.name).split(' ')[0]}` : ''} — here’s what needs you today`)
 
       // STEP 4 — a CLIENT must never be redirected to /vendor.
       // Clients do not use this login; they arrive by invitation link.
@@ -73,7 +73,7 @@ export default function LoginPage() {
             Sign in to your workspace
           </h1>
           <p className="mt-2 text-sm text-ink-400">
-            For service businesses and pilot administrators
+            Photographers, livestream, makeup &amp; DJs — and TrustOS HQ
           </p>
         </div>
 

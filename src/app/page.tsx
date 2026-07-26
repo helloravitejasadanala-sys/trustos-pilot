@@ -94,22 +94,22 @@ export default function LandingPage() {
               <span className="relative inline-flex h-2 w-2 rounded-full bg-forest-500"></span>
             </span>
             <span className="text-xs font-medium text-forest-700">
-              Pilot open for service businesses
+              For photographers, livestream, makeup &amp; DJs
             </span>
           </div>
 
           <p className="mb-5 text-xs font-medium uppercase tracking-[0.2em] text-clay-600">
-            For service businesses that run client jobs
+            Made for creative businesses — not tech teams
           </p>
 
           <h1 className="font-display text-[2.75rem] font-semibold leading-[1.1] tracking-tight text-ink-950 md:text-5xl lg:text-[3.5rem]">
-            Run every client job from{" "}
-            <span className="text-forest-700">one clear workspace</span>.
+            One booking. One link.{" "}
+            <span className="text-forest-700">Less chasing on WhatsApp.</span>
           </h1>
 
           <p className="mx-auto mt-7 max-w-lg text-base leading-relaxed text-ink-500 md:text-lg">
-            One secure client link for details, agreements, payments and
-            delivery. Your client always knows what to do next.
+            Details, quote, agreement, payment and delivery stay on one secure
+            client page — so everyone always knows what happens next.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -123,7 +123,7 @@ export default function LandingPage() {
           </div>
 
           <p className="mt-6 text-sm text-ink-400">
-            No credit card. Built for real client work.
+            No credit card · Under a minute to start · Cancel anytime in the pilot
           </p>
         </div>
       </section>
@@ -169,8 +169,13 @@ export default function LandingPage() {
             You bring the clients. TrustOS runs the job after booking.
           </p>
           <p className="mt-1 text-sm text-ink-400">
-            Photographers, tutors, planners, and other service providers — same calm flow.
+            Photography, live streaming, makeup and DJ — same calm booking flow.
           </p>
+          <ul className="mx-auto mt-8 max-w-md space-y-2 text-left text-sm text-ink-500">
+            <li>✓ No card to start the pilot</li>
+            <li>✓ Your client never needs an account</li>
+            <li>✓ Built for WhatsApp-and-notebook businesses — not tech teams</li>
+          </ul>
         </div>
       </section>
 

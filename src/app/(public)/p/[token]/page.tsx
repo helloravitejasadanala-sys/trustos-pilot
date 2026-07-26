@@ -156,8 +156,8 @@ export default function ClientJourney({ params }: { params: { token: string } })
           </h1>
           <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
             {isSession
-              ? 'Please refresh this page. If it still fails, ask your vendor for a new link.'
-              : 'It may have expired or been replaced. Ask your vendor for a new link.'}
+              ? 'Refresh this page. If it still fails, ask your vendor for a fresh booking link — nothing is lost on their side.'
+              : 'This private link may have expired or been replaced. Ask your vendor for a new one — your booking is still with them.'}
           </p>
           {isSession && (
             <button
@@ -334,6 +334,9 @@ export default function ClientJourney({ params }: { params: { token: string } })
           <HelpCircle size={13} />
           Questions? Message {vendorName} above{project.vendor.phone ? `, or call ${project.vendor.phone}` : ''}.
         </p>
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--faint)', lineHeight: 1.45 }}>
+          Private booking link · only you and {vendorName} can see this. No account needed.
+        </p>
       </div>
     </ClientPortalLayout>
   )
@@ -396,17 +399,20 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
     })
     setBusy(false)
     if (res.ok) {
-      toast.success('Thanks — your details are saved.')
+      toast.success('Thanks — your vendor can see your details now.')
       onDone()
     } else {
       const body = await res.json().catch(() => ({}))
-      toast.error(body.error || 'Could not save — try again')
+      toast.error(body.error || 'Could not save. Check your connection and try again.')
     }
   }
 
   return (
     <div>
-      <p className="kicker" style={{ color: 'var(--faint)', marginBottom: 10 }}>{profile.questionnaireLabel}</p>
+      <p className="kicker" style={{ color: 'var(--faint)', marginBottom: 6 }}>{profile.questionnaireLabel}</p>
+      <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--muted)' }}>
+        We filled what your vendor already knows — confirm or edit anything.
+      </p>
       {essentials.map(renderField)}
       {typeFields.length > 0 && (
         <>
@@ -417,6 +423,9 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
         </>
       )}
       <Primary onClick={submit} busy={busy}>Confirm event details</Primary>
+      <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+        Next: your vendor prepares the quote. You’ll see it here.
+      </p>
     </div>
   )
 }
@@ -434,7 +443,7 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
       })
       const data = await r.json().catch(() => ({} as { error?: string }))
       if (r.ok) {
-        toast.success('Quote accepted.')
+        toast.success('Quote accepted — next you’ll get the agreement to sign.')
         onDone()
       } else setError(data.error || 'We could not accept that just now. Please try again.')
     } catch {
@@ -463,6 +472,9 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
       )}
       {error && <div className="banner banner-error mb-3">{error}</div>}
       <Primary onClick={accept} busy={busy}>Accept quote</Primary>
+      <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+        Accepting tells your vendor to send the agreement. No payment yet.
+      </p>
     </div>
   )
 }
@@ -481,7 +493,7 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
         body: JSON.stringify({ signedBy: name, consent }),
       })
       if (r.ok) {
-        toast.success('Agreement signed — thank you.')
+        toast.success('Agreement signed — next you can pay your deposit.')
         onDone()
       } else setError('We could not save your signature just now. Please try again.')
     } catch {
@@ -513,6 +525,9 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
       <input value={name} onChange={e => setName(e.target.value)} className={inputCls} style={{ marginBottom: 14 }} placeholder="Type your full name" />
       {error && <div className="banner banner-error mb-3">{error}</div>}
       <Primary onClick={sign} busy={busy} disabled={!consent || name.trim().length < 2}>Sign agreement</Primary>
+      <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+        Your vendor is notified straight away. Deposit comes next.
+      </p>
     </div>
   )
 }
@@ -589,14 +604,16 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
   return (
     <div>
       <p className="num" style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>£{deposit.toFixed(2)}</p>
-      <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 14px' }}>Your deposit secures the booking.</p>
+      <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 14px' }}>
+        Your deposit secures the booking. Your payment is only confirmed when your vendor sees it.
+      </p>
       {error && <div className="banner banner-error mb-3">{error}</div>}
       {canPayOnline ? (
         <Primary onClick={payOnline} busy={busy}>Pay securely online</Primary>
       ) : (
         <>
           <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
-            Your vendor will confirm your payment once it&apos;s received. Pay by the method you&apos;ve agreed with them, then let them know below.
+            Pay by the method you agreed with your vendor, then tap below. They will confirm once it clears — this page does not take the money.
           </p>
           <Primary onClick={declareManual} busy={busy}>I&apos;ve made the payment</Primary>
         </>
@@ -749,7 +766,7 @@ function ClientMessages({ vendorName }: { vendorName: string }) {
           {messages.length === 0 ? (
             <div className="empty" style={{ padding: '24px 8px' }}>
               <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
-                No messages yet — say hello.
+                Quiet for now — message {vendorName} anytime.
               </p>
             </div>
           ) : messages.map(m => {

@@ -178,7 +178,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   async function run(label: string, fn: () => unknown) {
     if (busy) return // guards against double-clicks firing the same action twice
     setBusy(label)
-    try { await fn() } catch (e: any) { toast.error(e.message || 'Something went wrong') } finally { setBusy(null) }
+    try {
+      await fn()
+    } catch (e: any) {
+      toast.error(e.message || 'That didn’t work — check your connection and try again')
+    } finally {
+      setBusy(null)
+    }
   }
 
   async function patchProject(body: Record<string, unknown>) {
@@ -200,14 +206,38 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     return parsed.data
   }
 
-  async function sendContract() { await post('contract'); toast.success('Agreement sent'); await load() }
-  async function recordPayment(type: 'DEPOSIT' | 'FINAL') { await post('payment', { type, method: quote.method }); toast.success('Payment recorded'); await load() }
-  async function completeFree() { await post('payment', { free: true }); toast.success('Free collaboration confirmed'); await load() }
-  async function completeDelivery() { await post('complete'); toast.success('Service marked complete'); await load() }
-  async function requestReview() { await post('review-request'); toast.success('Review requested'); await load() }
+  async function sendContract() {
+    await post('contract')
+    toast.success('Agreement sent — your client can sign it on their link now')
+    await load()
+  }
+  async function recordPayment(type: 'DEPOSIT' | 'FINAL') {
+    await post('payment', { type, method: quote.method })
+    toast.success(
+      type === 'DEPOSIT'
+        ? 'Deposit confirmed — you can prepare for the day'
+        : 'Balance confirmed — booking money is settled',
+    )
+    await load()
+  }
+  async function completeFree() {
+    await post('payment', { free: true })
+    toast.success('Free collaboration confirmed — no payment needed')
+    await load()
+  }
+  async function completeDelivery() {
+    await post('complete')
+    toast.success('Marked complete — this booking is finished on your side')
+    await load()
+  }
+  async function requestReview() {
+    await post('review-request')
+    toast.success('Review request noted — ask your client when you’re ready')
+    await load()
+  }
   async function sendReminder() {
     await post('messages', { content: 'Just a friendly reminder — please open your secure link when you have a moment to complete the next step. Thank you!' })
-    toast.success('Reminder sent')
+    toast.success('Reminder sent — they’ll see it on their booking page')
     await load()
   }
 
@@ -225,7 +255,11 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       title: quote.title.trim(), description: quote.description,
       price, deposit, method: quote.method,
     })
-    toast.success(free ? 'Free collaboration sent to client' : 'Quote sent to client')
+    toast.success(
+      free
+        ? 'Sent — your client will see this on their booking page'
+        : 'Quote sent — your client can review and accept it now',
+    )
     await load()
   }
 
@@ -280,7 +314,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       })
       await load()
     }
-    toast.success('Prep saved')
+    toast.success('Preparation saved — you’re set for the day')
   }
 
   async function addGallery() {
@@ -292,7 +326,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       : 'gallery'
     await post('link', { name, url, type: fileType })
     setGallery({ name: 'Files', url: '' })
-    toast.success('Deliverable link added')
+    toast.success('Link added — your client can open it on their page now')
     await load()
   }
 
@@ -300,7 +334,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
     if (!project?.invitation?.url) return
     await navigator.clipboard.writeText(project.invitation.url)
     setCopied(true)
-    toast.success('Link copied — share it when you are ready')
+    toast.success('Booking link copied — send it to your client when you’re ready')
     setTimeout(() => setCopied(false), 2000)
   }
 
@@ -312,14 +346,14 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       const data = await res.json().catch(() => ({}))
       throw new Error(data.error || 'Could not confirm share')
     }
-    toast.success('Marked as shared — waiting for the client')
+    toast.success('Marked as shared — waiting for your client to open the link')
     await load()
   }
 
   if (state === 'loading') {
     return (
       <WorkspaceLayout>
-        <div className="ws-stack" aria-busy="true" aria-label="Loading project">
+        <div className="ws-stack" aria-busy="true" aria-label="Loading booking">
           <div className="flex items-start gap-3.5">
             <div className="h-[52px] w-[52px] animate-pulse rounded-[var(--r)]" style={{ background: 'var(--line)' }} />
             <div className="flex-1 space-y-2 pt-1">
@@ -338,13 +372,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   if (state === 'error' || !project) {
     return (
       <WorkspaceLayout width="narrow">
-        <div className="banner banner-error mb-4">We couldn&apos;t find that project</div>
+        <div className="banner banner-error mb-4">We couldn&apos;t open that booking</div>
         <div className="empty panel">
-          <p className="serif" style={{ fontSize: 22, margin: '0 0 8px' }}>Project unavailable</p>
+          <p className="serif" style={{ fontSize: 22, margin: '0 0 8px' }}>Booking unavailable</p>
           <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 16px', maxWidth: '42ch', marginInline: 'auto' }}>
-            It may have been archived, cancelled, or opened from a different workspace. Check Projects for your active work.
+            It may be archived, cancelled, or from another workspace. Your active bookings are still safe — open Projects to continue.
           </p>
-          <BackLink href="/vendor/projects" label="Back to Projects" />
+          <BackLink href="/vendor/projects" label="Back to bookings" />
         </div>
       </WorkspaceLayout>
     )
@@ -452,7 +486,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
   const paymentStatusChip = (() => {
     if (method === 'free') return <span className="chip chip-success">No payment required</span>
-    if (deposit) return <span className="chip chip-success">Received</span>
+    if (deposit) return <span className="chip chip-success">{serviceProfile.depositLabel} received</span>
     if ((project.payments || []).some((p: any) => p.status === 'PENDING')) {
       return <span className="chip chip-amber">Client reported sent</span>
     }
@@ -497,7 +531,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
             style={{ minHeight: 38 }}
             onClick={() => {
               const title = prompt('Project title', project.title)
-              if (title?.trim()) run('edit', async () => { await patchProject({ title: title.trim() }); toast.success('Saved') })
+              if (title?.trim()) run('edit', async () => { await patchProject({ title: title.trim() }); toast.success('Booking name updated') })
             }}
           >
             Edit
@@ -519,7 +553,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Archived')))}
+                onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Booking archived — find it under Archived')))}
               >
                 Archive
               </button>
@@ -626,7 +660,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
             {/* One Clear Next Action */}
             <div>
               <div className="kicker" style={{ color: 'var(--forest)', marginBottom: 9 }}>
-                Next action
+                Do this next
               </div>
               <div className="action">
                 <div className="ws-handoff">
@@ -642,9 +676,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     V
                   </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: 'var(--on-dark-mut)' }}>Turn</div>
+                    <div style={{ fontSize: 11, color: 'var(--on-dark-mut)' }}>Who acts</div>
                     <div style={{ fontSize: 13.5, fontWeight: 700 }}>
-                      {waitingOnClient ? "Client's turn" : 'Your turn'}
+                      {waitingOnClient ? 'Waiting on client' : 'Now with you'}
                     </div>
                   </div>
                   <span style={{ color: 'var(--on-dark-mut)' }} aria-hidden>→</span>
@@ -664,10 +698,10 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 <div style={{ font: 'var(--t-h1)', marginBottom: 7 }}>{na.nextAction}</div>
                 <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '52ch', margin: '0 0 20px' }}>
                   {waitingOnClient
-                    ? `${clientName} finishes this on their secure link.`
+                    ? `${clientName} finishes this on their secure link. You’re in control — nothing else to do here.`
                     : primary
-                      ? 'Complete this to move the project forward.'
-                      : 'Nothing needs you right now.'}
+                      ? 'Do this next. One step — then the booking moves forward.'
+                      : 'No bookings need you on this one right now.'}
                 </p>
 
                 {project.status === 'LEAD' && project.invitation?.url ? (
@@ -706,17 +740,26 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     </button>
                   </div>
                 ) : primary ? (
-                  <button
-                    type="button"
-                    disabled={!!busy}
-                    onClick={() => run('primary', async () => { await primary.action() })}
-                    className="btn btn-lime"
-                  >
-                    {busy === 'primary' ? <Loader2 size={15} className="animate-spin" /> : primary.label}
-                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => run('primary', async () => { await primary.action() })}
+                      className="btn btn-lime"
+                    >
+                      {busy === 'primary' ? <Loader2 size={15} className="animate-spin" /> : primary.label}
+                    </button>
+                    <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--on-dark-mut)', maxWidth: '46ch' }}>
+                      {/agreement/i.test(primary.label)
+                        ? 'They sign on their secure page. Nothing is charged from this button.'
+                        : /payment|deposit|received|advance/i.test(primary.label)
+                          ? 'Only confirm when the money is in your account.'
+                          : 'One clear step — then this booking moves forward.'}
+                    </p>
+                  </div>
                 ) : (
                   <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', margin: 0 }}>
-                    Nothing needs you right now.
+                    No bookings need you on this one right now.
                   </p>
                 )}
               </div>
@@ -896,7 +939,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     </div>
                   </div>
                   {!progress.service && !deliverablesSent
-                    ? <span className="chip chip-muted">Locked</span>
+                    ? <span className="chip chip-muted">Not yet</span>
                     : deliveryApproved
                       ? <span className="chip chip-success">Done</span>
                       : null}
@@ -999,7 +1042,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
           </div>
 
           <div className="panel" style={{ padding: 18 }}>
-            <div style={{ font: 'var(--t-h2)', marginBottom: 12 }}>Quote</div>
+            <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Quote</div>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)', maxWidth: '48ch' }}>
+              {project.proposal
+                ? 'Edit anything, then send again — your client sees the update on their booking page.'
+                : 'Treat this as a first draft: title, total, what’s included. Edit freely — they only see it when you send.'}
+            </p>
             <div className="grid gap-3">
               <div>
                 <label className="label">Quote title <span style={{ color: 'var(--coral)' }}>*</span></label>
@@ -1032,8 +1080,11 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               disabled={!!busy || !!quoteError}
               onClick={() => run('quote', sendQuote)}
             >
-              {busy === 'quote' ? <Loader2 size={16} className="animate-spin" /> : <><FileText size={16} className="mr-2" />{project.proposal ? 'Update & resend' : 'Send quote to client'}</>}
+              {busy === 'quote' ? <Loader2 size={16} className="animate-spin" /> : <><FileText size={16} className="mr-2" />{project.proposal ? 'Update & resend quote' : 'Send quote to client'}</>}
             </button>
+            <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: '48ch' }}>
+              Your client will see this on their booking page immediately. Nothing is charged from here.
+            </p>
           </div>
 
           {project.proposal && (
@@ -1068,7 +1119,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                         disabled={!!busy}
                         onClick={() => run('dep', () => recordPayment('DEPOSIT'))}
                       >
-                        Mark received
+                        Confirm deposit received
                       </button>
                     ) : project.status === 'DEPOSIT_PAID' ? (
                       <button
@@ -1078,7 +1129,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                         disabled={!!busy}
                         onClick={() => run('final', () => recordPayment('FINAL'))}
                       >
-                        Mark balance received
+                        Confirm balance received
                       </button>
                     ) : (
                       <div style={{ marginTop: 5, fontSize: 13, color: 'var(--muted)' }}>After the quote is accepted</div>
@@ -1086,9 +1137,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                   </div>
                 </div>
               )}
+              <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                Only confirm when the money is in your account. This does not move money — it updates the booking.
+              </p>
               {(project.payments || []).some((p: any) => p.status === 'PENDING') && (
                 <div className="banner banner-offline" style={{ marginTop: 12 }}>
-                  Your client reported a payment. Confirm once it has cleared.
+                  Your client said they paid. Confirm only once it has cleared in your account.
                 </div>
               )}
             </div>
@@ -1097,7 +1151,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
           <div className="panel" style={{ padding: 18 }}>
             <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 10 }}>Payment history</div>
             {(project.payments || []).length === 0 ? (
-              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>No payments recorded.</p>
+              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>No payments yet — nothing to worry about.</p>
             ) : (
               <ul className="space-y-2" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {(project.payments || []).map((p: any) => (
@@ -1114,9 +1168,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       {/* PREPARATION — fields driven by Service Profile */}
       {tab === 'Prep' && serviceProfile.features.showPrep && (
         <div className="panel" style={{ padding: 20, maxWidth: 620 }}>
-          <div style={{ font: 'var(--t-h2)', marginBottom: 14 }}>
+          <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>
             {journeySteps.find(s => s.key === 'prep')?.label || 'Prep'}
           </div>
+          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)', maxWidth: '48ch' }}>
+            Your notes for the day — fill what helps you feel ready. Nothing here is shown to the client until you share a delivery link.
+          </p>
           <div className="space-y-4">
             {prepFields.includes('eventDate') && (
               <div>
@@ -1175,6 +1232,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
             <button type="button" className="btn btn-lime" disabled={busy === 'prep'} onClick={() => run('prep', savePrep)}>
               {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : prepSaveLabel(primaryService)}
             </button>
+            <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+              Saved for you in this booking — you’re getting ready, not sending to the client.
+            </p>
             {/* Makeup / DJ have no Delivery tab — complete from Prep after the job. */}
             {!serviceProfile.features.showDelivery &&
               (project.status === 'DEPOSIT_PAID' || project.status === 'FULLY_PAID') && (
@@ -1282,23 +1342,25 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
               <div className="context" style={{ padding: 16 }}>
                 {deliveryApproved ? (
-                  <div className="banner banner-success" style={{ margin: 0 }}>Client approved delivery</div>
+                  <div className="banner banner-success" style={{ margin: 0 }}>
+                    Client approved — your job is complete on this booking.
+                  </div>
                 ) : deliverablesSent ? (
                   <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
-                    Deliverables are live. Your client can approve them from their secure page.
+                    Your link is live. They can open and approve it on their booking page.
                   </p>
                 ) : (
                   <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
-                    Add a deliverable link above so your client can review and approve.
+                    Paste the download link when you’re ready — they only see it after you add it.
                   </p>
                 )}
                 <button
                   type="button"
                   className="btn btn-ghost"
                   style={{ marginTop: 12 }}
-                  onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Project archived')))}
+                  onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Booking archived — find it under Archived')))}
                 >
-                  Archive project
+                  Archive booking
                 </button>
               </div>
             </>
@@ -1322,9 +1384,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               {(project.messages || []).length === 0 ? (
                 <div className="empty" style={{ minHeight: '30vh' }}>
                   <MessageSquare size={28} style={{ color: 'var(--faint)', margin: '0 auto' }} />
-                  <p style={{ margin: '12px 0 0', fontWeight: 600, color: 'var(--ink)' }}>No messages yet</p>
-                  <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--muted)' }}>
-                    Send a note — it also appears on their secure link.
+                  <p style={{ margin: '12px 0 0', fontWeight: 600, color: 'var(--ink)' }}>Quiet for now</p>
+                  <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--muted)', maxWidth: '36ch', marginInline: 'auto' }}>
+                    Send a short note when you need to — it appears on their secure booking page too.
                   </p>
                 </div>
               ) : (

@@ -291,7 +291,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
                 className="btn btn-forest"
                 onClick={openNewProject}
               >
-                ＋ New project
+                ＋ New booking
               </button>
             )}
           </header>
