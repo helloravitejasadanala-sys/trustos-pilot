@@ -176,8 +176,13 @@ export default function ClientJourney({ params }: { params: { token: string } })
           ? (payment.data as any).payment ?? null
           : prev.payment
         // Project embeds proposal — promote so a new quote appears without a third GET.
+        // Keep paymentSchedule from the proposal GET (project payload does not include it).
         const nextProposal = p.proposal
-          ? { ...(prev.proposal || {}), ...p.proposal }
+          ? {
+              ...(prev.proposal || {}),
+              ...p.proposal,
+              paymentSchedule: (prev.proposal as any)?.paymentSchedule,
+            }
           : prev.proposal
         let nextContract = prev.contract
         if (p.contract?.signedAt && prev.contract) {
@@ -276,16 +281,22 @@ export default function ClientJourney({ params }: { params: { token: string } })
     !!payment.balanceRequested &&
     Number(payment.balanceDue) > 0 &&
     !payment.fullyPaid
+  const scheduleNeedsAction =
+    !!payment?.hasSchedule &&
+    Array.isArray(payment.schedule) &&
+    payment.schedule.some((s: any) => s.state === 'due' || s.state === 'waiting')
   const done = {
     questionnaire: !!questionnaire?.completedAt,
     proposal: !!proposal?.acceptedAt,
     contract: !!contract?.signedAt,
-    // Deposit phase closes once confirmed. Balance only re-opens after vendor requests it.
+    // Deposit/schedule phase closes once confirmed. Later stages reopen when due/waiting.
     payment:
       !!payment &&
       (payment.fullyPaid ||
         Number(payment.total) === 0 ||
-        (depositSettled && !balanceCollectOpen && !payment.pendingDeposit)),
+        (payment.hasSchedule
+          ? !scheduleNeedsAction
+          : depositSettled && !balanceCollectOpen && !payment.pendingDeposit)),
   }
   // Never show Pay before an agreement exists and is signed.
   const waitingForAgreement = !!done.proposal && !contract
@@ -677,8 +688,122 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
   )
 }
 
+function QuotePaymentSchedule({
+  schedule,
+  legacyDeposit,
+  total,
+}: {
+  schedule: Array<{
+    id?: string
+    name: string
+    amount: number
+    timingLabel: string
+    sortOrder?: number
+  }> | null | undefined
+  legacyDeposit?: number | null
+  total: number
+}) {
+  const rows =
+    Array.isArray(schedule) && schedule.length > 0
+      ? [...schedule].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      : null
+
+  return (
+    <div
+      style={{
+        margin: '0 0 16px',
+        padding: 14,
+        borderRadius: 12,
+        border: '1px solid var(--line)',
+        background: 'var(--canvas-2)',
+      }}
+    >
+      <div className="kicker" style={{ color: 'var(--forest)', marginBottom: 8 }}>
+        Payment schedule
+      </div>
+      <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
+        Here is every payment for this booking — nothing else will be asked later without you seeing it first.
+      </p>
+      {rows ? (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          {rows.map((s, i) => (
+            <li
+              key={s.id || `${s.name}-${i}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '10px 0',
+                borderTop: i === 0 ? undefined : '1px solid var(--line-soft)',
+                fontSize: 14,
+              }}
+            >
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>{s.name}</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
+                  {s.timingLabel}
+                </span>
+              </span>
+              <span className="num" style={{ fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
+                £{Number(s.amount).toFixed(2)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          <li
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '10px 0',
+              fontSize: 14,
+            }}
+          >
+            <span>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>On booking</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
+                Deposit
+              </span>
+            </span>
+            <span className="num" style={{ fontWeight: 700 }}>
+              £{Number(legacyDeposit ?? 0).toFixed(2)}
+            </span>
+          </li>
+          {Number(total) - Number(legacyDeposit ?? 0) > 0.005 && (
+            <li
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '10px 0',
+                borderTop: '1px solid var(--line-soft)',
+                fontSize: 14,
+              }}
+            >
+              <span>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Later</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
+                  Remaining balance — when your vendor asks
+                </span>
+              </span>
+              <span className="num" style={{ fontWeight: 700 }}>
+                £{(Number(total) - Number(legacyDeposit ?? 0)).toFixed(2)}
+              </span>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
+  const schedule = Array.isArray(proposal?.paymentSchedule) ? proposal.paymentSchedule : []
+  const legacyDeposit = Number(proposal?.depositAmount ?? proposal?.deposit ?? 0)
+
   async function accept() {
     if (busy) return
     setError('')
@@ -717,10 +842,18 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
           ))}
         </ul>
       )}
+
+      {/* Full plan before Accept — schedule stages when present, else deposit + balance. */}
+      <QuotePaymentSchedule
+        schedule={schedule.length > 0 ? schedule : null}
+        legacyDeposit={legacyDeposit}
+        total={Number(proposal.price)}
+      />
+
       {error && <div className="banner banner-error mb-3">{error}</div>}
       <Primary onClick={accept} busy={busy}>Accept quote</Primary>
       <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-        Accepting tells your vendor to send the agreement. No payment yet.
+        Accepting tells your vendor to send the agreement. No payment yet — you&apos;ve seen the full schedule above.
       </p>
     </div>
   )
@@ -779,6 +912,13 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
   )
 }
 
+function stageStateLabel(state: string) {
+  if (state === 'confirmed') return 'Confirmed'
+  if (state === 'waiting') return 'Sent — waiting for your vendor to confirm'
+  if (state === 'due') return 'Due now'
+  return 'Upcoming'
+}
+
 function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
   const [declaredMethod, setDeclaredMethod] = useState<DeclaredPaymentMethod | ''>('')
@@ -787,16 +927,10 @@ function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone 
   const depositPaid = Number(payment?.depositPaid ?? 0)
   const balanceDue = Number(payment?.balanceDue ?? 0)
   const balanceRequested = !!payment?.balanceRequested
-  // Elements not wired — never show a dead Pay online button (env flag alone is not enough).
   const canPayOnline = !!payment?.stripeConfigured
-
-  // Balance collect only after vendor explicitly requests it.
-  const payType: 'DEPOSIT' | 'FINAL' =
-    depositPaid > 0 && balanceDue > 0 && balanceRequested ? 'FINAL' : 'DEPOSIT'
-  const amountDue = payType === 'FINAL' ? balanceDue : depositDue
-  const pending =
-    payType === 'FINAL' ? payment?.pendingFinal : payment?.pendingDeposit
   const advanceWord = depositLabel || 'Deposit'
+  const schedule: any[] = Array.isArray(payment?.schedule) ? payment.schedule : []
+  const hasSchedule = !!payment?.hasSchedule && schedule.length > 0
 
   if (total === 0) {
     return (
@@ -816,11 +950,184 @@ function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone 
         <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
           Your vendor has confirmed everything owed for this booking.
         </p>
+        {hasSchedule && (
+          <ul style={{ margin: '14px 0 0', padding: 0, listStyle: 'none' }}>
+            {schedule.map((s: any) => (
+              <li key={s.id} style={{ fontSize: 13.5, padding: '6px 0', color: 'var(--muted)' }}>
+                {s.name} · £{Number(s.amount).toFixed(2)} · Confirmed
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     )
   }
 
-  // Deposit confirmed, balance not yet requested — calm state (should rarely render; step usually closes).
+  // --- Schedule path ---------------------------------------------------
+  if (hasSchedule) {
+    const dueStage = schedule.find((s: any) => s.state === 'due') || null
+    const waitingStage = schedule.find((s: any) => s.state === 'waiting') || null
+
+    const declareStage = async (stageId: string) => {
+      if (busy) return
+      if (!declaredMethod) {
+        setError('Choose how you paid before continuing.')
+        return
+      }
+      setError('')
+      setBusy(true)
+      try {
+        const r = await fetch('/api/client/payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stageId,
+            mode: 'manual',
+            declaredMethod,
+          }),
+        })
+        if (r.ok) {
+          toast.success('Payment reported — waiting for your vendor to confirm.')
+          onDone()
+        } else {
+          const body = await r.json().catch(() => ({}))
+          setError(body.error || 'We could not record that just now. Please try again.')
+        }
+      } catch {
+        setError('Connection issue — please check your network and try again.')
+      } finally {
+        setBusy(false)
+      }
+    }
+
+    return (
+      <div>
+        <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 8 }}>Payment schedule</div>
+        <ul style={{ margin: '0 0 16px', padding: 0, listStyle: 'none' }}>
+          {schedule.map((s: any, i: number) => (
+            <li
+              key={s.id}
+              style={{
+                padding: '12px 0',
+                borderTop: i === 0 ? undefined : '1px solid var(--line-soft)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--ink)' }}>{s.name}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>{s.timingLabel}</div>
+                </div>
+                <div className="num" style={{ fontWeight: 700, color: 'var(--ink)' }}>
+                  £{Number(s.amount).toFixed(2)}
+                </div>
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color:
+                    s.state === 'confirmed'
+                      ? 'var(--success)'
+                      : s.state === 'waiting' || s.state === 'due'
+                        ? 'var(--coral-deep, #c45c3e)'
+                        : 'var(--faint)',
+                }}
+              >
+                {stageStateLabel(s.state)}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {waitingStage && (
+          <div className="banner" style={{ marginBottom: 14 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>
+              {waitingStage.name} sent — waiting for your vendor to confirm.
+            </p>
+            <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
+              You told them you paid £{Number(waitingStage.pendingAmount ?? waitingStage.amount).toFixed(2)}
+              {waitingStage.pendingMethod
+                ? ` by ${declaredPaymentMethodLabel(waitingStage.pendingMethod)}`
+                : ''}
+              . This is not confirmed yet — your vendor still needs to mark it received.
+            </p>
+          </div>
+        )}
+
+        {dueStage && !waitingStage && (
+          <>
+            <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: 'var(--ink)' }}>
+              {dueStage.name} to pay
+            </p>
+            <p className="num" style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
+              £{Number(dueStage.amount).toFixed(2)}
+            </p>
+            <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 14px' }}>
+              Pay how you agreed with your vendor, then tell them how you paid. They confirm once it
+              clears — this page does not take the money.
+            </p>
+            {error && <div className="banner banner-error mb-3">{error}</div>}
+            <label className="label" style={{ marginBottom: 8 }}>How did you pay?</label>
+            <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+              {DECLARED_PAYMENT_OPTIONS.map(opt => (
+                <label
+                  key={opt.value}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: `1px solid ${declaredMethod === opt.value ? 'var(--forest)' : 'var(--line)'}`,
+                    background:
+                      declaredMethod === opt.value ? 'var(--forest-soft, #e8f2f0)' : 'var(--canvas-2, #fff)',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    color: 'var(--ink)',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="declaredMethodSchedule"
+                    value={opt.value}
+                    checked={declaredMethod === opt.value}
+                    onChange={() => setDeclaredMethod(opt.value)}
+                    style={{ accentColor: 'var(--forest)' }}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            <Primary
+              onClick={() => declareStage(dueStage.id)}
+              busy={busy}
+              disabled={!declaredMethod}
+            >
+              I&apos;ve paid this way — notify my vendor
+            </Primary>
+            <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+              Status stays “waiting for your vendor to confirm” until they mark it received.
+            </p>
+          </>
+        )}
+
+        {!dueStage && !waitingStage && (
+          <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
+            You&apos;re set for now. Upcoming stages open here when your vendor asks.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  // --- Legacy DEPOSIT / FINAL ------------------------------------------
+  const payType: 'DEPOSIT' | 'FINAL' =
+    depositPaid > 0 && balanceDue > 0 && balanceRequested ? 'FINAL' : 'DEPOSIT'
+  const amountDue = payType === 'FINAL' ? balanceDue : depositDue
+  const pending =
+    payType === 'FINAL' ? payment?.pendingFinal : payment?.pendingDeposit
+
   if (depositPaid > 0 && balanceDue > 0 && !balanceRequested && !payment?.pendingDeposit) {
     return (
       <div>
@@ -834,7 +1141,6 @@ function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone 
     )
   }
 
-  // Waiting for vendor — never call this “paid”.
   if (pending) {
     const label = payType === 'FINAL' ? 'balance' : advanceWord.toLowerCase()
     return (

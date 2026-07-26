@@ -6,6 +6,11 @@ import { trackEvent } from '@/lib/analytics'
 import { breakdown, amountForType } from '@/lib/payments'
 import { isDeclaredPaymentMethod } from '@/lib/payment-declare'
 import {
+  isStageCollectOpen,
+  paymentTypeForStageIndex,
+  usesPaymentSchedule,
+} from '@/lib/payment-stages'
+import {
   isStripeCheckoutReady,
   isStripeConfigured,
   isStripePortalPayAvailable,
@@ -32,14 +37,61 @@ export async function GET() {
     const method = normalizePaymentMethod(project?.paymentMethod)
     const balanceRequested = !!project?.balanceRequestedAt
 
-    const pending = await prisma.payment.findMany({
-      where: { projectId, status: 'PENDING' },
-      select: { id: true, type: true, method: true, amount: true },
+    const contract = await prisma.contract.findUnique({
+      where: { projectId },
+      select: { signedAt: true },
+    })
+    const contractSigned = !!contract?.signedAt
+
+    const stages = await prisma.paymentStage.findMany({
+      where: { projectId },
+      orderBy: { sortOrder: 'asc' },
+    })
+    const schedulePath = usesPaymentSchedule(stages.length)
+
+    const payments = await prisma.payment.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        method: true,
+        amount: true,
+        stageId: true,
+      },
       orderBy: { createdAt: 'desc' },
     })
 
+    const pending = payments.filter(p => p.status === 'PENDING')
     const pendingDeposit = pending.find(p => p.type === 'DEPOSIT') || null
     const pendingFinal = pending.find(p => p.type === 'FINAL' || p.type === 'INSTALMENT') || null
+
+    const schedule = schedulePath
+      ? stages.map(stage => {
+          const completed = payments.find(
+            p => p.stageId === stage.id && p.status === 'COMPLETED',
+          )
+          const waiting = payments.find(
+            p => p.stageId === stage.id && p.status === 'PENDING',
+          )
+          const open = isStageCollectOpen(stage, { contractSigned })
+          let state: 'confirmed' | 'waiting' | 'due' | 'upcoming' = 'upcoming'
+          if (completed) state = 'confirmed'
+          else if (waiting) state = 'waiting'
+          else if (open) state = 'due'
+          return {
+            id: stage.id,
+            name: stage.name,
+            amount: Number(stage.amount),
+            percent: stage.percent,
+            timingLabel: stage.timingLabel,
+            sortOrder: stage.sortOrder,
+            state,
+            pendingMethod: waiting?.method || null,
+            pendingAmount: waiting ? Number(waiting.amount) : null,
+          }
+        })
+      : null
 
     return NextResponse.json({
       payment: b
@@ -47,17 +99,23 @@ export async function GET() {
             ...b,
             method,
             balanceRequested,
-            // Portal never shows Pay online until Elements exist (ignore env alone).
             stripeConfigured: isStripePortalPayAvailable(),
             stripeKeysPresent: isStripeConfigured(),
             checkoutEnvReady: isStripeCheckoutReady(),
-            declared: !!(pendingDeposit || pendingFinal),
+            declared: !!(pendingDeposit || pendingFinal) ||
+              payments.some(p => p.status === 'PENDING' && p.stageId),
             pendingDeposit: pendingDeposit
               ? { method: pendingDeposit.method, amount: Number(pendingDeposit.amount) }
               : null,
             pendingFinal: pendingFinal
-              ? { method: pendingFinal.method, amount: Number(pendingFinal.amount), type: pendingFinal.type }
+              ? {
+                  method: pendingFinal.method,
+                  amount: Number(pendingFinal.amount),
+                  type: pendingFinal.type,
+                }
               : null,
+            schedule,
+            hasSchedule: schedulePath,
           }
         : null,
     })
@@ -69,13 +127,12 @@ export async function GET() {
 /**
  * Manual declare (default) or Stripe PaymentIntent when portal pay is available.
  * Does NOT mark paid — PENDING until vendor confirm or webhook.
+ * Schedule path: body.stageId required; amount from stage; open-gate enforced.
  */
 export async function POST(req: NextRequest) {
   try {
     const { projectId } = await requireClientSession()
     const body = await req.json().catch(() => ({}))
-    const type: 'DEPOSIT' | 'INSTALMENT' | 'FINAL' =
-      ['DEPOSIT', 'INSTALMENT', 'FINAL'].includes(body?.type) ? body.type : 'DEPOSIT'
 
     const proposal = await prisma.proposal.findUnique({ where: { projectId } })
     if (!proposal?.acceptedAt) {
@@ -86,7 +143,88 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sign the contract first' }, { status: 409 })
     }
 
-    // --- MANUAL declare ------------------------------------------------
+    const stages = await prisma.paymentStage.findMany({
+      where: { projectId },
+      orderBy: { sortOrder: 'asc' },
+    })
+    const schedulePath = usesPaymentSchedule(stages.length)
+    const stageId = typeof body?.stageId === 'string' ? body.stageId.trim() : ''
+
+    // --- Schedule declare ----------------------------------------------
+    if (schedulePath) {
+      if (!stageId) {
+        return NextResponse.json(
+          { error: 'Choose which payment stage you are declaring.' },
+          { status: 400 },
+        )
+      }
+      const stageIndex = stages.findIndex(s => s.id === stageId)
+      if (stageIndex < 0) {
+        return NextResponse.json({ error: 'Payment stage not found' }, { status: 404 })
+      }
+      const stage = stages[stageIndex]
+      if (!isStageCollectOpen(stage, { contractSigned: true })) {
+        return NextResponse.json(
+          { error: 'Your vendor has not asked for this payment yet.' },
+          { status: 409 },
+        )
+      }
+
+      const alreadyDone = await prisma.payment.findFirst({
+        where: { projectId, stageId: stage.id, status: 'COMPLETED' },
+        select: { id: true },
+      })
+      if (alreadyDone) {
+        return NextResponse.json(
+          { error: 'This stage is already confirmed.' },
+          { status: 409 },
+        )
+      }
+
+      if (body?.mode === 'manual') {
+        if (!isDeclaredPaymentMethod(body?.declaredMethod)) {
+          return NextResponse.json(
+            { error: 'Choose how you paid: bank transfer, cash, or card in person.' },
+            { status: 400 },
+          )
+        }
+        const type = paymentTypeForStageIndex(stageIndex, stages.length)
+        const amount = Number(stage.amount)
+        const existing = await prisma.payment.findFirst({
+          where: { projectId, stageId: stage.id, status: 'PENDING' },
+        })
+        if (!existing) {
+          await prisma.payment.create({
+            data: {
+              projectId,
+              stageId: stage.id,
+              type,
+              amount,
+              status: 'PENDING',
+              method: body.declaredMethod,
+            },
+          })
+          await trackEvent('client_declared_payment', {
+            projectId,
+            metadata: { type, amount, method: body.declaredMethod, stageId: stage.id },
+          })
+        }
+        return NextResponse.json({ ok: true, declared: true, stageId: stage.id })
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            'Online card payment is not available. Choose how you paid below and wait for your vendor to confirm.',
+        },
+        { status: 503 },
+      )
+    }
+
+    // --- Legacy DEPOSIT / FINAL ----------------------------------------
+    const type: 'DEPOSIT' | 'INSTALMENT' | 'FINAL' =
+      ['DEPOSIT', 'INSTALMENT', 'FINAL'].includes(body?.type) ? body.type : 'DEPOSIT'
+
     if (body?.mode === 'manual') {
       if (!isDeclaredPaymentMethod(body?.declaredMethod)) {
         return NextResponse.json(
@@ -95,7 +233,6 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // FINAL/balance only after the vendor explicitly requests it.
       if (type === 'FINAL' || type === 'INSTALMENT') {
         const gate = await prisma.project.findUnique({
           where: { id: projectId },
@@ -131,7 +268,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, declared: true })
     }
 
-    // Online path — blocked until Elements are wired (not merely env-flagged).
     if (!isStripePortalPayAvailable()) {
       return NextResponse.json(
         {

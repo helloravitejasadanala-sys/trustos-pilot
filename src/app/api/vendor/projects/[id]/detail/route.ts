@@ -31,6 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
           select: { content: true, version: true, signedAt: true, signedBy: true, signedIp: true, contentHash: true },
         },
         payments: { orderBy: { createdAt: 'desc' } },
+        paymentStages: { orderBy: { sortOrder: 'asc' } },
         milestones: { orderBy: { order: 'asc' } },
         messages: { orderBy: { createdAt: 'asc' }, include: { sender: { select: { name: true } } } },
         files: { orderBy: { createdAt: 'desc' } },

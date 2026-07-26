@@ -121,6 +121,7 @@ model Project {
   proposal         Proposal?
   contract         Contract?
   payments         Payment[]
+  paymentStages    PaymentStage[]
   milestones       Milestone[]
   messages         Message[]
   files            File[]
@@ -237,10 +238,37 @@ model Contract {
   @@map("contracts")
 }
 
+/// Named payment stage on a booking schedule (max 4 per project — enforced in app).
+/// Distinct from delivery Milestone. Legacy bookings may have zero stages.
+model PaymentStage {
+  id          String    @id @default(uuid())
+  projectId   String    @map("project_id")
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  amount      Decimal   @db.Decimal(10, 2)
+  /// Optional % of quote total — amount is canonical at declare/confirm time.
+  percent     Int?
+  /// Rough timing copy only (e.g. "On booking") — not a date trigger.
+  timingLabel String    @map("timing_label")
+  sortOrder   Int       @map("sort_order")
+  /// Vendor unlock for this stage (same idea as Project.balanceRequestedAt).
+  requestedAt DateTime? @map("requested_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  payments    Payment[]
+
+  @@unique([projectId, sortOrder])
+  @@index([projectId])
+  @@map("payment_stages")
+}
+
 model Payment {
   id        String        @id @default(uuid())
   projectId String        @map("project_id")
   project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Set when declared/confirmed against a schedule stage; null = legacy deposit/final.
+  stageId   String?       @map("stage_id")
+  stage     PaymentStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   stripeId  String?       @map("stripe_id")
   amount    Decimal       @db.Decimal(10, 2)
   currency  String        @default("GBP")
@@ -251,6 +279,7 @@ model Payment {
   createdAt DateTime      @default(now()) @map("created_at")
 
   @@index([projectId])
+  @@index([stageId])
   @@map("payments")
 }
 

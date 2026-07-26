@@ -46,6 +46,7 @@ import { useMessagePoll } from '@/hooks/useMessagePoll'
 import { useVisiblePoll } from '@/hooks/useVisiblePoll'
 import { parseVendorWorkspaceTab } from '@/lib/vendor-workspace'
 import { declaredPaymentMethodLabel } from '@/lib/payment-declare'
+import PaymentScheduleEditor from '@/components/vendor/PaymentScheduleEditor'
 
 type Tab = string
 
@@ -553,6 +554,12 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const moneyLocked = (project.payments || []).some(
     (p: any) => p.status === 'COMPLETED' && (p.type === 'DEPOSIT' || p.method === 'free'),
   )
+  /** Stage amounts lock once any COMPLETED payment exists (matches payment-stages API). */
+  const stagesAmountLocked = (project.payments || []).some(
+    (p: any) => p.status === 'COMPLETED',
+  )
+  const paymentStages = Array.isArray(project.paymentStages) ? project.paymentStages : []
+  const hasPaymentSchedule = paymentStages.length > 0
   const test = isTestProject(project)
   const detailsDone = !!project.questionnaire?.completedAt
   // After agreement: Stripe wait = client; manual/free = vendor confirms receipt.
@@ -1406,6 +1413,20 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             )}
           </div>
 
+          {project.proposal && quote.method !== 'free' && (
+            <PaymentScheduleEditor
+              projectId={project.id}
+              quoteTotal={Number(quote.price || project.proposal.price || 0)}
+              savedStages={paymentStages}
+              payments={project.payments || []}
+              amountLocked={stagesAmountLocked}
+              readOnly={vendorClosed}
+              busy={busy}
+              run={run}
+              onChanged={load}
+            />
+          )}
+
           {project.proposal && (
             <div className="context" style={{ padding: 16 }}>
               <div className="kicker" style={{ color: 'var(--muted)', marginBottom: 12 }}>Confirmation</div>
@@ -1422,6 +1443,11 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                     </button>
                   )}
                 </div>
+              ) : hasPaymentSchedule ? (
+                <p style={{ fontSize: 13.5, margin: 0, color: 'var(--muted)' }}>
+                  Request and confirm each stage in the payment schedule above. Classic deposit / balance
+                  buttons stay off while a schedule is active.
+                </p>
               ) : (
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   <div className="panel" style={{ flex: '1 1 140px', minWidth: 0, padding: 12, boxShadow: 'none' }}>
@@ -1476,7 +1502,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   </div>
                 </div>
               )}
-              {!vendorClosed && (
+              {!vendorClosed && !hasPaymentSchedule && method !== 'free' && (
                 <>
                   <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
                     Only confirm when the money is in your account. This does not move money — it updates the booking.

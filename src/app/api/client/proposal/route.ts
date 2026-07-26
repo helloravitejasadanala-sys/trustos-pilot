@@ -27,7 +27,36 @@ export async function GET() {
     if (proposal) {
       await trackEvent('proposal_viewed', { projectId })
     }
-    return NextResponse.json({ proposal })
+
+    // Full payment schedule for the quote screen (every stage — no surprises).
+    const stages = await prisma.paymentStage.findMany({
+      where: { projectId },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        amount: true,
+        percent: true,
+        timingLabel: true,
+        sortOrder: true,
+      },
+    })
+
+    return NextResponse.json({
+      proposal: proposal
+        ? {
+            ...proposal,
+            paymentSchedule: stages.map(s => ({
+              id: s.id,
+              name: s.name,
+              amount: Number(s.amount),
+              percent: s.percent,
+              timingLabel: s.timingLabel,
+              sortOrder: s.sortOrder,
+            })),
+          }
+        : null,
+    })
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || 'Unauthorized' },
@@ -44,7 +73,7 @@ export async function POST() {
     // columns (e.g. deposit) that may lag behind schema on some deploys.
     const proposal = await prisma.proposal.findUnique({
       where: { projectId },
-      select: { acceptedAt: true, expiryDate: true },
+      select: { acceptedAt: true, expiryDate: true, price: true },
     })
     if (!proposal) {
       return NextResponse.json({ error: 'No proposal to accept' }, { status: 404 })
@@ -54,6 +83,26 @@ export async function POST() {
     }
     if (proposal.expiryDate && proposal.expiryDate.getTime() < Date.now()) {
       return NextResponse.json({ error: 'This proposal has expired' }, { status: 409 })
+    }
+
+    // Schedule path: client must have a full plan on the quote before accept.
+    const stageCount = await prisma.paymentStage.count({ where: { projectId } })
+    if (stageCount > 0) {
+      const stages = await prisma.paymentStage.findMany({
+        where: { projectId },
+        select: { amount: true },
+      })
+      const sum = stages.reduce((s, st) => s + Number(st.amount), 0)
+      const total = Number(proposal.price)
+      if (Math.abs(sum - total) > 0.005) {
+        return NextResponse.json(
+          {
+            error:
+              'The payment schedule does not match this quote yet. Ask your vendor to update it before you accept.',
+          },
+          { status: 409 },
+        )
+      }
     }
 
     await prisma.proposal.update({
