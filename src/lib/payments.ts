@@ -1,12 +1,15 @@
+import 'server-only'
+
 import { prisma } from './prisma'
+import { depositFor, roundMoney } from '@/lib/payment-math'
 
 /**
- * STAGE 4 — payment maths, all server-side.
- *
- * The browser never supplies an amount. Every figure here is derived
- * from the accepted proposal. This is the one place deposit/balance is
- * computed, so vendor and client can never disagree.
+ * STAGE 4 — payment maths (server).
+ * Pure helpers (`depositFor`) live in `@/lib/payment-math`.
+ * The browser never supplies an amount — breakdown/amountForType stay here.
  */
+
+export { depositFor } from '@/lib/payment-math'
 
 export type PaymentBreakdown = {
   currency: string
@@ -15,21 +18,6 @@ export type PaymentBreakdown = {
   depositPaid: number
   balanceDue: number      // total - everything completed
   fullyPaid: boolean
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100
-}
-
-export function depositFor(proposal: {
-  price: any
-  depositPercent: number | null
-  depositAmount: any
-}): number {
-  const price = Number(proposal.price)
-  if (proposal.depositAmount != null) return round2(Number(proposal.depositAmount))
-  if (proposal.depositPercent != null) return round2(price * (proposal.depositPercent / 100))
-  return round2(price * 0.5)
 }
 
 export async function breakdown(projectId: string): Promise<PaymentBreakdown | null> {
@@ -44,17 +32,17 @@ export async function breakdown(projectId: string): Promise<PaymentBreakdown | n
     select: { amount: true, type: true },
   })
 
-  const paidTotal = round2(completed.reduce((s: number, p: any) => s + Number(p.amount), 0))
-  const depositPaid = round2(
+  const paidTotal = roundMoney(completed.reduce((s: number, p: any) => s + Number(p.amount), 0))
+  const depositPaid = roundMoney(
     completed.filter((p: any) => p.type === 'DEPOSIT').reduce((s: number, p: any) => s + Number(p.amount), 0)
   )
 
   return {
     currency: 'GBP',
-    total: round2(total),
+    total: roundMoney(total),
     depositDue: deposit,
     depositPaid,
-    balanceDue: round2(Math.max(0, total - paidTotal)),
+    balanceDue: roundMoney(Math.max(0, total - paidTotal)),
     fullyPaid: paidTotal >= total - 0.005,
   }
 }

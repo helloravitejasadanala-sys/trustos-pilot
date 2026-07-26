@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
-import { MAX_PAYMENT_STAGES, validatePaymentStages } from '@/lib/payment-stages'
+import { MAX_PAYMENT_STAGES, validatePaymentStages } from '@/lib/payment-stage-rules'
 import { declaredPaymentMethodLabel } from '@/lib/payment-declare'
 
 type StageRow = {
