@@ -106,7 +106,7 @@ export default function VenueNoteForm({
       })
       const json = await parseJsonResponse<{ note?: SavedNote; error?: string }>(res)
       if (!json.ok || !json.data.note) {
-        throw new Error(json.data?.error || json.error || 'Could not save')
+        throw new Error(json.data?.error || 'Could not save')
       }
       setSaved(json.data.note)
       setExpanded(false)
