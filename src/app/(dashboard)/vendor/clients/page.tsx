@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, MoreVertical, Mail, Phone } from 'lucide-react'
+import { Plus, MoreVertical, Mail, Phone } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import ClientFormModal from '@/components/vendor/ClientFormModal'
 import { CardSkeleton, EmptyState } from '@/components/ui'
@@ -90,9 +90,14 @@ export default function ClientsPage() {
             </button>
           ))}
         </div>
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-forest-400" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or email" className="pl-9 !min-h-0 py-2 text-[13px]" />
+        <div className="flex-1 min-w-0">
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by name or email"
+            aria-label="Search clients by name or email"
+            className="w-full !min-h-0 py-2.5 px-3.5 text-[13px]"
+          />
         </div>
       </div>
 
