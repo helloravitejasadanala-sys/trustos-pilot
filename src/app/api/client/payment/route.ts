@@ -4,7 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { breakdown, amountForType } from '@/lib/payments'
-import { isStripeCheckoutReady, isStripeConfigured, normalizePaymentMethod } from '@/lib/stripe-config'
+import { isDeclaredPaymentMethod } from '@/lib/payment-declare'
+import {
+  isStripeCheckoutReady,
+  isStripeConfigured,
+  isStripePortalPayAvailable,
+  normalizePaymentMethod,
+} from '@/lib/stripe-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,9 +20,7 @@ function stripe() {
   return new Stripe(key, { apiVersion: '2024-04-10' as any })
 }
 
-// What is owed, and HOW it is paid. Read-only. The client learns the
-// payment mode (manual / stripe / free) and whether Stripe is available,
-// so the portal can show the right panel — never a broken card button.
+// What is owed, and HOW it is paid. Read-only.
 export async function GET() {
   try {
     const { projectId } = await requireClientSession()
@@ -26,20 +30,32 @@ export async function GET() {
       select: { paymentMethod: true },
     })
     const method = normalizePaymentMethod(project?.paymentMethod)
-    // Has the client already told the vendor they've paid (manual)?
-    const declared = await prisma.payment.findFirst({
+
+    const pending = await prisma.payment.findMany({
       where: { projectId, status: 'PENDING' },
-      select: { id: true },
+      select: { id: true, type: true, method: true, amount: true },
+      orderBy: { createdAt: 'desc' },
     })
+
+    const pendingDeposit = pending.find(p => p.type === 'DEPOSIT') || null
+    const pendingFinal = pending.find(p => p.type === 'FINAL' || p.type === 'INSTALMENT') || null
+
     return NextResponse.json({
       payment: b
         ? {
             ...b,
             method,
-            // Only advertise card pay when Elements checkout is ready.
-            stripeConfigured: isStripeCheckoutReady(),
+            // Portal never shows Pay online until Elements exist (ignore env alone).
+            stripeConfigured: isStripePortalPayAvailable(),
             stripeKeysPresent: isStripeConfigured(),
-            declared: !!declared,
+            checkoutEnvReady: isStripeCheckoutReady(),
+            declared: !!(pendingDeposit || pendingFinal),
+            pendingDeposit: pendingDeposit
+              ? { method: pendingDeposit.method, amount: Number(pendingDeposit.amount) }
+              : null,
+            pendingFinal: pendingFinal
+              ? { method: pendingFinal.method, amount: Number(pendingFinal.amount), type: pendingFinal.type }
+              : null,
           }
         : null,
     })
@@ -49,11 +65,8 @@ export async function GET() {
 }
 
 /**
- * Create a Stripe PaymentIntent (test mode). The amount is computed
- * server-side from the proposal; the browser sends only the TYPE.
- *
- * This does NOT mark anything paid. The payment row is PENDING until
- * the Stripe webhook confirms payment_intent.succeeded.
+ * Manual declare (default) or Stripe PaymentIntent when portal pay is available.
+ * Does NOT mark paid — PENDING until vendor confirm or webhook.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -62,7 +75,6 @@ export async function POST(req: NextRequest) {
     const type: 'DEPOSIT' | 'INSTALMENT' | 'FINAL' =
       ['DEPOSIT', 'INSTALMENT', 'FINAL'].includes(body?.type) ? body.type : 'DEPOSIT'
 
-    // Gate: proposal accepted and contract signed before any payment.
     const proposal = await prisma.proposal.findUnique({ where: { projectId } })
     if (!proposal?.acceptedAt) {
       return NextResponse.json({ error: 'Accept the proposal first' }, { status: 409 })
@@ -72,33 +84,53 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sign the contract first' }, { status: 409 })
     }
 
-    // --- MANUAL mode ------------------------------------------------
-    // The client tells the vendor they've paid (bank transfer / cash).
-    // This does NOT advance the project — it records a PENDING payment
-    // for the vendor to confirm. Idempotent: only one pending row.
+    // --- MANUAL declare ------------------------------------------------
     if (body?.mode === 'manual') {
+      if (!isDeclaredPaymentMethod(body?.declaredMethod)) {
+        return NextResponse.json(
+          { error: 'Choose how you paid: bank transfer, cash, or card in person.' },
+          { status: 400 },
+        )
+      }
+
       const amount = await amountForType(projectId, type)
       const existing = await prisma.payment.findFirst({
         where: { projectId, type, status: 'PENDING' },
       })
       if (!existing) {
         await prisma.payment.create({
-          data: { projectId, type, amount, status: 'PENDING', method: 'manual' },
+          data: {
+            projectId,
+            type,
+            amount,
+            status: 'PENDING',
+            method: body.declaredMethod,
+          },
         })
-        await trackEvent('client_declared_payment', { projectId, metadata: { type, amount } })
+        await trackEvent('client_declared_payment', {
+          projectId,
+          metadata: { type, amount, method: body.declaredMethod },
+        })
       }
       return NextResponse.json({ ok: true, declared: true })
     }
 
-    // Server computes the amount. Throws 409 if not payable.
+    // Online path — blocked until Elements are wired (not merely env-flagged).
+    if (!isStripePortalPayAvailable()) {
+      return NextResponse.json(
+        {
+          error:
+            'Online card payment is not available. Choose how you paid below and wait for your vendor to confirm.',
+        },
+        { status: 503 },
+      )
+    }
+
     const amount = await amountForType(projectId, type)
 
     if (!isStripeCheckoutReady()) {
       return NextResponse.json(
-        {
-          error:
-            'Online card payment is not available yet. Pay by the method you agreed with your vendor, then tap “I’ve made the payment”.',
-        },
+        { error: 'Online card payment is not available yet.' },
         { status: 503 },
       )
     }
@@ -107,7 +139,7 @@ export async function POST(req: NextRequest) {
     if (!s) {
       return NextResponse.json(
         { error: 'Card payments are not configured. Ask your vendor to record payment manually.' },
-        { status: 503 }
+        { status: 503 },
       )
     }
 
@@ -118,7 +150,6 @@ export async function POST(req: NextRequest) {
       metadata: { projectId, paymentType: type },
     })
 
-    // Record as PENDING. The webhook flips it to COMPLETED.
     await prisma.payment.create({
       data: {
         projectId,
@@ -136,7 +167,7 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || 'Payment error' },
-      { status: err.status ?? 500 }
+      { status: err.status ?? 500 },
     )
   }
 }

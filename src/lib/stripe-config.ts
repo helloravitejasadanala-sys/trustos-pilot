@@ -27,13 +27,20 @@ export function isStripeConfigured(): boolean {
 }
 
 /**
- * Card checkout in the client portal requires Stripe Elements.
- * Until that UI ships, never offer "Pay securely online" — even if keys exist.
- * Opt-in later with STRIPE_CHECKOUT_ENABLED=true once Elements are wired.
+ * Env + keys gate used by vendor quote UI / server PaymentIntent path.
+ * Does NOT mean the client portal can take cards — see isStripePortalPayAvailable.
  */
 export function isStripeCheckoutReady(): boolean {
   if (!isStripeConfigured()) return false
   return process.env.STRIPE_CHECKOUT_ENABLED === 'true'
+}
+
+/**
+ * Client portal "Pay online" — only when Elements UI is actually wired.
+ * Env flag alone must never show a dead button. Keep false until Elements ship.
+ */
+export function isStripePortalPayAvailable(): boolean {
+  return false
 }
 
 export type PaymentMethod = 'manual' | 'stripe' | 'free'

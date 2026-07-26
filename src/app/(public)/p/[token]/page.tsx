@@ -13,6 +13,11 @@ import {
 import { ClientPortalLayout } from '@/components/layout'
 import TypingPreview from '@/components/ui/TypingPreview'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
+import {
+  DECLARED_PAYMENT_OPTIONS,
+  declaredPaymentMethodLabel,
+  type DeclaredPaymentMethod,
+} from '@/lib/payment-declare'
 
 /**
  * Client portal — secure link journey.
@@ -182,9 +187,8 @@ export default function ClientJourney({ params }: { params: { token: string } })
     questionnaire: !!questionnaire?.completedAt,
     proposal: !!proposal?.acceptedAt,
     contract: !!contract?.signedAt,
-    // Paid when the balance is settled, a deposit has cleared, or there is
-    // nothing to pay (free collaboration → total 0 → fullyPaid).
-    payment: !!payment && (payment.fullyPaid || Number(payment.depositPaid) > 0),
+    // Payment step stays open until the booking is fully settled (deposit + balance).
+    payment: !!payment && (payment.fullyPaid || Number(payment.total) === 0),
   }
   // Never show Pay before an agreement exists and is signed.
   const waitingForAgreement = !!done.proposal && !contract
@@ -223,6 +227,9 @@ export default function ClientJourney({ params }: { params: { token: string } })
   )
   const deliveryApproved = Array.isArray(project.approvals) && project.approvals.length > 0
   const showDelivery = serviceProfile.features.showDelivery
+  const canLeaveReview =
+    !project.review && (deliveryApproved || project.status === 'COMPLETED')
+  const clientClosed = !!project.review && (deliveryApproved || project.status === 'COMPLETED')
 
   const nextLabel = current === 'done'
     ? waitingForQuote
@@ -325,16 +332,47 @@ export default function ClientJourney({ params }: { params: { token: string } })
                 </li>
               ))}
             </ul>
-            {serviceProfile.features.showApproval && (
+            {serviceProfile.features.showApproval && !deliveryApproved && (
               <DeliveryApproval
-                approved={deliveryApproved}
+                approved={false}
                 busy={busy}
                 setBusy={setBusy}
                 onDone={refresh}
               />
             )}
+            {serviceProfile.features.showApproval && deliveryApproved && (
+              <div className="banner banner-success" style={{ marginTop: 14 }}>
+                Delivery approved.
+              </div>
+            )}
           </div>
         )}
+
+        {/* Closing: review once delivery approved OR vendor marked COMPLETED — no wait on vendor complete. */}
+        {clientClosed ? (
+          <div className="panel" style={{ padding: 18 }}>
+            <div className="kicker" style={{ color: 'var(--success)', marginBottom: 8 }}>Finished</div>
+            <p className="serif" style={{ fontSize: 22, margin: '0 0 8px', color: 'var(--ink)', lineHeight: 1.15 }}>
+              You&apos;re all done
+            </p>
+            <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
+              Thanks for your feedback
+              {project.review?.overall ? ` (${project.review.overall}/5)` : ''}.
+              This booking is complete on your side — nothing more to do here.
+            </p>
+          </div>
+        ) : canLeaveReview ? (
+          <div className="panel" style={{ padding: 18 }}>
+            <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 8 }}>Last step</div>
+            <p className="serif" style={{ fontSize: 22, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1.15 }}>
+              Quick review for {vendorName}
+            </p>
+            <p style={{ margin: '0 0 14px', fontSize: 13.5, color: 'var(--muted)' }}>
+              About 30 seconds — stars plus two short answers. Only {vendorName} sees this.
+            </p>
+            <ReviewStep busy={busy} setBusy={setBusy} onDone={refresh} />
+          </div>
+        ) : null}
 
         <ClientMessages vendorName={vendorName} />
 
@@ -547,13 +585,19 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
 
 function PaymentStep({ payment, busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
-  const method: 'manual' | 'stripe' | 'free' = payment?.method ?? 'manual'
+  const [declaredMethod, setDeclaredMethod] = useState<DeclaredPaymentMethod | ''>('')
   const total = Number(payment?.total ?? 0)
-  const deposit = Number(payment?.depositDue ?? 0)
-  // Stripe is only ever offered when a real Stripe configuration exists.
-  const canPayOnline = method === 'stripe' && payment?.stripeConfigured
+  const depositDue = Number(payment?.depositDue ?? 0)
+  const depositPaid = Number(payment?.depositPaid ?? 0)
+  const balanceDue = Number(payment?.balanceDue ?? 0)
+  // Elements not wired — never show a dead Pay online button (env flag alone is not enough).
+  const canPayOnline = !!payment?.stripeConfigured
 
-  // Free collaboration — nothing owed.
+  const payType: 'DEPOSIT' | 'FINAL' = depositPaid > 0 && balanceDue > 0 ? 'FINAL' : 'DEPOSIT'
+  const amountDue = payType === 'FINAL' ? balanceDue : depositDue
+  const pending =
+    payType === 'FINAL' ? payment?.pendingFinal : payment?.pendingDeposit
+
   if (total === 0) {
     return (
       <div>
@@ -565,43 +609,54 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
     )
   }
 
-  // Client has already reported a manual payment — waiting on the vendor.
-  if (payment?.declared) {
+  if (payment?.fullyPaid) {
     return (
       <div>
-        <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>Thanks — payment reported</p>
+        <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>All payments confirmed</p>
         <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
-          We&apos;ve let your vendor know. They&apos;ll confirm once the £{deposit.toFixed(2)} deposit has cleared.
+          Your vendor has confirmed everything owed for this booking.
         </p>
       </div>
     )
   }
 
-  async function payOnline() {
-    if (busy) return
-    setError('')
-    setBusy(true)
-    try {
-      const r = await fetch('/api/client/payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'DEPOSIT' }) })
-      if (r.ok) { onDone() } else {
-        const body = await r.json().catch(() => ({}))
-        setError(body.error || 'We could not process that just now. Please try again.')
-      }
-    } catch {
-      setError('Connection issue — please check your network and try again.')
-    } finally {
-      setBusy(false)
-    }
+  // Waiting for vendor — never call this “paid”.
+  if (pending) {
+    const label = payType === 'FINAL' ? 'balance' : 'deposit'
+    return (
+      <div>
+        <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>
+          Reported — waiting for your vendor
+        </p>
+        <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
+          You told them you paid the £{Number(pending.amount ?? amountDue).toFixed(2)} {label}
+          {pending.method ? ` by ${declaredPaymentMethodLabel(pending.method)}` : ''}.
+          This is not confirmed yet — your vendor still needs to mark it received.
+        </p>
+      </div>
+    )
   }
 
   async function declareManual() {
     if (busy) return
+    if (!declaredMethod) {
+      setError('Choose how you paid before continuing.')
+      return
+    }
     setError('')
     setBusy(true)
     try {
-      const r = await fetch('/api/client/payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'DEPOSIT', mode: 'manual' }) })
+      const r = await fetch('/api/client/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: payType,
+          mode: 'manual',
+          declaredMethod,
+        }),
+      })
       if (r.ok) {
-        toast.success('Got it — your vendor will confirm the payment.')
+        toast.success('Got it — your vendor still needs to confirm.')
         onDone()
       } else {
         const body = await r.json().catch(() => ({}))
@@ -614,25 +669,151 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
     }
   }
 
+  const heading = payType === 'FINAL' ? 'Balance to pay' : 'Deposit to pay'
+  const help =
+    payType === 'FINAL'
+      ? 'Pay the remaining balance how you agreed with your vendor, then tell them how you paid. They confirm once it clears — this page does not take the money.'
+      : 'Pay the deposit how you agreed with your vendor, then tell them how you paid. They confirm once it clears — this page does not take the money.'
+
   return (
     <div>
-      <p className="num" style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>£{deposit.toFixed(2)}</p>
-      <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 14px' }}>
-        Your deposit secures the booking. Your payment is only confirmed when your vendor sees it.
+      <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: 'var(--ink)' }}>{heading}</p>
+      <p className="num" style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
+        £{amountDue.toFixed(2)}
       </p>
+      <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 14px' }}>{help}</p>
       {error && <div className="banner banner-error mb-3">{error}</div>}
-      {canPayOnline ? (
-        <Primary onClick={payOnline} busy={busy}>Pay securely online</Primary>
-      ) : (
-        <>
-          <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
-            {method === 'stripe'
-              ? 'Online card pay isn’t available in this pilot yet. Pay by bank transfer (or the method your vendor agreed), then tap below so they can confirm.'
-              : 'Pay by the method you agreed with your vendor, then tap below. They will confirm once it clears — this page does not take the money.'}
-          </p>
-          <Primary onClick={declareManual} busy={busy}>I&apos;ve made the payment</Primary>
-        </>
+
+      {canPayOnline && (
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 12px' }}>
+          Online card pay is available from your vendor — or report another way below.
+        </p>
       )}
+
+      <label className="label" style={{ marginBottom: 8 }}>How did you pay?</label>
+      <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+        {DECLARED_PAYMENT_OPTIONS.map(opt => (
+          <label
+            key={opt.value}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: `1px solid ${declaredMethod === opt.value ? 'var(--forest)' : 'var(--line)'}`,
+              background: declaredMethod === opt.value ? 'var(--forest-soft, #e8f2f0)' : 'var(--canvas-2, #fff)',
+              cursor: 'pointer',
+              fontSize: 14,
+              color: 'var(--ink)',
+            }}
+          >
+            <input
+              type="radio"
+              name="declaredMethod"
+              value={opt.value}
+              checked={declaredMethod === opt.value}
+              onChange={() => setDeclaredMethod(opt.value)}
+              style={{ accentColor: 'var(--forest)' }}
+            />
+            {opt.label}
+          </label>
+        ))}
+      </div>
+
+      <Primary onClick={declareManual} busy={busy} disabled={!declaredMethod}>
+        I&apos;ve paid this way — notify my vendor
+      </Primary>
+      <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+        Status stays “waiting for vendor” until they confirm. You will not see this marked paid here until then.
+      </p>
+    </div>
+  )
+}
+
+function ReviewStep({ busy, setBusy, onDone }: any) {
+  const [overall, setOverall] = useState(0)
+  const [wentWell, setWentWell] = useState('')
+  const [wouldRecommend, setWouldRecommend] = useState('')
+  const [error, setError] = useState('')
+
+  async function submit() {
+    if (busy) return
+    if (overall < 1 || overall > 5) {
+      setError('Tap a star rating to continue.')
+      return
+    }
+    setError('')
+    setBusy(true)
+    try {
+      const r = await fetch('/api/client/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ overall, wentWell, wouldRecommend }),
+      })
+      const body = await r.json().catch(() => ({}))
+      if (r.ok) {
+        toast.success('Thank you — you’re all done.')
+        onDone()
+      } else {
+        setError(body.error || 'Could not save your review — try again.')
+      }
+    } catch {
+      setError('Connection issue — please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      {error && <div className="banner banner-error mb-3">{error}</div>}
+      <label className="label">Overall</label>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }} role="group" aria-label="Star rating">
+        {[1, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setOverall(n)}
+            className="btn btn-ghost"
+            style={{
+              minHeight: 44,
+              minWidth: 44,
+              padding: 0,
+              fontWeight: 800,
+              borderColor: overall >= n ? 'var(--forest)' : undefined,
+              background: overall >= n ? 'var(--forest-soft, #e8f2f0)' : undefined,
+              color: overall >= n ? 'var(--forest)' : 'var(--muted)',
+            }}
+            aria-pressed={overall >= n}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label className="label">What went well?</label>
+        <textarea
+          rows={2}
+          value={wentWell}
+          onChange={e => setWentWell(e.target.value)}
+          placeholder="Optional — a sentence is enough"
+          maxLength={280}
+        />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <label className="label">Anything to improve?</label>
+        <textarea
+          rows={2}
+          value={wouldRecommend}
+          onChange={e => setWouldRecommend(e.target.value)}
+          placeholder="Optional — or say you’d book them again"
+          maxLength={280}
+        />
+      </div>
+      <Primary onClick={submit} busy={busy} disabled={overall < 1}>
+        Submit &amp; finish
+      </Primary>
     </div>
   )
 }
@@ -642,7 +823,7 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
   if (approved) {
     return (
       <div className="banner banner-success" style={{ marginTop: 14 }}>
-        You&apos;ve approved the delivery. Thank you!
+        Delivery approved.
       </div>
     )
   }
@@ -653,7 +834,7 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
     try {
       const r = await fetch('/api/client/complete', { method: 'POST' })
       if (r.ok) {
-        toast.success('Approved — thank you.')
+        toast.success('Approved — one quick review next.')
         onDone()
       } else {
         const b = await r.json().catch(() => ({}))

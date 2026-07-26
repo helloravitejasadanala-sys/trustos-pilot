@@ -8,6 +8,7 @@ import { hasUnread } from '@/lib/unread'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { projectTypeLabel } from '@/lib/project-types'
 import { useVendorChrome } from '@/components/vendor/VendorShell'
+import { tabForActivityEvent, vendorProjectHref } from '@/lib/vendor-workspace'
 
 const VENDOR_PRIORITY = [
   'QUESTIONNAIRE_COMPLETED',
@@ -18,7 +19,13 @@ const VENDOR_PRIORITY = [
   'COMPLETED',
 ]
 
-type ActivityItem = { id: string; event: string; createdAt: string; project: { title: string; slug: string } | null }
+type ActivityItem = {
+  id: string
+  event: string
+  label?: string
+  createdAt: string
+  project: { title: string; slug: string } | null
+}
 
 function greetingFor(hour: number) {
   if (hour < 12) return 'Good morning'
@@ -219,19 +226,19 @@ export default function TodayPage() {
     headline = `Confirm payment from ${clientLabel}`
     why = 'They said they paid — check and confirm so the job can move on.'
     cta = 'Confirm payment →'
-    ctaHref = `/vendor/projects/${focus.p.slug}`
+    ctaHref = vendorProjectHref(focus.p.slug, 'Money')
   } else if (focus?.kind === 'unread') {
     headline = `Reply to ${clientLabel}`
     why = 'They messaged you — answer so they are not left waiting.'
     cta = 'Open messages →'
-    ctaHref = `/vendor/projects/${focus.p.slug}`
+    ctaHref = vendorProjectHref(focus.p.slug, 'Chat')
   } else if (focus?.kind === 'action') {
     headline = focus.na.nextAction
     why = focus.na.responsible === 'Vendor'
       ? `Next step for ${clientLabel}.`
       : `Waiting on ${clientLabel}.`
     cta = focus.na.ctaLabel || 'Open project →'
-    ctaHref = `/vendor/projects/${focus.p.slug}`
+    ctaHref = vendorProjectHref(focus.p.slug, 'Overview')
   }
 
   const summaryBits = [
@@ -502,10 +509,14 @@ export default function TodayPage() {
               {activity.slice(0, 4).map(a => (
                 <Link
                   key={a.id}
-                  href={a.project ? `/vendor/projects/${a.project.slug}` : '/vendor/projects'}
+                  href={
+                    a.project
+                      ? vendorProjectHref(a.project.slug, tabForActivityEvent(a.event))
+                      : '/vendor/projects'
+                  }
                   className="block border-t border-[color:var(--line-soft)] py-2 first:border-0 first:pt-0"
                 >
-                  <div className="truncate text-[12.5px] font-semibold">{a.event}</div>
+                  <div className="truncate text-[12.5px] font-semibold">{a.label || a.event}</div>
                   <div className="num text-[11px] text-[color:var(--muted)]">
                     {a.project?.title ? `${a.project.title} · ` : ''}
                     {new Date(a.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}

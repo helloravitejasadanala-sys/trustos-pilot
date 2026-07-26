@@ -36,7 +36,13 @@ export async function GET() {
     })
 
     return NextResponse.json({
-      activity: activity.map(a => ({ ...a, event: humanizeActivityEvent(a.event) })),
+      activity: activity.map(a => ({
+        id: a.id,
+        event: a.event,
+        label: humanizeActivityEvent(a.event),
+        createdAt: a.createdAt,
+        project: a.project,
+      })),
     })
   } catch (error: any) {
     return NextResponse.json({ activity: [], error: error.message || 'Error' }, { status: error.status || 500 })

@@ -47,6 +47,16 @@ export async function GET() {
         // Existence of an approval tells the portal whether the client has
         // already approved delivery (so the button flips to a confirmed state).
         approvals: { select: { id: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
+        // Client review on this booking only (never venue knowledge).
+        review: {
+          select: {
+            id: true,
+            overall: true,
+            wentWell: true,
+            wouldRecommend: true,
+            createdAt: true,
+          },
+        },
       },
     })
 

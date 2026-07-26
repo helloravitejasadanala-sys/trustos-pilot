@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import {
   Loader2, Copy, Check, MoreVertical,
@@ -42,6 +43,8 @@ import { humanizeActivityEvent } from '@/lib/activity-labels'
 import { normalizePaymentMethod } from '@/lib/stripe-config'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { useMessagePoll } from '@/hooks/useMessagePoll'
+import { parseVendorWorkspaceTab } from '@/lib/vendor-workspace'
+import { declaredPaymentMethodLabel } from '@/lib/payment-declare'
 
 type Tab = string
 
@@ -64,10 +67,13 @@ function initials(name: string | null | undefined) {
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?'
 }
 
-export default function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
+function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [project, setProject] = useState<any>(null)
   const [clients, setClients] = useState<any[]>([])
-  const [tab, setTab] = useState<Tab>('Overview')
+  const [tab, setTab] = useState<Tab>(() => parseVendorWorkspaceTab(searchParams.get('tab')) || 'Overview')
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading')
   const [busy, setBusy] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -88,6 +94,33 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
   // Read the datetime-local's live DOM value at save time as a fallback:
   // some date pickers set the value without firing React onChange.
   const prepDateRef = useRef<HTMLInputElement>(null)
+
+  function selectTab(next: Tab) {
+    setTab(next)
+    const canonical = parseVendorWorkspaceTab(next)
+    const params = new URLSearchParams(searchParams.toString())
+    if (!canonical || canonical === 'Overview') params.delete('tab')
+    else params.set('tab', canonical)
+    const q = params.toString()
+    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false })
+  }
+
+  // Honour ?tab= from the URL (toast, Bell, Today, shared links).
+  useEffect(() => {
+    const allowed = vendorTabsForService(primaryService)
+    const fromUrl = parseVendorWorkspaceTab(searchParams.get('tab'))
+    if (fromUrl && allowed.includes(fromUrl)) {
+      setTab(prev => (prev === fromUrl ? prev : fromUrl))
+      return
+    }
+    if (fromUrl && !allowed.includes(fromUrl)) {
+      setTab('Overview')
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('tab')
+      const q = params.toString()
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false })
+    }
+  }, [searchParams, primaryService, pathname, router])
 
   async function load() {
     const [detail, clientRes] = await Promise.all([
@@ -439,7 +472,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
           action: () => copyLink(),
         }
       case 'QUESTIONNAIRE_COMPLETED':
-        return { label: na.ctaLabel || 'Review details →', action: () => setTab('Money') }
+        return { label: na.ctaLabel || 'Review details →', action: () => selectTab('Money') }
       case 'PROPOSAL_ACCEPTED':
         return { label: na.ctaLabel || 'Send agreement →', action: sendContract }
       case 'CONTRACT_SIGNED':
@@ -455,18 +488,18 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         if (serviceProfile.features.showPrep) {
           return {
             label: na.ctaLabel || 'Open preparation →',
-            action: () => setTab('Prep'),
+            action: () => selectTab('Prep'),
           }
         }
         return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
       case 'FULLY_PAID':
         if (serviceProfile.features.showDelivery) {
-          return { label: na.ctaLabel || 'Add delivery →', action: () => setTab('Delivery') }
+          return { label: na.ctaLabel || 'Add delivery →', action: () => selectTab('Delivery') }
         }
         return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
       case 'COMPLETED':
         if (serviceProfile.features.showDelivery && !deliverablesSent) {
-          return { label: na.ctaLabel || 'Add delivery →', action: () => setTab('Delivery') }
+          return { label: na.ctaLabel || 'Add delivery →', action: () => selectTab('Delivery') }
         }
         return { label: na.ctaLabel || 'Request a review →', action: requestReview }
       default:
@@ -509,17 +542,22 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         ? { label: 'Received', cls: 'chip chip-success', hint: `${serviceProfile.depositLabel} in` }
         : { label: 'Awaiting', cls: 'chip chip-amber', hint: `Awaiting ${serviceProfile.depositLabel.toLowerCase()}` }
 
+  const pendingPayment = (project.payments || []).find((p: any) => p.status === 'PENDING')
   const paymentStatusChip = (() => {
     if (method === 'free') return <span className="chip chip-success">No payment required</span>
-    if (deposit) return <span className="chip chip-success">{serviceProfile.depositLabel} received</span>
-    if ((project.payments || []).some((p: any) => p.status === 'PENDING')) {
-      return <span className="chip chip-amber">Client reported sent</span>
+    if (deposit && !pendingPayment) {
+      return <span className="chip chip-success">{serviceProfile.depositLabel} received</span>
+    }
+    if (pendingPayment) {
+      const how = declaredPaymentMethodLabel(pendingPayment.method)
+      const kind = pendingPayment.type === 'FINAL' || pendingPayment.type === 'INSTALMENT' ? 'balance' : 'deposit'
+      return <span className="chip chip-amber">Client reported {kind} · {how}</span>
     }
     if (project.proposal) return <span className="chip chip-amber">Awaiting transfer</span>
     return <span className="chip chip-muted">Not sent</span>
   })()
 
-  const clientConfirmedPending = (project.payments || []).some((p: any) => p.status === 'PENDING')
+  const clientConfirmedPending = !!pendingPayment
 
   return (
     <WorkspaceLayout>
@@ -672,7 +710,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
       <WorkspaceTabs
         tabs={tabs}
         active={tabs.includes(tab) ? tab : 'Overview'}
-        onChange={t => setTab(t)}
+        onChange={t => selectTab(t)}
         labelFor={t => vendorTabLabel(t, primaryService)}
         badge={t => {
           if (t !== 'Chat') return null
@@ -763,7 +801,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                     >
                       {busy === 'remind' ? <Loader2 size={15} className="animate-spin" /> : 'Send reminder'}
                     </button>
-                    <button type="button" onClick={() => setTab('Chat')} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
+                    <button type="button" onClick={() => selectTab('Chat')} className="btn btn-ghost-dark" style={{ minHeight: 40 }}>
                       <MessageSquare size={14} className="mr-1.5" />Chat
                     </button>
                   </div>
@@ -792,6 +830,35 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
                 )}
               </div>
             </div>
+
+            {project.review && (
+              <div className="panel" style={{ padding: 18, maxWidth: 520 }}>
+                <div className="kicker" style={{ color: 'var(--forest)', marginBottom: 8 }}>Client review</div>
+                <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--muted)' }}>
+                  Private to you — not published anywhere.
+                </p>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)', marginBottom: 10 }}>
+                  {project.review.overall}/5
+                </div>
+                {project.review.wentWell?.trim() && (
+                  <p style={{ margin: '0 0 8px', fontSize: 13.5, color: 'var(--ink)' }}>
+                    <span style={{ color: 'var(--muted)' }}>Went well: </span>
+                    {project.review.wentWell}
+                  </p>
+                )}
+                {project.review.wouldRecommend?.trim() && (
+                  <p style={{ margin: '0 0 8px', fontSize: 13.5, color: 'var(--ink)' }}>
+                    <span style={{ color: 'var(--muted)' }}>Improve / book again: </span>
+                    {project.review.wouldRecommend}
+                  </p>
+                )}
+                {(project.status === 'COMPLETED' || deliveryApproved) && (
+                  <div className="banner banner-success" style={{ marginTop: 12 }}>
+                    Booking closed on the client side — review captured.
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Per-booking service — changeable until quote is accepted */}
             {!['PROPOSAL_ACCEPTED', 'CONTRACT_SENT', 'CONTRACT_SIGNED', 'DEPOSIT_PAID', 'FULLY_PAID', 'COMPLETED', 'CANCELLED'].includes(project.status) && (
@@ -922,7 +989,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
               <button
                 type="button"
-                onClick={() => setTab('Money')}
+                onClick={() => selectTab('Money')}
                 className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                 style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
               >
@@ -937,7 +1004,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               {serviceProfile.features.showPrep && (
                 <button
                   type="button"
-                  onClick={() => setTab('Prep')}
+                  onClick={() => selectTab('Prep')}
                   className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                   style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
                 >
@@ -958,7 +1025,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
 
               <button
                 type="button"
-                onClick={() => setTab('Chat')}
+                onClick={() => selectTab('Chat')}
                 className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                 style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
               >
@@ -976,7 +1043,7 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               {serviceProfile.features.showDelivery && (
                 <button
                   type="button"
-                  onClick={() => setTab('Delivery')}
+                  onClick={() => selectTab('Delivery')}
                   className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                   style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
                 >
@@ -1206,9 +1273,12 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
                 Only confirm when the money is in your account. This does not move money — it updates the booking.
               </p>
-              {(project.payments || []).some((p: any) => p.status === 'PENDING') && (
+              {pendingPayment && (
                 <div className="banner banner-offline" style={{ marginTop: 12 }}>
-                  Your client said they paid. Confirm only once it has cleared in your account.
+                  Client reported{' '}
+                  {pendingPayment.type === 'FINAL' || pendingPayment.type === 'INSTALMENT' ? 'balance' : 'deposit'}{' '}
+                  by {declaredPaymentMethodLabel(pendingPayment.method)}. Confirm only once it has cleared —
+                  this does not move money.
                 </div>
               )}
             </div>
@@ -1222,7 +1292,13 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               <ul className="space-y-2" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {(project.payments || []).map((p: any) => (
                   <li key={p.id} className="num" style={{ fontSize: 13.5, color: 'var(--ink)' }}>
-                    {p.type} · £{Number(p.amount).toFixed(2)} · {p.status} · {p.method}
+                    {p.type} · £{Number(p.amount).toFixed(2)} ·{' '}
+                    {p.status === 'PENDING'
+                      ? `reported (${declaredPaymentMethodLabel(p.method)}) — waiting for you`
+                      : p.status === 'COMPLETED'
+                        ? 'confirmed'
+                        : p.status}
+                    {p.status !== 'PENDING' && p.method ? ` · ${declaredPaymentMethodLabel(p.method)}` : ''}
                   </li>
                 ))}
               </ul>
@@ -1417,7 +1493,9 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
               <div className="context" style={{ padding: 16 }}>
                 {deliveryApproved ? (
                   <div className="banner banner-success" style={{ margin: 0 }}>
-                    Client approved — your job is complete on this booking.
+                    {project.review
+                      ? 'Client approved and left a review — this booking is closed on their side.'
+                      : 'Client approved delivery — they can leave a quick review next.'}
                   </div>
                 ) : deliverablesSent ? (
                   <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
@@ -1554,5 +1632,19 @@ export default function VendorProjectWorkspace({ params }: { params: { slug: str
         />
       )}
     </WorkspaceLayout>
+  )
+}
+
+export default function VendorProjectWorkspacePage({ params }: { params: { slug: string } }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-[color:var(--muted)]">
+          Loading booking…
+        </div>
+      }
+    >
+      <VendorProjectWorkspace params={params} />
+    </Suspense>
   )
 }

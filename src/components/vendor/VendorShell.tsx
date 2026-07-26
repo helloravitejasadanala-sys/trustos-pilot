@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { CalendarDays, FolderKanban, Users, Settings, Bell } from 'lucide-react'
 import {
   createContext,
@@ -19,6 +19,7 @@ import { getNextAction } from '@/lib/journey'
 import { hasPendingPaymentConfirm, isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
 import { hasUnread } from '@/lib/unread'
 import { playMessageChime } from '@/lib/notify'
+import { vendorProjectHref } from '@/lib/vendor-workspace'
 import NewProjectModal from '@/components/vendor/NewProjectModal'
 
 const NAV = [
@@ -64,6 +65,7 @@ function formatTopbarDate(d = new Date()) {
 
 export default function VendorShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const inWorkspace = pathname.startsWith('/vendor/projects/') && pathname.split('/').length > 3
   const [businessName, setBusinessName] = useState('')
   const [userName, setUserName] = useState('')
@@ -150,7 +152,34 @@ export default function VendorShell({ children }: { children: ReactNode }) {
               if (prev && new Date(at).getTime() > new Date(prev).getTime()) {
                 if (!inChat || !pathname.includes(p.slug)) {
                   const from = p.client?.name || p.title || 'Client'
-                  toast(`New message from ${from}`, { id: `vendor-inbox-${p.id}` })
+                  const href = vendorProjectHref(p.slug, 'Chat')
+                  toast(
+                    t => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push(href)
+                          toast.dismiss(t.id)
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 0,
+                          padding: 0,
+                          margin: 0,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          font: 'inherit',
+                          color: 'inherit',
+                        }}
+                      >
+                        New message from {from}
+                        <span style={{ display: 'block', fontSize: 12, opacity: 0.75, marginTop: 2 }}>
+                          Open chat →
+                        </span>
+                      </button>
+                    ),
+                    { id: `vendor-inbox-${p.id}` },
+                  )
                   playMessageChime()
                 }
               }
@@ -178,7 +207,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
       if (timer) clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [pathname, primaryService])
+  }, [pathname, primaryService, router])
 
   const openNewProject = useCallback(() => setShowCreate(true), [])
 
@@ -193,7 +222,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const profileLabel = userName.trim() || businessName.trim()
   const showIdentity = profileLoaded && !!workspaceLabel
   const notifyHref = firstUnreadSlug
-    ? `/vendor/projects/${firstUnreadSlug}`
+    ? vendorProjectHref(firstUnreadSlug, 'Chat')
     : '/vendor'
 
   const badgeFor = (href: string) => {
