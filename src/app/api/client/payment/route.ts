@@ -27,9 +27,10 @@ export async function GET() {
     const b = await breakdown(projectId)
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      select: { paymentMethod: true },
+      select: { paymentMethod: true, balanceRequestedAt: true },
     })
     const method = normalizePaymentMethod(project?.paymentMethod)
+    const balanceRequested = !!project?.balanceRequestedAt
 
     const pending = await prisma.payment.findMany({
       where: { projectId, status: 'PENDING' },
@@ -45,6 +46,7 @@ export async function GET() {
         ? {
             ...b,
             method,
+            balanceRequested,
             // Portal never shows Pay online until Elements exist (ignore env alone).
             stripeConfigured: isStripePortalPayAvailable(),
             stripeKeysPresent: isStripeConfigured(),
@@ -93,6 +95,20 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      // FINAL/balance only after the vendor explicitly requests it.
+      if (type === 'FINAL' || type === 'INSTALMENT') {
+        const gate = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { balanceRequestedAt: true },
+        })
+        if (!gate?.balanceRequestedAt) {
+          return NextResponse.json(
+            { error: 'Your vendor has not asked for the balance yet.' },
+            { status: 409 },
+          )
+        }
+      }
+
       const amount = await amountForType(projectId, type)
       const existing = await prisma.payment.findFirst({
         where: { projectId, type, status: 'PENDING' },
@@ -124,6 +140,19 @@ export async function POST(req: NextRequest) {
         },
         { status: 503 },
       )
+    }
+
+    if (type === 'FINAL' || type === 'INSTALMENT') {
+      const gate = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { balanceRequestedAt: true },
+      })
+      if (!gate?.balanceRequestedAt) {
+        return NextResponse.json(
+          { error: 'Your vendor has not asked for the balance yet.' },
+          { status: 409 },
+        )
+      }
     }
 
     const amount = await amountForType(projectId, type)

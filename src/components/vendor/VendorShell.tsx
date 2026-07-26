@@ -16,7 +16,13 @@ import {
 import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { getNextAction } from '@/lib/journey'
-import { hasPendingPaymentConfirm, isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
+import {
+  hasPendingPaymentConfirm,
+  isArchivedProject,
+  isVendorClosedProject,
+  needsBalanceRequest,
+  type VendorProject,
+} from '@/lib/vendor-phase1'
 import { hasUnread } from '@/lib/unread'
 import { playMessageChime } from '@/lib/notify'
 import { vendorProjectHref } from '@/lib/vendor-workspace'
@@ -121,14 +127,22 @@ export default function VendorShell({ children }: { children: ReactNode }) {
         const projRes = await fetch('/api/vendor/projects')
         const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
         if (!cancelled && proj.ok) {
-          const live = (proj.data.projects || []).filter(p => !isArchivedProject(p))
-          setProjectCount(live.length)
+          const live = (proj.data.projects || []).filter(
+            p => !isArchivedProject(p) && !isVendorClosedProject(p),
+          )
+          setProjectCount(
+            (proj.data.projects || []).filter(p => !isArchivedProject(p)).length,
+          )
           setTodayCount(
-            live.filter(
-              p =>
+            live.filter(p => {
+              const service = p.service || primaryService
+              return (
                 hasPendingPaymentConfirm(p) ||
-                getNextAction(p.status, primaryService).responsible === 'Vendor',
-            ).length,
+                needsBalanceRequest(p) ||
+                hasUnread(p.id, p.lastClientMessageAt) ||
+                getNextAction(p.status, service).responsible === 'Vendor'
+              )
+            }).length,
           )
 
           const unread = live.filter(p => hasUnread(p.id, p.lastClientMessageAt))

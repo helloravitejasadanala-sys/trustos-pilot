@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const project = await prisma.project.findFirst({
       where: { id: params.id, vendor: { userId: user.id } },
-      include: { proposal: true }
+      include: { proposal: true },
     })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     if (!project.proposal) {
@@ -21,6 +21,31 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const isFree = free === true || project.paymentMethod === 'free'
     const deposit = Number(project.proposal.depositAmount ?? project.proposal.deposit ?? 0)
     const price = Number(project.proposal.price)
+
+    // Vendor explicitly opens balance collect on the client portal.
+    if (body.requestBalance === true) {
+      if (isFree || price <= 0) {
+        return NextResponse.json({ error: 'No balance to request on this booking.' }, { status: 409 })
+      }
+      const depositDone = await prisma.payment.findFirst({
+        where: { projectId: project.id, type: 'DEPOSIT', status: 'COMPLETED' },
+        select: { id: true },
+      })
+      if (!depositDone) {
+        return NextResponse.json(
+          { error: 'Confirm the deposit before requesting the balance.' },
+          { status: 409 },
+        )
+      }
+      if (deposit >= price || project.status === 'FULLY_PAID') {
+        return NextResponse.json({ error: 'No balance remaining on this booking.' }, { status: 409 })
+      }
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { balanceRequestedAt: project.balanceRequestedAt ?? new Date() },
+      })
+      return NextResponse.json({ ok: true, balanceRequested: true })
+    }
 
     // Free collaboration: record a £0 settlement and complete the money stage.
     if (isFree) {

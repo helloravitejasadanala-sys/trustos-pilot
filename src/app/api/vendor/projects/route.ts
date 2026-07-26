@@ -38,6 +38,8 @@ export async function GET() {
         proposal: true,
         contract: true,
         payments: true,
+        review: { select: { id: true } },
+        approvals: { select: { id: true }, take: 1 },
         _count: { select: { messages: true, milestones: true } },
         // The active invitation, so the vendor can copy the secure link.
         // Only the owning vendor ever sees a raw token.

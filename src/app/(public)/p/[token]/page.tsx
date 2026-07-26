@@ -231,12 +231,24 @@ export default function ClientJourney({ params }: { params: { token: string } })
   const serviceKey = (project.service || project.vendor?.primaryService) as string | undefined
   const serviceProfile = getServiceProfile(serviceKey)
   const STEPS = clientSteps(serviceKey)
+  const depositSettled =
+    !!payment &&
+    (Number(payment.depositPaid) > 0 || payment.fullyPaid || Number(payment.total) === 0)
+  const balanceCollectOpen =
+    !!payment &&
+    !!payment.balanceRequested &&
+    Number(payment.balanceDue) > 0 &&
+    !payment.fullyPaid
   const done = {
     questionnaire: !!questionnaire?.completedAt,
     proposal: !!proposal?.acceptedAt,
     contract: !!contract?.signedAt,
-    // Payment step stays open until the booking is fully settled (deposit + balance).
-    payment: !!payment && (payment.fullyPaid || Number(payment.total) === 0),
+    // Deposit phase closes once confirmed. Balance only re-opens after vendor requests it.
+    payment:
+      !!payment &&
+      (payment.fullyPaid ||
+        Number(payment.total) === 0 ||
+        (depositSettled && !balanceCollectOpen && !payment.pendingDeposit)),
   }
   // Never show Pay before an agreement exists and is signed.
   const waitingForAgreement = !!done.proposal && !contract
@@ -279,17 +291,24 @@ export default function ClientJourney({ params }: { params: { token: string } })
     !project.review && (deliveryApproved || project.status === 'COMPLETED')
   const clientClosed = !!project.review && (deliveryApproved || project.status === 'COMPLETED')
 
-  const nextLabel = current === 'done'
-    ? waitingForQuote
-      ? `Waiting for ${vendorName}`
-      : waitingForAgreement
+  const nextLabel = clientClosed
+    ? 'Complete'
+    : current === 'done'
+      ? waitingForQuote
         ? `Waiting for ${vendorName}`
-        : (showDelivery && hasGallery && !deliveryApproved ? 'Review your files' : 'You’re booked')
-    : currentStep
-      ? `Next: ${currentStep.label}`
-      : 'Your event'
+        : waitingForAgreement
+          ? `Waiting for ${vendorName}`
+          : (showDelivery && hasGallery && !deliveryApproved ? 'Review your files' : 'You’re booked')
+      : currentStep
+        ? `Next: ${currentStep.label}`
+        : 'Your event'
 
   const bookingLine = [typeLabel, eventDate].filter(Boolean).join(' · ')
+  const filesLabel =
+    serviceProfile.features.deliverableKind === 'recording' ? 'Your recording' : 'Your gallery'
+  const fileLinks = hasGallery
+    ? (project.files as any[]).filter((f: any) => f.type === 'gallery' || f.type === 'recording')
+    : []
 
   return (
     <ClientPortalLayout
@@ -298,7 +317,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
       forLine={`Your event with ${vendorName}`}
       title={projectTitle}
       stepLabel={nextLabel}
-      progressPct={progressPct}
+      progressPct={clientClosed ? 100 : progressPct}
     >
       <div className="flex min-w-0 flex-col gap-4" style={{ maxWidth: 640, margin: '0 auto' }}>
         {bookingLine ? (
@@ -307,130 +326,174 @@ export default function ClientJourney({ params }: { params: { token: string } })
           </p>
         ) : null}
 
-        {current !== 'done' && currentStep ? (
-          <div className="min-w-0">
-            <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
-              What we need from you
-            </div>
-            <div className="action-outline" style={{ padding: '16px 14px' }}>
-              <div className="serif break-words" style={{ fontSize: 'clamp(20px, 5.5vw, 25px)', lineHeight: 1.1, marginBottom: 6 }}>
-                {currentStep.label}
-              </div>
-              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
-                {currentStep.why}
-              </p>
-              {current === 'questionnaire' && (
-                <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />
-              )}
-              {current === 'proposal' && (
-                <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />
-              )}
-              {current === 'contract' && (
-                <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />
-              )}
-              {current === 'payment' && (
-                <PaymentStep payment={payment} busy={busy} setBusy={setBusy} onDone={refresh} />
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="action-outline" style={{ padding: '16px 14px' }}>
-            <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
-              With {vendorName}
-            </div>
-            <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
-              {waitingForQuote
-                ? `Wait for ${vendorName} to send your quote`
-                : waitingForAgreement
-                  ? `Wait for ${vendorName} to send your agreement`
-                  : showDelivery && hasGallery && !deliveryApproved
-                    ? 'Your files are ready'
-                    : 'Nothing needed from you right now'}
-            </div>
-            <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
-              {waitingForQuote
-                ? `You’re not finished — ${vendorName} still needs to send a quote. You’ll see it on this page. Message them below if you have questions.`
-                : waitingForAgreement
-                  ? `${vendorName} will send your agreement here next. You’ll sign it before any payment.`
-                  : showDelivery && hasGallery && !deliveryApproved
-                    ? 'Open the files below, then approve when you’re happy.'
-                    : `${vendorName} will update this page when they need you.`}
-            </p>
-          </div>
-        )}
-
-        {showDelivery && hasGallery && (
-          <div className="panel" style={{ padding: 18 }}>
-            <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>
-              {serviceProfile.features.deliverableKind === 'recording' ? 'Your recording' : 'Your gallery'}
-            </div>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
-              {project.files
-                .filter((f: any) => f.type === 'gallery' || f.type === 'recording')
-                .map((f: any) => (
-                <li key={f.id}>
-                  <a
-                    href={f.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ fontSize: 14, color: 'var(--forest)', textDecoration: 'underline', textUnderlineOffset: 2 }}
-                  >
-                    {f.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            {serviceProfile.features.showApproval && !deliveryApproved && (
-              <DeliveryApproval
-                approved={false}
-                busy={busy}
-                setBusy={setBusy}
-                onDone={refresh}
-              />
-            )}
-            {serviceProfile.features.showApproval && deliveryApproved && (
-              <div className="banner banner-success" style={{ marginTop: 14 }}>
-                Delivery approved.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Closing: review once delivery approved OR vendor marked COMPLETED — no wait on vendor complete. */}
+        {/* After review: thank-you + files + messages only — no payment/waiting/delivery UI. */}
         {clientClosed ? (
-          <div className="panel" style={{ padding: 18 }}>
-            <div className="kicker" style={{ color: 'var(--success)', marginBottom: 8 }}>Finished</div>
-            <p className="serif" style={{ fontSize: 22, margin: '0 0 8px', color: 'var(--ink)', lineHeight: 1.15 }}>
-              You&apos;re all done
-            </p>
-            <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
-              Thanks for your feedback
-              {project.review?.overall ? ` (${project.review.overall}/5)` : ''}.
-              This booking is complete on your side — nothing more to do here.
-            </p>
-          </div>
-        ) : canLeaveReview ? (
-          <div className="panel" style={{ padding: 18 }}>
-            <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 8 }}>Last step</div>
-            <p className="serif" style={{ fontSize: 22, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1.15 }}>
-              Quick review for {vendorName}
-            </p>
-            <p style={{ margin: '0 0 14px', fontSize: 13.5, color: 'var(--muted)' }}>
-              About 30 seconds — stars plus two short answers. Only {vendorName} sees this.
-            </p>
-            <ReviewStep busy={busy} setBusy={setBusy} onDone={refresh} />
-          </div>
-        ) : null}
+          <>
+            <div className="panel" style={{ padding: 18 }}>
+              <div className="kicker" style={{ color: 'var(--success)', marginBottom: 8 }}>Finished</div>
+              <p className="serif" style={{ fontSize: 22, margin: '0 0 8px', color: 'var(--ink)', lineHeight: 1.15 }}>
+                You&apos;re all done
+              </p>
+              <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
+                Thanks for your feedback
+                {project.review?.overall ? ` (${project.review.overall}/5)` : ''}.
+                This booking is complete on your side — nothing more to do here.
+              </p>
+            </div>
 
-        <ClientMessages vendorName={vendorName} />
+            {fileLinks.length > 0 && (
+              <div className="panel" style={{ padding: 18 }}>
+                <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>
+                  {filesLabel}
+                </div>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
+                  {fileLinks.map((f: any) => (
+                    <li key={f.id}>
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: 14, color: 'var(--forest)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                      >
+                        {f.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-        <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
-          <HelpCircle size={13} />
-          Questions? Message {vendorName} above{project.vendor.phone ? `, or call ${project.vendor.phone}` : ''}.
-        </p>
-        <p style={{ margin: 0, fontSize: 12, color: 'var(--faint)', lineHeight: 1.45 }}>
-          Private booking link · only you and {vendorName} can see this. No account needed.
-        </p>
+            <ClientMessages vendorName={vendorName} />
+
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+              <HelpCircle size={13} />
+              Need anything? Message {vendorName} above
+              {project.vendor.phone ? `, or call ${project.vendor.phone}` : ''}.
+            </p>
+          </>
+        ) : (
+          <>
+            {current !== 'done' && currentStep ? (
+              <div className="min-w-0">
+                <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
+                  What we need from you
+                </div>
+                <div className="action-outline" style={{ padding: '16px 14px' }}>
+                  <div className="serif break-words" style={{ fontSize: 'clamp(20px, 5.5vw, 25px)', lineHeight: 1.1, marginBottom: 6 }}>
+                    {currentStep.label}
+                  </div>
+                  <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 14px' }}>
+                    {currentStep.why}
+                  </p>
+                  {current === 'questionnaire' && (
+                    <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />
+                  )}
+                  {current === 'proposal' && (
+                    <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />
+                  )}
+                  {current === 'contract' && (
+                    <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />
+                  )}
+                  {current === 'payment' && (
+                    <PaymentStep
+                      payment={payment}
+                      depositLabel={serviceProfile.depositLabel}
+                      busy={busy}
+                      setBusy={setBusy}
+                      onDone={refresh}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="action-outline" style={{ padding: '16px 14px' }}>
+                <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 9 }}>
+                  With {vendorName}
+                </div>
+                <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
+                  {waitingForQuote
+                    ? `Wait for ${vendorName} to send your quote`
+                    : waitingForAgreement
+                      ? `Wait for ${vendorName} to send your agreement`
+                      : showDelivery && hasGallery && !deliveryApproved
+                        ? 'Your files are ready'
+                        : depositSettled && !payment?.fullyPaid && !balanceCollectOpen
+                          ? `${serviceProfile.depositLabel} confirmed`
+                          : 'Nothing needed from you right now'}
+                </div>
+                <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
+                  {waitingForQuote
+                    ? `You’re not finished — ${vendorName} still needs to send a quote. You’ll see it on this page. Message them below if you have questions.`
+                    : waitingForAgreement
+                      ? `${vendorName} will send your agreement here next. You’ll sign it before any payment.`
+                      : showDelivery && hasGallery && !deliveryApproved
+                        ? 'Open the files below, then approve when you’re happy.'
+                        : depositSettled && !payment?.fullyPaid && !balanceCollectOpen
+                          ? `You’re set for now — next is your event. ${vendorName} will update this page if they need anything else (including the balance later).`
+                          : `${vendorName} will update this page when they need you.`}
+                </p>
+              </div>
+            )}
+
+            {showDelivery && hasGallery && (
+              <div className="panel" style={{ padding: 18 }}>
+                <div className="kicker" style={{ color: 'var(--faint)', marginBottom: 12 }}>
+                  {filesLabel}
+                </div>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }} className="space-y-2">
+                  {fileLinks.map((f: any) => (
+                    <li key={f.id}>
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: 14, color: 'var(--forest)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                      >
+                        {f.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+                {serviceProfile.features.showApproval && !deliveryApproved && (
+                  <DeliveryApproval
+                    approved={false}
+                    busy={busy}
+                    setBusy={setBusy}
+                    onDone={refresh}
+                  />
+                )}
+                {serviceProfile.features.showApproval && deliveryApproved && (
+                  <div className="banner banner-success" style={{ marginTop: 14 }}>
+                    Delivery approved.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {canLeaveReview ? (
+              <div className="panel" style={{ padding: 18 }}>
+                <div className="kicker" style={{ color: 'var(--coral-deep)', marginBottom: 8 }}>Last step</div>
+                <p className="serif" style={{ fontSize: 22, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1.15 }}>
+                  Quick review for {vendorName}
+                </p>
+                <p style={{ margin: '0 0 14px', fontSize: 13.5, color: 'var(--muted)' }}>
+                  About 30 seconds — stars plus two short answers. Only {vendorName} sees this.
+                </p>
+                <ReviewStep busy={busy} setBusy={setBusy} onDone={refresh} />
+              </div>
+            ) : null}
+
+            <ClientMessages vendorName={vendorName} />
+
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+              <HelpCircle size={13} />
+              Questions? Message {vendorName} above{project.vendor.phone ? `, or call ${project.vendor.phone}` : ''}.
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--faint)', lineHeight: 1.45 }}>
+              Private booking link · only you and {vendorName} can see this. No account needed.
+            </p>
+          </>
+        )}
       </div>
     </ClientPortalLayout>
   )
@@ -631,20 +694,24 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
   )
 }
 
-function PaymentStep({ payment, busy, setBusy, onDone }: any) {
+function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
   const [declaredMethod, setDeclaredMethod] = useState<DeclaredPaymentMethod | ''>('')
   const total = Number(payment?.total ?? 0)
   const depositDue = Number(payment?.depositDue ?? 0)
   const depositPaid = Number(payment?.depositPaid ?? 0)
   const balanceDue = Number(payment?.balanceDue ?? 0)
+  const balanceRequested = !!payment?.balanceRequested
   // Elements not wired — never show a dead Pay online button (env flag alone is not enough).
   const canPayOnline = !!payment?.stripeConfigured
 
-  const payType: 'DEPOSIT' | 'FINAL' = depositPaid > 0 && balanceDue > 0 ? 'FINAL' : 'DEPOSIT'
+  // Balance collect only after vendor explicitly requests it.
+  const payType: 'DEPOSIT' | 'FINAL' =
+    depositPaid > 0 && balanceDue > 0 && balanceRequested ? 'FINAL' : 'DEPOSIT'
   const amountDue = payType === 'FINAL' ? balanceDue : depositDue
   const pending =
     payType === 'FINAL' ? payment?.pendingFinal : payment?.pendingDeposit
+  const advanceWord = depositLabel || 'Deposit'
 
   if (total === 0) {
     return (
@@ -668,13 +735,29 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
     )
   }
 
-  // Waiting for vendor — never call this “paid”.
-  if (pending) {
-    const label = payType === 'FINAL' ? 'balance' : 'deposit'
+  // Deposit confirmed, balance not yet requested — calm state (should rarely render; step usually closes).
+  if (depositPaid > 0 && balanceDue > 0 && !balanceRequested && !payment?.pendingDeposit) {
     return (
       <div>
         <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>
-          Reported — waiting for your vendor
+          {advanceWord} confirmed
+        </p>
+        <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
+          You&apos;re set for now — next is your event. Your vendor will ask here if they need the balance later.
+        </p>
+      </div>
+    )
+  }
+
+  // Waiting for vendor — never call this “paid”.
+  if (pending) {
+    const label = payType === 'FINAL' ? 'balance' : advanceWord.toLowerCase()
+    return (
+      <div>
+        <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: 'var(--ink)' }}>
+          {payType === 'FINAL'
+            ? 'Balance sent — waiting for your vendor to confirm.'
+            : `${advanceWord} sent — waiting for your vendor to confirm.`}
         </p>
         <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>
           You told them you paid the £{Number(pending.amount ?? amountDue).toFixed(2)} {label}
@@ -704,7 +787,11 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
         }),
       })
       if (r.ok) {
-        toast.success('Got it — your vendor still needs to confirm.')
+        toast.success(
+          payType === 'FINAL'
+            ? 'Balance reported — waiting for your vendor to confirm.'
+            : `${advanceWord} reported — waiting for your vendor to confirm.`,
+        )
         onDone()
       } else {
         const body = await r.json().catch(() => ({}))
@@ -717,11 +804,11 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
     }
   }
 
-  const heading = payType === 'FINAL' ? 'Balance to pay' : 'Deposit to pay'
+  const heading = payType === 'FINAL' ? 'Balance to pay' : `${advanceWord} to pay`
   const help =
     payType === 'FINAL'
       ? 'Pay the remaining balance how you agreed with your vendor, then tell them how you paid. They confirm once it clears — this page does not take the money.'
-      : 'Pay the deposit how you agreed with your vendor, then tell them how you paid. They confirm once it clears — this page does not take the money.'
+      : `Pay the ${advanceWord.toLowerCase()} how you agreed with your vendor, then tell them how you paid. They confirm once it clears — this page does not take the money.`
 
   return (
     <div>
@@ -773,7 +860,7 @@ function PaymentStep({ payment, busy, setBusy, onDone }: any) {
         I&apos;ve paid this way — notify my vendor
       </Primary>
       <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-        Status stays “waiting for vendor” until they confirm. You will not see this marked paid here until then.
+        Status stays “waiting for your vendor to confirm” until they mark it received.
       </p>
     </div>
   )

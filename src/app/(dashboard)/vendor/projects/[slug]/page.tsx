@@ -19,7 +19,7 @@ import { playMessageChime } from '@/lib/notify'
 import TypingPreview from '@/components/ui/TypingPreview'
 import { getNextAction, isWaitingOnClient } from '@/lib/journey'
 import {
-  ARCHIVED_PREFIX, isTestProject, journeyProgress,
+  ARCHIVED_PREFIX, isArchivedProject, isTestProject, journeyProgress,
   projectProgressSummary, hasDeliverables, hasDeliveryApproval,
 } from '@/lib/vendor-phase1'
 import { projectTypeLabel } from '@/lib/project-types'
@@ -273,9 +273,14 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
     await post('payment', { type, method: quote.method })
     toast.success(
       type === 'DEPOSIT'
-        ? 'Deposit confirmed — you can prepare for the day'
+        ? `${serviceProfile.depositLabel} confirmed — you can prepare for the day`
         : 'Balance confirmed — booking money is settled',
     )
+    await load()
+  }
+  async function requestBalance() {
+    await post('payment', { requestBalance: true })
+    toast.success('Balance requested — your client can report it on their link now')
     await load()
   }
   async function completeFree() {
@@ -291,6 +296,16 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   async function requestReview() {
     await post('review-request')
     toast.success('Review request noted — ask your client when you’re ready')
+    await load()
+  }
+  async function archiveBooking() {
+    await patchProject({ archive: true })
+    toast.success('Booking archived — find it under Archived')
+    await load()
+  }
+  async function restoreBooking() {
+    await patchProject({ unarchive: true })
+    toast.success('Booking restored to your active list')
     await load()
   }
   async function sendReminder() {
@@ -473,8 +488,33 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const summary = projectProgressSummary(project, primaryService)
   const deliverablesSent = hasDeliverables(project)
   const deliveryApproved = hasDeliveryApproval(project)
+  const archived = isArchivedProject(project)
+  /** COMPLETED + client review — lock client-facing mutations; chat + venue notes stay open. */
+  const vendorClosed = project.status === 'COMPLETED' && !!project.review
   const method = normalizePaymentMethod(project.paymentMethod || quote.method)
   const deposit = (project.payments || []).find((p: any) => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
+  const pendingDeposit = (project.payments || []).find(
+    (p: any) => p.type === 'DEPOSIT' && p.status === 'PENDING',
+  )
+  const pendingFinal = (project.payments || []).find(
+    (p: any) => (p.type === 'FINAL' || p.type === 'INSTALMENT') && p.status === 'PENDING',
+  )
+  const balanceRequested = !!project.balanceRequestedAt
+  const proposalPrice = Number(project.proposal?.price ?? quote.price ?? 0)
+  const proposalDeposit = Number(
+    project.proposal?.depositAmount ?? project.proposal?.deposit ?? quote.deposit ?? 0,
+  )
+  const finalCompleted = (project.payments || []).some(
+    (p: any) => (p.type === 'FINAL' || p.type === 'INSTALMENT') && p.status === 'COMPLETED',
+  )
+  const balanceOutstanding =
+    method !== 'free' &&
+    proposalPrice > 0 &&
+    proposalDeposit < proposalPrice &&
+    !!deposit &&
+    !finalCompleted &&
+    project.status !== 'FULLY_PAID' &&
+    project.status !== 'COMPLETED'
   /** Amounts locked after a COMPLETED deposit or free settlement. */
   const moneyLocked = (project.payments || []).some(
     (p: any) => p.status === 'COMPLETED' && (p.type === 'DEPOSIT' || p.method === 'free'),
@@ -495,6 +535,12 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const stageNum = currentJourneyIndex + 1
 
   const primary: { label: string; action: () => Promise<void> | void } | null = (() => {
+    if (archived) {
+      return { label: 'Restore booking →', action: restoreBooking }
+    }
+    if (vendorClosed) {
+      return { label: 'Archive booking →', action: archiveBooking }
+    }
     switch (project.status) {
       case 'LEAD':
         return {
@@ -572,16 +618,24 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
         ? { label: 'Received', cls: 'chip chip-success', hint: `${serviceProfile.depositLabel} in` }
         : { label: 'Awaiting', cls: 'chip chip-amber', hint: `Awaiting ${serviceProfile.depositLabel.toLowerCase()}` }
 
-  const pendingPayment = (project.payments || []).find((p: any) => p.status === 'PENDING')
+  const pendingPayment = pendingDeposit || pendingFinal || null
   const paymentStatusChip = (() => {
     if (method === 'free') return <span className="chip chip-success">No payment required</span>
-    if (deposit && !pendingPayment) {
+    if (pendingPayment) {
+      const kind =
+        pendingPayment.type === 'FINAL' || pendingPayment.type === 'INSTALMENT'
+          ? 'balance'
+          : serviceProfile.depositLabel.toLowerCase()
+      return <span className="chip chip-amber">Client reported {kind} · waiting on you</span>
+    }
+    if (deposit && balanceOutstanding && balanceRequested) {
+      return <span className="chip chip-amber">Balance requested · waiting on client</span>
+    }
+    if (deposit && balanceOutstanding && !balanceRequested) {
       return <span className="chip chip-success">{serviceProfile.depositLabel} received</span>
     }
-    if (pendingPayment) {
-      const how = declaredPaymentMethodLabel(pendingPayment.method)
-      const kind = pendingPayment.type === 'FINAL' || pendingPayment.type === 'INSTALMENT' ? 'balance' : 'deposit'
-      return <span className="chip chip-amber">Client reported {kind} · {how}</span>
+    if (deposit) {
+      return <span className="chip chip-success">{serviceProfile.depositLabel} received</span>
     }
     if (project.proposal) return <span className="chip chip-amber">Awaiting transfer</span>
     return <span className="chip chip-muted">Not sent</span>
@@ -619,6 +673,12 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           {eventMeta && (
             <p className="break-words" style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 0' }}>{eventMeta}</p>
           )}
+          {(archived || vendorClosed) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {archived && <span className="chip chip-muted">Archived</span>}
+              {vendorClosed && <span className="chip chip-success">Closed</span>}
+            </div>
+          )}
         </div>
         <div className="relative flex shrink-0 items-center gap-2">
           <button
@@ -646,13 +706,23 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
               className="panel absolute right-0 top-11 z-10 w-44 py-1 text-sm"
               style={{ padding: '4px 0' }}
             >
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Booking archived — find it under Archived')))}
-              >
-                Archive
-              </button>
+              {archived ? (
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
+                  onClick={() => run('restore', restoreBooking)}
+                >
+                  Restore
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
+                  onClick={() => run('archive', archiveBooking)}
+                >
+                  Archive
+                </button>
+              )}
               {project.status !== 'CANCELLED' && (
                 <button
                   type="button"
@@ -791,16 +861,45 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   </span>
                 </div>
 
-                <div style={{ font: 'var(--t-h1)', marginBottom: 7 }}>{na.nextAction}</div>
+                <div style={{ font: 'var(--t-h1)', marginBottom: 7 }}>
+                  {archived
+                    ? 'Archived'
+                    : vendorClosed
+                      ? 'Booking closed'
+                      : na.nextAction}
+                </div>
                 <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '52ch', margin: '0 0 20px' }}>
-                  {waitingOnClient
-                    ? `${clientName} finishes this on their secure link. You’re in control — nothing else to do here.`
-                    : primary
-                      ? 'Do this next. One step — then the booking moves forward.'
-                      : 'No bookings need you on this one right now.'}
+                  {archived
+                    ? 'On your Archived shelf — Restore puts it back on the active list. Venue notes and chat stay available.'
+                    : vendorClosed
+                      ? 'Client reviewed. Money, Prep, and Delivery are read-only. Chat stays open. Archive when you want it off the active list.'
+                      : waitingOnClient
+                        ? `${clientName} finishes this on their secure link. You’re in control — nothing else to do here.`
+                        : primary
+                          ? 'Do this next. One step — then the booking moves forward.'
+                          : 'No bookings need you on this one right now.'}
                 </p>
 
-                {project.status === 'LEAD' && project.invitation?.url ? (
+                {archived || vendorClosed ? (
+                  <div>
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => run('primary', async () => { await primary!.action() })}
+                      className="btn btn-lime"
+                    >
+                      {busy === 'primary' ? <Loader2 size={15} className="animate-spin" /> : primary!.label}
+                    </button>
+                    <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--on-dark-mut)', maxWidth: '46ch' }}>
+                      {archived
+                        ? 'Restoring does not change the booking — it only returns it to Active.'
+                        : 'Archiving hides it from Today and Active. You can Restore anytime.'}
+                    </p>
+                    <button type="button" onClick={() => selectTab('Chat')} className="btn btn-ghost-dark" style={{ minHeight: 40, marginTop: 12 }}>
+                      <MessageSquare size={14} className="mr-1.5" />Open chat
+                    </button>
+                  </div>
+                ) : project.status === 'LEAD' && project.invitation?.url ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '48ch' }}>
                       Send this secure link to {clientName} now — they open it without creating an account.
@@ -1107,6 +1206,11 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
       {/* MONEY */}
       {tab === 'Money' && (
         <div className="ws-stack" style={{ maxWidth: 620 }}>
+          {vendorClosed && (
+            <div className="banner banner-offline">
+              Booking closed — Money is read-only. No new quotes or payment requests.
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div className="kicker" style={{ color: 'var(--faint)' }}>Amount</div>
@@ -1137,12 +1241,13 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
               },
             ].map(m => {
               const selected = quote.method === m.v
+              const methodLocked = moneyLocked || vendorClosed
               return (
                 <button
                   key={m.v}
                   type="button"
-                  disabled={moneyLocked}
-                  onClick={() => { if (!moneyLocked) setQuote(q => ({ ...q, method: m.v })) }}
+                  disabled={methodLocked}
+                  onClick={() => { if (!methodLocked) setQuote(q => ({ ...q, method: m.v })) }}
                   className={selected ? 'action-outline' : 'panel'}
                   style={{
                     display: 'block',
@@ -1151,8 +1256,8 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                     padding: 16,
                     marginBottom: 10,
                     boxShadow: selected ? undefined : 'none',
-                    cursor: moneyLocked ? 'not-allowed' : 'pointer',
-                    opacity: moneyLocked && !selected ? 0.55 : 1,
+                    cursor: methodLocked ? 'not-allowed' : 'pointer',
+                    opacity: methodLocked && !selected ? 0.55 : 1,
                   }}
                 >
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -1200,13 +1305,15 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           <div className="panel" style={{ padding: 18 }}>
             <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Quote</div>
             <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)', maxWidth: '48ch' }}>
-              {moneyLocked
-                ? 'You can still update the title and what’s included. Amounts stay as paid.'
-                : project.proposal
-                  ? 'Edit anything, then send again — your client sees the update on their booking page.'
-                  : 'Treat this as a first draft: title, total, what’s included. Edit freely — they only see it when you send.'}
+              {vendorClosed
+                ? 'Quote is read-only on a closed booking.'
+                : moneyLocked
+                  ? 'You can still update the title and what’s included. Amounts stay as paid.'
+                  : project.proposal
+                    ? 'Edit anything, then send again — your client sees the update on their booking page.'
+                    : 'Treat this as a first draft: title, total, what’s included. Edit freely — they only see it when you send.'}
             </p>
-            {moneyLocked && (
+            {moneyLocked && !vendorClosed && (
               <div className="banner banner-error" style={{ marginBottom: 12 }}>
                 This quote&apos;s amounts are locked because a deposit has been paid.
               </div>
@@ -1214,17 +1321,22 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             <div className="grid gap-3">
               <div>
                 <label className="label">Quote title <span style={{ color: 'var(--coral)' }}>*</span></label>
-                <input value={quote.title} onChange={e => setQuote(q => ({ ...q, title: e.target.value }))} placeholder="e.g. Full-day package" />
+                <input
+                  value={quote.title}
+                  onChange={e => setQuote(q => ({ ...q, title: e.target.value }))}
+                  placeholder="e.g. Full-day package"
+                  disabled={vendorClosed}
+                />
               </div>
               {quote.method !== 'free' && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label">Total (£) <span style={{ color: 'var(--coral)' }}>*</span></label>
-                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.price} onChange={e => setQuote(q => ({ ...q, price: e.target.value }))} placeholder="0.00" disabled={moneyLocked} />
+                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.price} onChange={e => setQuote(q => ({ ...q, price: e.target.value }))} placeholder="0.00" disabled={moneyLocked || vendorClosed} />
                   </div>
                   <div>
                     <label className="label">Deposit (£)</label>
-                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.deposit} onChange={e => setQuote(q => ({ ...q, deposit: e.target.value }))} placeholder="0.00" disabled={moneyLocked} />
+                    <input type="number" min={0} step="0.01" inputMode="decimal" value={quote.deposit} onChange={e => setQuote(q => ({ ...q, deposit: e.target.value }))} placeholder="0.00" disabled={moneyLocked || vendorClosed} />
                   </div>
                 </div>
               )}
@@ -1233,27 +1345,41 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   <Gift size={16} /> Free collaboration — total and deposit are set to £0.
                 </div>
               )}
-              <textarea value={quote.description} onChange={e => setQuote(q => ({ ...q, description: e.target.value }))} placeholder="What's included" rows={3} />
-              {quoteError && <div className="banner banner-error">{quoteError}</div>}
+              <textarea
+                value={quote.description}
+                onChange={e => setQuote(q => ({ ...q, description: e.target.value }))}
+                placeholder="What's included"
+                rows={3}
+                disabled={vendorClosed}
+              />
+              {quoteError && !vendorClosed && <div className="banner banner-error">{quoteError}</div>}
             </div>
-            <button
-              type="button"
-              className="btn btn-lime"
-              style={{ marginTop: 14 }}
-              disabled={!!busy || !!quoteError}
-              onClick={() => run('quote', sendQuote)}
-            >
-              {busy === 'quote' ? <Loader2 size={16} className="animate-spin" /> : <><FileText size={16} className="mr-2" />{project.proposal ? 'Update & resend quote' : 'Send quote to client'}</>}
-            </button>
-            <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: '48ch' }}>
-              Your client will see this on their booking page immediately. Nothing is charged from here.
-            </p>
+            {!vendorClosed && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-lime"
+                  style={{ marginTop: 14 }}
+                  disabled={!!busy || !!quoteError}
+                  onClick={() => run('quote', sendQuote)}
+                >
+                  {busy === 'quote' ? <Loader2 size={16} className="animate-spin" /> : <><FileText size={16} className="mr-2" />{project.proposal ? 'Update & resend quote' : 'Send quote to client'}</>}
+                </button>
+                <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)', maxWidth: '48ch' }}>
+                  Your client will see this on their booking page immediately. Nothing is charged from here.
+                </p>
+              </>
+            )}
           </div>
 
           {project.proposal && (
             <div className="context" style={{ padding: 16 }}>
               <div className="kicker" style={{ color: 'var(--muted)', marginBottom: 12 }}>Confirmation</div>
-              {method === 'free' ? (
+              {vendorClosed ? (
+                <p style={{ fontSize: 13.5, margin: 0, color: 'var(--muted)' }}>
+                  Payment actions are locked on a closed booking. History below stays for your records.
+                </p>
+              ) : method === 'free' ? (
                 <div>
                   <p style={{ fontSize: 13.5, margin: '0 0 12px' }}>Free collaboration — no payment required.</p>
                   {project.status === 'CONTRACT_SIGNED' && (
@@ -1272,9 +1398,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   </div>
                   <div className="panel" style={{ flex: '1 1 140px', minWidth: 0, padding: 12, boxShadow: 'none' }}>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>You confirm received</div>
-                    {deposit ? (
-                      <div style={{ marginTop: 5, fontSize: 13.5, fontWeight: 700, color: 'var(--success)' }}>✓ Received</div>
-                    ) : ['CONTRACT_SIGNED'].includes(project.status) ? (
+                    {pendingDeposit || (!deposit && ['CONTRACT_SIGNED', 'PROPOSAL_ACCEPTED'].includes(project.status)) ? (
                       <button
                         type="button"
                         className="btn btn-forest btn-block"
@@ -1282,9 +1406,9 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                         disabled={!!busy}
                         onClick={() => run('dep', () => recordPayment('DEPOSIT'))}
                       >
-                        Confirm deposit received
+                        Confirm {serviceProfile.depositLabel.toLowerCase()} received
                       </button>
-                    ) : project.status === 'DEPOSIT_PAID' ? (
+                    ) : pendingFinal ? (
                       <button
                         type="button"
                         className="btn btn-forest btn-block"
@@ -1294,22 +1418,47 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                       >
                         Confirm balance received
                       </button>
+                    ) : deposit && balanceOutstanding && !balanceRequested ? (
+                      <button
+                        type="button"
+                        className="btn btn-forest btn-block"
+                        style={{ marginTop: 5, minHeight: 34 }}
+                        disabled={!!busy}
+                        onClick={() => run('reqbal', requestBalance)}
+                      >
+                        Request balance from client
+                      </button>
+                    ) : deposit && balanceOutstanding && balanceRequested ? (
+                      <div style={{ marginTop: 5, fontSize: 13, color: 'var(--muted)' }}>
+                        Waiting for client to report the balance
+                      </div>
+                    ) : deposit ? (
+                      <div style={{ marginTop: 5, fontSize: 13.5, fontWeight: 700, color: 'var(--success)' }}>
+                        ✓ {serviceProfile.depositLabel} received
+                      </div>
                     ) : (
                       <div style={{ marginTop: 5, fontSize: 13, color: 'var(--muted)' }}>After the quote is accepted</div>
                     )}
                   </div>
                 </div>
               )}
-              <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-                Only confirm when the money is in your account. This does not move money — it updates the booking.
-              </p>
-              {pendingPayment && (
-                <div className="banner banner-offline" style={{ marginTop: 12 }}>
-                  Client reported{' '}
-                  {pendingPayment.type === 'FINAL' || pendingPayment.type === 'INSTALMENT' ? 'balance' : 'deposit'}{' '}
-                  by {declaredPaymentMethodLabel(pendingPayment.method)}. Confirm only once it has cleared —
-                  this does not move money.
-                </div>
+              {!vendorClosed && (
+                <>
+                  <p style={{ margin: '12px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                    Only confirm when the money is in your account. This does not move money — it updates the booking.
+                    The balance form stays closed for your client until you request it.
+                  </p>
+                  {pendingPayment && (
+                    <div className="banner banner-offline" style={{ marginTop: 12 }}>
+                      Client reported{' '}
+                      {pendingPayment.type === 'FINAL' || pendingPayment.type === 'INSTALMENT'
+                        ? 'balance'
+                        : serviceProfile.depositLabel.toLowerCase()}{' '}
+                      by {declaredPaymentMethodLabel(pendingPayment.method)}. Confirm only once it has cleared —
+                      this does not move money.
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1344,13 +1493,26 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             {journeySteps.find(s => s.key === 'prep')?.label || 'Prep'}
           </div>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted)', maxWidth: '48ch' }}>
-            Your notes for the day — fill what helps you feel ready. Nothing here is shown to the client until you share a delivery link.
+            {vendorClosed
+              ? 'Prep is read-only on a closed booking. Venue notes below stay editable — your memory, not a client action.'
+              : 'Your notes for the day — fill what helps you feel ready. Nothing here is shown to the client until you share a delivery link.'}
           </p>
+          {vendorClosed && (
+            <div className="banner banner-offline" style={{ marginBottom: 14 }}>
+              Booking closed — prep fields locked. Venue notes stay open.
+            </div>
+          )}
           <div className="space-y-4">
             {prepFields.includes('eventDate') && (
               <div>
                 <label className="label">{prepFieldLabels('eventDate', primaryService).label}</label>
-                <input ref={prepDateRef} type="datetime-local" value={prep.eventDate} onChange={e => setPrep(p => ({ ...p, eventDate: e.target.value }))} />
+                <input
+                  ref={prepDateRef}
+                  type="datetime-local"
+                  value={prep.eventDate}
+                  onChange={e => setPrep(p => ({ ...p, eventDate: e.target.value }))}
+                  disabled={vendorClosed}
+                />
               </div>
             )}
             {prepFields.includes('location') && (
@@ -1361,8 +1523,9 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   onChange={e => setPrep(p => ({ ...p, location: e.target.value }))}
                   onBlur={() => setPrepLookupLocation(prep.location.trim())}
                   placeholder={prepFieldLabels('location', primaryService).placeholder}
+                  disabled={vendorClosed}
                 />
-                <VenueMemoryPanel location={prepLookupLocation} city="" variant="panel" />
+                {!vendorClosed && <VenueMemoryPanel location={prepLookupLocation} city="" variant="panel" />}
               </div>
             )}
             {(prepFields.includes('moodboard') || prepFields.includes('music')) && (
@@ -1375,10 +1538,13 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   placeholder={prepFieldLabels(prepFields.includes('music') ? 'music' : 'moodboard', primaryService).placeholder}
                   value={prep.moodboard}
                   onChange={e => setPrep(p => ({ ...p, moodboard: e.target.value }))}
+                  disabled={vendorClosed}
                 />
-                <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
-                  Paste a https:// link, or write notes — both save.
-                </p>
+                {!vendorClosed && (
+                  <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
+                    Paste a https:// link, or write notes — both save.
+                  </p>
+                )}
               </div>
             )}
             {prepFields.includes('equipment') && (
@@ -1389,6 +1555,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))}
                   rows={4}
                   placeholder={prepFieldLabels('equipment', primaryService).placeholder}
+                  disabled={vendorClosed}
                 />
               </div>
             )}
@@ -1400,17 +1567,23 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   onChange={e => setPrep(p => ({ ...p, notes: e.target.value }))}
                   rows={4}
                   placeholder={prepFieldLabels('notes', primaryService).placeholder}
+                  disabled={vendorClosed}
                 />
               </div>
             )}
-            <button type="button" className="btn btn-lime" disabled={busy === 'prep'} onClick={() => run('prep', savePrep)}>
-              {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : prepSaveLabel(primaryService)}
-            </button>
-            <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-              Saved for you in this booking — you’re getting ready, not sending to the client.
-            </p>
+            {!vendorClosed && (
+              <>
+                <button type="button" className="btn btn-lime" disabled={busy === 'prep'} onClick={() => run('prep', savePrep)}>
+                  {busy === 'prep' ? <Loader2 size={16} className="animate-spin" /> : prepSaveLabel(primaryService)}
+                </button>
+                <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Saved for you in this booking — you’re getting ready, not sending to the client.
+                </p>
+              </>
+            )}
             {/* Makeup / DJ have no Delivery tab — complete from Prep after the job. */}
-            {!serviceProfile.features.showDelivery &&
+            {!vendorClosed &&
+              !serviceProfile.features.showDelivery &&
               (project.status === 'DEPOSIT_PAID' || project.status === 'FULLY_PAID') && (
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
                 <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 10px' }}>
@@ -1430,6 +1603,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 </button>
               </div>
             )}
+            {/* Learning: venue notes stay editable after close (and archive). */}
             {!serviceProfile.features.showDelivery && project.status === 'COMPLETED' && (
               <VenueNoteForm
                 projectId={project.id}
@@ -1443,7 +1617,12 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
       {/* DELIVERY — hidden for services without gallery/recording (Makeup, DJ) */}
       {tab === 'Delivery' && serviceProfile.features.showDelivery && (
         <div className="ws-stack" style={{ maxWidth: 620 }}>
-          {!progress.service && !deliverablesSent ? (
+          {vendorClosed && (
+            <div className="banner banner-offline">
+              Booking closed — Delivery is read-only. Venue notes stay editable.
+            </div>
+          )}
+          {!vendorClosed && !progress.service && !deliverablesSent ? (
             <div className="action" style={{ textAlign: 'center' }}>
               <span
                 className="marker"
@@ -1476,11 +1655,12 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             </div>
           ) : (
             <>
-              {project.status === 'COMPLETED' || progress.service ? (
+              {!vendorClosed && (project.status === 'COMPLETED' || progress.service) && (
                 <div className="banner banner-success">
                   Service marked complete — add the {deliveryOpenCopy(primaryService).title.toLowerCase()} link below.
                 </div>
-              ) : (
+              )}
+              {!vendorClosed && !(project.status === 'COMPLETED' || progress.service) && (
                 <div>
                   <button type="button" className="btn btn-lime" disabled={!!busy} onClick={() => run('complete', completeDelivery)}>
                     Mark service complete →
@@ -1491,23 +1671,27 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
 
               <div className="panel" style={{ padding: 18 }}>
                 <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>{deliveryOpenCopy(primaryService).title}</div>
-                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 14px' }}>
-                  Paste a download link. {clientName} sees it on their page and can approve.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
-                  <input value={gallery.name} onChange={e => setGallery(g => ({ ...g, name: e.target.value }))} placeholder="Label" />
-                  <input value={gallery.url} onChange={e => setGallery(g => ({ ...g, url: e.target.value }))} placeholder="https://..." inputMode="url" />
-                  <button
-                    type="button"
-                    className="btn btn-forest shrink-0"
-                    disabled={busy === 'gallery' || !gallery.url.trim()}
-                    onClick={() => run('gallery', addGallery)}
-                  >
-                    {busy === 'gallery' ? <Loader2 size={16} className="animate-spin" /> : <><LinkIcon size={16} className="mr-2" />{deliveryOpenCopy(primaryService).addLabel}</>}
-                  </button>
-                </div>
-                {(project.files || []).filter((f: any) => f.type === 'gallery' || f.type === 'recording').length > 0 && (
-                  <ul className="mt-4 space-y-2" style={{ margin: '16px 0 0', padding: 0, listStyle: 'none' }}>
+                {!vendorClosed && (
+                  <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 14px' }}>
+                    Paste a download link. {clientName} sees it on their page and can approve.
+                  </p>
+                )}
+                {!vendorClosed && (
+                  <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+                    <input value={gallery.name} onChange={e => setGallery(g => ({ ...g, name: e.target.value }))} placeholder="Label" />
+                    <input value={gallery.url} onChange={e => setGallery(g => ({ ...g, url: e.target.value }))} placeholder="https://..." inputMode="url" />
+                    <button
+                      type="button"
+                      className="btn btn-forest shrink-0"
+                      disabled={busy === 'gallery' || !gallery.url.trim()}
+                      onClick={() => run('gallery', addGallery)}
+                    >
+                      {busy === 'gallery' ? <Loader2 size={16} className="animate-spin" /> : <><LinkIcon size={16} className="mr-2" />{deliveryOpenCopy(primaryService).addLabel}</>}
+                    </button>
+                  </div>
+                )}
+                {(project.files || []).filter((f: any) => f.type === 'gallery' || f.type === 'recording').length > 0 ? (
+                  <ul className="mt-4 space-y-2" style={{ margin: vendorClosed ? 0 : '16px 0 0', padding: 0, listStyle: 'none' }}>
                     {(project.files || []).filter((f: any) => f.type === 'gallery' || f.type === 'recording').map((f: any) => (
                       <li key={f.id} className="flex items-center gap-2 text-sm">
                         <LinkIcon size={14} style={{ color: 'var(--muted)', flexShrink: 0 }} />
@@ -1517,7 +1701,9 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                       </li>
                     ))}
                   </ul>
-                )}
+                ) : vendorClosed ? (
+                  <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0 }}>No files were shared on this booking.</p>
+                ) : null}
               </div>
 
               <div className="context" style={{ padding: 16 }}>
@@ -1531,21 +1717,35 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
                     Your link is live. They can open and approve it on their booking page.
                   </p>
-                ) : (
+                ) : !vendorClosed ? (
                   <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
                     Paste the download link when you’re ready — they only see it after you add it.
                   </p>
+                ) : null}
+                {archived ? (
+                  <button
+                    type="button"
+                    className="btn btn-forest"
+                    style={{ marginTop: 12 }}
+                    disabled={!!busy}
+                    onClick={() => run('restore', restoreBooking)}
+                  >
+                    Restore booking
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ marginTop: 12 }}
+                    disabled={!!busy}
+                    onClick={() => run('archive', archiveBooking)}
+                  >
+                    Archive booking
+                  </button>
                 )}
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ marginTop: 12 }}
-                  onClick={() => run('archive', () => patchProject({ archive: true }).then(() => toast.success('Booking archived — find it under Archived')))}
-                >
-                  Archive booking
-                </button>
               </div>
 
+              {/* Learning: venue notes stay editable after close (and archive). */}
               {project.status === 'COMPLETED' && (
                 <VenueNoteForm
                   projectId={project.id}

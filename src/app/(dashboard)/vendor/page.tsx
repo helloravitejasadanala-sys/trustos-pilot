@@ -1,9 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getNextAction } from '@/lib/journey'
-import { hasPendingPaymentConfirm, isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
+import {
+  hasPendingPaymentConfirm,
+  isArchivedProject,
+  isVendorClosedProject,
+  needsBalanceRequest,
+  type VendorProject,
+} from '@/lib/vendor-phase1'
 import { hasUnread } from '@/lib/unread'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { projectTypeLabel } from '@/lib/project-types'
@@ -19,12 +25,26 @@ const VENDOR_PRIORITY = [
   'COMPLETED',
 ]
 
+/** Max items after "Do this first". */
+const QUEUE_NEXT_N = 4
+
 type ActivityItem = {
   id: string
   event: string
   label?: string
   createdAt: string
   project: { title: string; slug: string } | null
+}
+
+type QueueItem =
+  | { kind: 'payment'; p: VendorProject }
+  | { kind: 'balance'; p: VendorProject }
+  | { kind: 'unread'; p: VendorProject }
+  | { kind: 'action'; p: VendorProject; na: ReturnType<typeof getNextAction> }
+
+/** Prefer per-booking service over workspace primary (makeup in a photo workspace). */
+function bookingService(p: VendorProject, workspacePrimary: string) {
+  return p.service || workspacePrimary
 }
 
 function greetingFor(hour: number) {
@@ -48,6 +68,44 @@ function markerLetter(type: string | null, title: string) {
   return (title || 'P').charAt(0).toUpperCase()
 }
 
+function queueCopy(item: QueueItem) {
+  const clientLabel = item.p.client?.name?.split(' ')[0] || item.p.title || 'your client'
+  if (item.kind === 'payment') {
+    return {
+      headline: `Confirm payment from ${clientLabel}`,
+      why: 'They said they paid — check and confirm so the job can move on.',
+      cta: 'Confirm payment →',
+      ctaHref: vendorProjectHref(item.p.slug, 'Money'),
+      chip: 'Payment' as const,
+    }
+  }
+  if (item.kind === 'balance') {
+    return {
+      headline: `Request the balance from ${clientLabel}`,
+      why: 'Deposit is in and the job is past the event (or delivery is confirmed). Open Money to ask for the balance — the client won’t see it until you request it.',
+      cta: 'Request balance →',
+      ctaHref: vendorProjectHref(item.p.slug, 'Money'),
+      chip: 'Balance' as const,
+    }
+  }
+  if (item.kind === 'unread') {
+    return {
+      headline: `Reply to ${clientLabel}`,
+      why: 'They messaged you — answer so they are not left waiting.',
+      cta: 'Open messages →',
+      ctaHref: vendorProjectHref(item.p.slug, 'Chat'),
+      chip: 'Message' as const,
+    }
+  }
+  return {
+    headline: item.na.nextAction,
+    why: `Next step for ${clientLabel}.`,
+    cta: item.na.ctaLabel || 'Open project →',
+    ctaHref: vendorProjectHref(item.p.slug, 'Overview'),
+    chip: null,
+  }
+}
+
 export default function TodayPage() {
   const { openNewProject, userName, businessName, primaryService, profileLoaded } = useVendorChrome()
   const [projects, setProjects] = useState<VendorProject[]>([])
@@ -57,8 +115,9 @@ export default function TodayPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  async function load() {
-    setLoadError(null)
+  const load = useCallback(async (opts?: { soft?: boolean }) => {
+    const soft = !!opts?.soft
+    if (!soft) setLoadError(null)
     try {
       const [res, actRes, meRes] = await Promise.all([
         fetch('/api/vendor/projects'),
@@ -86,14 +145,33 @@ export default function TodayPage() {
         setBusiness(me.data.user?.vendorProfile?.businessName || '')
         setOwnerName(me.data.user?.name || '')
       }
+      if (soft) setLoadError(null)
     } catch {
-      setLoadError('Could not reach the server. Check your connection and try again.')
+      if (!soft) setLoadError('Could not reach the server. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // Keep Today in sync when returning from Projects / another tab.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') load({ soft: true })
+    }
+    function onFocus() {
+      load({ soft: true })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [load])
 
   const todayStr = new Date().toISOString().split('T')[0]
   const tomorrow = new Date()
@@ -106,32 +184,47 @@ export default function TodayPage() {
       .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime())
   }, [projects, todayStr, tomorrowStr])
 
-  const waitingVendor = projects.filter(p => getNextAction(p.status, primaryService).responsible === 'Vendor')
-  const waitingClient = projects.filter(p => getNextAction(p.status, primaryService).responsible === 'Client')
+  const liveProjects = useMemo(
+    () => projects.filter(p => !isVendorClosedProject(p)),
+    [projects],
+  )
+
+  const waitingVendor = liveProjects.filter(
+    p => getNextAction(p.status, bookingService(p, primaryService)).responsible === 'Vendor',
+  )
+  const waitingClient = liveProjects.filter(
+    p => getNextAction(p.status, bookingService(p, primaryService)).responsible === 'Client',
+  )
 
   const vendorActionable = waitingVendor
-    .map(p => ({ p, na: getNextAction(p.status, primaryService) }))
+    .map(p => ({ p, na: getNextAction(p.status, bookingService(p, primaryService)) }))
     .sort((a, b) => {
       const ai = VENDOR_PRIORITY.indexOf(a.p.status)
       const bi = VENDOR_PRIORITY.indexOf(b.p.status)
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
     })
-  const unreadProjects = projects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
-  const pendingPayments = projects.filter(p => hasPendingPaymentConfirm(p))
+  const unreadProjects = liveProjects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
+  const pendingPayments = liveProjects.filter(p => hasPendingPaymentConfirm(p))
+  const balanceNudges = liveProjects.filter(p => needsBalanceRequest(p))
 
-  // Priority: payments to confirm → unread → journey action (no guessing).
-  type Focus =
-    | { kind: 'payment'; p: VendorProject }
-    | { kind: 'unread'; p: VendorProject }
-    | { kind: 'action'; p: VendorProject; na: ReturnType<typeof getNextAction> }
-    | null
-  const focus: Focus = pendingPayments[0]
-    ? { kind: 'payment', p: pendingPayments[0] }
-    : unreadProjects[0]
-      ? { kind: 'unread', p: unreadProjects[0] }
-      : vendorActionable[0]
-        ? { kind: 'action', p: vendorActionable[0].p, na: vendorActionable[0].na }
-        : null
+  // Order: payment confirm → balance request → unread → journey action.
+  const queue: QueueItem[] = useMemo(() => {
+    const seen = new Set<string>()
+    const out: QueueItem[] = []
+    const push = (item: QueueItem) => {
+      if (seen.has(item.p.id)) return
+      seen.add(item.p.id)
+      out.push(item)
+    }
+    for (const p of pendingPayments) push({ kind: 'payment', p })
+    for (const p of balanceNudges) push({ kind: 'balance', p })
+    for (const p of unreadProjects) push({ kind: 'unread', p })
+    for (const { p, na } of vendorActionable) push({ kind: 'action', p, na })
+    return out
+  }, [pendingPayments, balanceNudges, unreadProjects, vendorActionable])
+
+  const focus = queue[0] || null
+  const nextUp = queue.slice(1, 1 + QUEUE_NEXT_N)
 
   const deadlines = useMemo(() => {
     return projects
@@ -211,41 +304,25 @@ export default function TodayPage() {
   }
 
   const focusProject = focus?.p
-  const clientLabel = focusProject?.client?.name?.split(' ')[0] || focusProject?.title || 'your client'
   const focusEventDate = focusProject?.eventDate ? new Date(focusProject.eventDate) : null
-
-  let headline = 'No bookings need you today'
-  let why = waitingClient.length > 0
-    ? `You’re waiting on ${waitingClient.length} client${waitingClient.length === 1 ? '' : 's'} — everything else is under control.`
-    : 'Everything is under control.'
-  let cta = 'Browse bookings →'
-  let ctaHref = '/vendor/projects'
-  let focusMarker = focusProject
-
-  if (focus?.kind === 'payment') {
-    headline = `Confirm payment from ${clientLabel}`
-    why = 'They said they paid — check and confirm so the job can move on.'
-    cta = 'Confirm payment →'
-    ctaHref = vendorProjectHref(focus.p.slug, 'Money')
-  } else if (focus?.kind === 'unread') {
-    headline = `Reply to ${clientLabel}`
-    why = 'They messaged you — answer so they are not left waiting.'
-    cta = 'Open messages →'
-    ctaHref = vendorProjectHref(focus.p.slug, 'Chat')
-  } else if (focus?.kind === 'action') {
-    headline = focus.na.nextAction
-    why = focus.na.responsible === 'Vendor'
-      ? `Next step for ${clientLabel}.`
-      : `Waiting on ${clientLabel}.`
-    cta = focus.na.ctaLabel || 'Open project →'
-    ctaHref = vendorProjectHref(focus.p.slug, 'Overview')
-  }
+  const focusUi = focus
+    ? queueCopy(focus)
+    : {
+        headline: 'No bookings need you today',
+        why: waitingClient.length > 0
+          ? `You’re waiting on ${waitingClient.length} client${waitingClient.length === 1 ? '' : 's'} — everything else is under control.`
+          : 'Everything is under control.',
+        cta: 'Browse bookings →',
+        ctaHref: '/vendor/projects',
+        chip: null as null,
+      }
 
   const summaryBits = [
-    waitingVendor.length > 0 ? `${waitingVendor.length} need you` : null,
+    queue.length > 0 ? `${queue.length} need${queue.length === 1 ? 's' : ''} you` : null,
     waitingClient.length > 0 ? `${waitingClient.length} waiting on clients` : null,
     unreadProjects.length > 0 ? `${unreadProjects.length} unread` : null,
     pendingPayments.length > 0 ? `${pendingPayments.length} payment${pendingPayments.length === 1 ? '' : 's'} to confirm` : null,
+    balanceNudges.length > 0 ? `${balanceNudges.length} balance${balanceNudges.length === 1 ? '' : 's'} to request` : null,
   ].filter(Boolean)
 
   return (
@@ -284,12 +361,12 @@ export default function TodayPage() {
 
       <div className="today-grid">
         <div className="today-stack">
-          {/* Do This First — one primary action only */}
+          {/* Do This First */}
           <div>
             <div className="kicker mb-2.5 text-[color:var(--coral-deep)]">● Do this first</div>
             <div className="action">
               <div className="flex gap-3 md:gap-5">
-                {focusMarker && focusEventDate && !isNaN(focusEventDate.getTime()) && (
+                {focusProject && focusEventDate && !isNaN(focusEventDate.getTime()) && (
                   <div className="today-date-block">
                     <span className="kicker text-[color:var(--lime)]">
                       {focusEventDate.toLocaleDateString('en-GB', { weekday: 'short' })}
@@ -305,54 +382,65 @@ export default function TodayPage() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  {focusMarker && (
+                  {focusProject && (
                     <div className="mb-2.5 flex flex-wrap items-center gap-2">
                       <span
-                        className={markerClass(focusMarker.type)}
+                        className={markerClass(focusProject.type)}
                         style={{ width: 26, height: 26, fontSize: 12 }}
                         aria-hidden
                       >
-                        {markerLetter(focusMarker.type, focusMarker.title)}
+                        {markerLetter(focusProject.type, focusProject.title)}
                       </span>
                       <span className="text-[13px] font-semibold">
-                        {focusMarker.client?.name || 'Client'} · {projectTypeLabel(focusMarker.type || 'OTHER')}
+                        {focusProject.client?.name || 'Client'} · {projectTypeLabel(focusProject.type || 'OTHER')}
                       </span>
-                      {focus?.kind === 'payment' && <span className="chip chip-coral">Payment</span>}
-                      {focus?.kind === 'unread' && <span className="chip chip-coral">Message</span>}
+                      {focusUi.chip === 'Payment' && <span className="chip chip-coral">Payment</span>}
+                      {focusUi.chip === 'Balance' && <span className="chip chip-amber">Balance</span>}
+                      {focusUi.chip === 'Message' && <span className="chip chip-coral">Message</span>}
                     </div>
                   )}
-                  <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>{headline}</div>
-                  <p className="m-0 max-w-[46ch] text-[13px] text-[color:var(--on-dark-mut)]">{why}</p>
+                  <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>{focusUi.headline}</div>
+                  <p className="m-0 max-w-[46ch] text-[13px] text-[color:var(--on-dark-mut)]">{focusUi.why}</p>
                 </div>
               </div>
               <div className="mt-4 md:mt-5">
-                <Link href={ctaHref} className="btn btn-lime w-full md:w-auto">
-                  {cta}
+                <Link href={focusUi.ctaHref} className="btn btn-lime w-full md:w-auto">
+                  {focusUi.cta}
                 </Link>
               </div>
             </div>
           </div>
 
-          {pendingPayments.length > 1 && (
+          {nextUp.length > 0 && (
             <div>
               <div className="mb-2.5 flex items-baseline justify-between">
-                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>More payments</h2>
-                <span className="num text-[12px] text-[color:var(--muted)]">{pendingPayments.length - 1}</span>
+                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Next up</h2>
+                <span className="num text-[12px] text-[color:var(--muted)]">{nextUp.length}</span>
               </div>
-              <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--coral-deep, #c45c3e)' }}>
-                {pendingPayments.slice(1, 4).map(p => (
-                  <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="today-service-row">
-                    <span className={markerClass(p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
-                      {markerLetter(p.type, p.title)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13.5px] font-semibold">{p.title}</div>
-                      <div className="truncate text-[12px] text-[color:var(--muted)]">
-                        {p.client?.name || 'Client'} — confirm payment
+              <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--amber)' }}>
+                {nextUp.map(item => {
+                  const copy = queueCopy(item)
+                  return (
+                    <Link key={`${item.kind}-${item.p.id}`} href={copy.ctaHref} className="today-service-row">
+                      <span className={markerClass(item.p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
+                        {markerLetter(item.p.type, item.p.title)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13.5px] font-semibold">
+                          {item.p.client?.name || item.p.title}
+                        </div>
+                        <div className="truncate text-[12px] text-[color:var(--muted)]">
+                          {copy.headline}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                      {copy.chip && (
+                        <span className={copy.chip === 'Message' || copy.chip === 'Payment' ? 'chip chip-coral' : 'chip chip-amber'}>
+                          {copy.chip}
+                        </span>
+                      )}
+                    </Link>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -368,7 +456,7 @@ export default function TodayPage() {
               <div className="panel overflow-hidden">
                 {servicesSoon.map(p => {
                   const d = new Date(p.eventDate!)
-                  const na = getNextAction(p.status, primaryService)
+                  const na = getNextAction(p.status, bookingService(p, primaryService))
                   const chip =
                     na.responsible === 'Vendor' ? 'chip chip-amber' :
                     na.responsible === 'Client' ? 'chip chip-lav' : 'chip chip-muted'
@@ -405,38 +493,6 @@ export default function TodayPage() {
               </div>
             </div>
           )}
-
-          {/* Waiting on me — names + next step (mobile + desktop) */}
-          <div>
-            <div className="mb-2.5 flex items-baseline justify-between">
-              <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Needs you</h2>
-              <span className="num text-[12px] text-[color:var(--muted)]">{waitingVendor.length}</span>
-            </div>
-            <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--amber)' }}>
-              {waitingVendor.length === 0 ? (
-                <p className="px-4 py-4 text-[13px] text-[color:var(--muted)]">Nothing needs your action right now.</p>
-              ) : (
-                waitingVendor.slice(0, 5).map(p => {
-                  const na = getNextAction(p.status, primaryService)
-                  return (
-                    <Link key={p.id} href={`/vendor/projects/${p.slug}`} className="today-service-row">
-                      <span className={markerClass(p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
-                        {markerLetter(p.type, p.title)}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[13.5px] font-semibold">
-                          {p.client?.name || p.title}
-                        </div>
-                        <div className="truncate text-[12px] text-[color:var(--muted)]">
-                          {na.nextAction}
-                        </div>
-                      </div>
-                    </Link>
-                  )
-                })
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Context rail */}
@@ -459,7 +515,7 @@ export default function TodayPage() {
                     <span className="truncate text-[13px] font-semibold">{p.client?.name || p.title}</span>
                   </div>
                   <div className="mb-2.5 text-[12px] text-[color:var(--muted)]">
-                    {getNextAction(p.status, primaryService).nextAction}
+                    {getNextAction(p.status, bookingService(p, primaryService)).nextAction}
                   </div>
                   <Link
                     href={`/vendor/projects/${p.slug}`}

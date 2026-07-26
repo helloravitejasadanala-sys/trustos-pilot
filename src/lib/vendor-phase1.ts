@@ -11,20 +11,86 @@ export type VendorProject = {
   title: string
   slug: string
   status: string
+  /** Per-booking service — prefer this over workspace primaryService for journey CTAs. */
+  service?: string | null
   type: string | null
   eventDate: string | null
   location: string | null
   notes: string | null
+  paymentMethod?: string | null
+  balanceRequestedAt?: string | Date | null
   client: { id?: string; name: string | null; email?: string | null } | null
   invitation?: { url: string; expiresAt: string; openedAt: string | null; email: string | null; expired: boolean } | null
   updatedAt?: string
   lastClientMessageAt?: string | null
   payments?: { id?: string; type?: string; status?: string; amount?: number | string; method?: string | null }[] | null
+  proposal?: {
+    price?: number | string | null
+    depositAmount?: number | string | null
+    deposit?: number | string | null
+  } | null
+  review?: { id: string } | null
+  approvals?: { id: string }[] | null
 }
 
 /** Projects where the client declared payment and the vendor still needs to confirm. */
 export function hasPendingPaymentConfirm(project: VendorProject) {
   return (project.payments || []).some(p => p.status === 'PENDING')
+}
+
+/** COMPLETED + client review — done for Today / active work queues. */
+export function isVendorClosedProject(project: VendorProject) {
+  return project.status === 'COMPLETED' && !!project.review
+}
+
+/**
+ * True when the event's local calendar day is strictly before today.
+ * Same-day (morning of the event) must NOT nudge balance chase.
+ */
+export function isEventDateStrictlyBeforeTodayLocal(
+  eventDate: string | Date | null | undefined,
+): boolean {
+  if (!eventDate) return false
+  const d = new Date(eventDate)
+  if (Number.isNaN(d.getTime())) return false
+  const now = new Date()
+  const eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return eventDay.getTime() < todayDay.getTime()
+}
+
+/**
+ * Vendor should open Money and request the balance — deposit settled, balance
+ * still owed, not yet requested, and event day has passed OR delivery approved.
+ */
+export function needsBalanceRequest(project: VendorProject): boolean {
+  if (isArchivedProject(project) || isVendorClosedProject(project)) return false
+  if (project.balanceRequestedAt) return false
+  if (
+    project.status === 'FULLY_PAID' ||
+    project.status === 'CANCELLED' ||
+    project.paymentMethod === 'free'
+  ) {
+    return false
+  }
+
+  const payments = project.payments || []
+  const depositDone = payments.some(p => p.type === 'DEPOSIT' && p.status === 'COMPLETED')
+  if (!depositDone) return false
+  if (payments.some(p => (p.type === 'FINAL' || p.type === 'INSTALMENT') && p.status === 'COMPLETED')) {
+    return false
+  }
+
+  const price = Number(project.proposal?.price ?? 0)
+  if (!(price > 0)) return false
+  const paid = payments
+    .filter(p => p.status === 'COMPLETED')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+  if (paid >= price) return false
+
+  const deliveryConfirmed = (project.approvals || []).length > 0
+  const eventPast = isEventDateStrictlyBeforeTodayLocal(project.eventDate)
+  return deliveryConfirmed || eventPast
 }
 
 export const ARCHIVED_PREFIX = '[archived]'

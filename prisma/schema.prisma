@@ -110,6 +110,9 @@ model Project {
   location    String?
   budget      Decimal?      @db.Decimal(10, 2)
   paymentMethod String?     @map("payment_method")
+  /// Set when the vendor explicitly asks the client for the remaining balance.
+  /// Without this, the client portal must not open FINAL/balance collect.
+  balanceRequestedAt DateTime? @map("balance_requested_at")
   notes       String?
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
