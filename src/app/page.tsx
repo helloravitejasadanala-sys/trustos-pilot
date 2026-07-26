@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { Users, FileText, Truck, Star, ArrowRight, Briefcase } from "lucide-react";
+import { Users, FileText, Truck, Star, ArrowRight, Briefcase, MapPin } from "lucide-react";
 
 const steps = [
   {
@@ -24,8 +24,8 @@ const steps = [
   },
   {
     num: "04",
-    title: "Get paid & deliver",
-    body: "Payments and delivery stay on the same thread.",
+    title: "Payment recorded & delivered",
+    body: "Your client declares payment; you confirm. No card fees — we never touch your money.",
     icon: Truck,
   },
   {
@@ -33,6 +33,12 @@ const steps = [
     title: "Finish cleanly",
     body: "Confirm delivery and collect a review.",
     icon: Star,
+  },
+  {
+    num: "06",
+    title: "Learn the venue",
+    body: "Every completed job saves what you learned about that venue — and it surfaces automatically next time you're booked there.",
+    icon: MapPin,
   },
 ];
 
@@ -141,11 +147,11 @@ export default function LandingPage() {
               How it works
             </h2>
             <p className="mt-2 text-sm text-ink-500">
-              Five steps. One workspace.
+              Six steps. One workspace.
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {steps.map((s) => (
               <div
                 key={s.num}
