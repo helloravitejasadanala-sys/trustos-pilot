@@ -37,7 +37,7 @@ function clientSteps(service?: string | null) {
       label: `Confirm your ${profile.questionnaireLabel.toLowerCase()}`,
       time: '3 minutes',
       who: 'You',
-      why: 'A few practical things about your day — about 3 minutes.',
+      why: 'Short confirmations so your vendor can prepare the right quote — about 2 minutes.',
     },
     {
       key: 'proposal' as const,
@@ -158,8 +158,8 @@ export default function ClientJourney({ params }: { params: { token: string } })
     return () => { cancelled = true }
   }, [params.token])
 
-  // Soft state poll: project + payment only (not questionnaire/proposal/contract GETs).
-  // Visible-only, 8s — messages stay on useMessagePoll at 5s.
+  // Soft state poll: project + payment. Questionnaire/proposal/contract
+  // completion flags come from the project embed so next steps don't stick.
   useVisiblePoll({
     enabled: state === 'ready',
     intervalMs: 8000,
@@ -187,13 +187,20 @@ export default function ClientJourney({ params }: { params: { token: string } })
         let nextContract = prev.contract
         if (p.contract?.signedAt && prev.contract) {
           nextContract = { ...prev.contract, signedAt: p.contract.signedAt }
+        } else if (p.contract?.signedAt && !prev.contract) {
+          nextContract = { signedAt: p.contract.signedAt }
         }
+        const nextQuestionnaire =
+          p.questionnaire?.completedAt && !prev.questionnaire?.completedAt
+            ? { ...(prev.questionnaire || {}), completedAt: p.questionnaire.completedAt, answers: prev.questionnaire?.answers }
+            : prev.questionnaire
         return {
           ...prev,
           project: p,
           payment: nextPayment,
           proposal: nextProposal,
           contract: nextContract,
+          questionnaire: nextQuestionnaire,
         }
       })
     },
@@ -281,21 +288,19 @@ export default function ClientJourney({ params }: { params: { token: string } })
     !!payment.balanceRequested &&
     Number(payment.balanceDue) > 0 &&
     !payment.fullyPaid
-  const scheduleNeedsAction =
-    !!payment?.hasSchedule &&
-    Array.isArray(payment.schedule) &&
-    payment.schedule.some((s: any) => s.state === 'due' || s.state === 'waiting')
   const done = {
     questionnaire: !!questionnaire?.completedAt,
     proposal: !!proposal?.acceptedAt,
     contract: !!contract?.signedAt,
-    // Deposit/schedule phase closes once confirmed. Later stages reopen when due/waiting.
+    // Schedule path: keep the Pay step mounted until fully paid so the client
+    // always sees the full plan (confirmed / due / upcoming) — not only when a
+    // stage is open. Legacy path still closes after deposit until balance opens.
     payment:
       !!payment &&
       (payment.fullyPaid ||
         Number(payment.total) === 0 ||
         (payment.hasSchedule
-          ? !scheduleNeedsAction
+          ? false
           : depositSettled && !balanceCollectOpen && !payment.pendingDeposit)),
   }
   // Never show Pay before an agreement exists and is signed.
@@ -341,15 +346,17 @@ export default function ClientJourney({ params }: { params: { token: string } })
 
   const nextLabel = clientClosed
     ? 'Complete'
-    : current === 'done'
-      ? waitingForQuote
-        ? `Waiting for ${vendorName}`
-        : waitingForAgreement
+    : canLeaveReview
+      ? 'Last step — quick review'
+      : current === 'done'
+        ? waitingForQuote
           ? `Waiting for ${vendorName}`
-          : (showDelivery && hasGallery && !deliveryApproved ? 'Review your files' : 'You’re booked')
-      : currentStep
-        ? `Next: ${currentStep.label}`
-        : 'Your event'
+          : waitingForAgreement
+            ? `Waiting for ${vendorName}`
+            : (showDelivery && hasGallery && !deliveryApproved ? 'Review your files' : 'You’re booked')
+        : currentStep
+          ? `Next: ${currentStep.label}`
+          : 'Your event'
 
   const bookingLine = [typeLabel, eventDate].filter(Boolean).join(' · ')
   const filesLabel =
@@ -375,16 +382,50 @@ export default function ClientJourney({ params }: { params: { token: string } })
           </p>
         ) : null}
 
-        {/* After review: deliverable hero → warm line → quiet thank-you → quieter messages. */}
+        {/* Closed booking: special end state — outputs only, no chat. */}
         {clientClosed ? (
           <>
+            <div
+              className="panel"
+              style={{
+                padding: '22px 20px',
+                background:
+                  'linear-gradient(165deg, color-mix(in srgb, var(--forest) 8%, var(--paper)) 0%, var(--paper) 55%)',
+                border: '1px solid color-mix(in srgb, var(--forest) 18%, var(--line))',
+              }}
+            >
+              <div className="kicker" style={{ color: 'var(--forest)', marginBottom: 10 }}>
+                Booking complete
+              </div>
+              <p className="serif" style={{ fontSize: 'clamp(26px, 6vw, 32px)', margin: '0 0 10px', color: 'var(--ink)', lineHeight: 1.12 }}>
+                {clientFirst ? `Thank you, ${clientFirst}` : 'Thank you'}
+              </p>
+              <p style={{ margin: 0, fontSize: 15, color: 'var(--ink)', lineHeight: 1.5, maxWidth: '42ch' }}>
+                {fileLinks.length > 0
+                  ? `${vendorName} finished this booking. Your files stay on this private link whenever you need them.`
+                  : `${vendorName} finished this booking with you. You’re all set — nothing else is needed here.`}
+              </p>
+              {project.review?.overall ? (
+                <p style={{ margin: '14px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  Thanks for your {project.review.overall}/5 review.
+                </p>
+              ) : (
+                <p style={{ margin: '14px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  Thanks for your feedback.
+                </p>
+              )}
+            </div>
+
             {fileLinks.length > 0 ? (
               <div className="panel" style={{ padding: 20 }}>
                 <div className="kicker" style={{ color: 'var(--forest)', marginBottom: 8 }}>
                   {filesLabel}
                 </div>
-                <p className="serif" style={{ fontSize: 24, margin: '0 0 16px', color: 'var(--ink)', lineHeight: 1.15 }}>
-                  Your files from {vendorName}
+                <p className="serif" style={{ fontSize: 22, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1.15 }}>
+                  Your outputs
+                </p>
+                <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  Open or download anytime — keep a copy somewhere safe.
                 </p>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                   {fileLinks.map((f: any, i: number) => (
@@ -447,24 +488,9 @@ export default function ClientJourney({ params }: { params: { token: string } })
               </div>
             ) : null}
 
-            <p style={{ margin: 0, fontSize: 15, color: 'var(--ink)', lineHeight: 1.45 }}>
-              {fileLinks.length > 0
-                ? `${vendorName} shared these with you — keep them somewhere safe.`
-                : `${vendorName} has wrapped up this booking with you.`}
-            </p>
-
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
-              Thanks for your feedback
-              {project.review?.overall ? ` (${project.review.overall}/5)` : ''}.
-              Nothing more to do on this link.
-            </p>
-
-            <ClientMessages vendorName={vendorName} quiet />
-
-            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--faint)' }}>
-              <HelpCircle size={13} />
-              Need anything? Message {vendorName} above
-              {project.vendor.phone ? `, or call ${project.vendor.phone}` : ''}.
+            <p style={{ margin: 0, fontSize: 12.5, color: 'var(--faint)', lineHeight: 1.45 }}>
+              Private link · only you and {vendorName}
+              {project.vendor.phone ? ` · ${project.vendor.phone}` : ''}.
             </p>
           </>
         ) : (
@@ -507,26 +533,30 @@ export default function ClientJourney({ params }: { params: { token: string } })
                   With {vendorName}
                 </div>
                 <div className="serif break-words" style={{ fontSize: 'clamp(22px, 6vw, 25px)', lineHeight: 1.15, marginBottom: 8 }}>
-                  {waitingForQuote
-                    ? `Wait for ${vendorName} to send your quote`
-                    : waitingForAgreement
-                      ? `Wait for ${vendorName} to send your agreement`
-                      : showDelivery && hasGallery && !deliveryApproved
-                        ? 'Your files are ready'
-                        : depositSettled && !payment?.fullyPaid && !balanceCollectOpen
-                          ? `${serviceProfile.depositLabel} confirmed`
-                          : 'Nothing needed from you right now'}
+                  {canLeaveReview
+                    ? `Leave a quick review for ${vendorName}`
+                    : waitingForQuote
+                      ? `Wait for ${vendorName} to send your quote`
+                      : waitingForAgreement
+                        ? `Wait for ${vendorName} to send your agreement`
+                        : showDelivery && hasGallery && !deliveryApproved
+                          ? 'Your files are ready'
+                          : depositSettled && !payment?.fullyPaid && !balanceCollectOpen
+                            ? `${serviceProfile.depositLabel} confirmed`
+                            : 'Nothing needed from you right now'}
                 </div>
                 <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: '48ch' }}>
-                  {waitingForQuote
-                    ? `You’re not finished — ${vendorName} still needs to send a quote. You’ll see it on this page. Message them below if you have questions.`
-                    : waitingForAgreement
-                      ? `${vendorName} will send your agreement here next. You’ll sign it before any payment.`
-                      : showDelivery && hasGallery && !deliveryApproved
-                        ? 'Open the files below, then approve when you’re happy.'
-                        : depositSettled && !payment?.fullyPaid && !balanceCollectOpen
-                          ? `You’re set for now — next is your event. ${vendorName} will update this page if they need anything else (including the balance later).`
-                          : `${vendorName} will update this page when they need you.`}
+                  {canLeaveReview
+                    ? 'About 30 seconds — stars plus two short answers. Only they see this. Scroll down to finish.'
+                    : waitingForQuote
+                      ? `You’re not finished — ${vendorName} still needs to send a quote. You’ll see it on this page. Message them below if you have questions.`
+                      : waitingForAgreement
+                        ? `${vendorName} will send your agreement here next. You’ll sign it before any payment.`
+                        : showDelivery && hasGallery && !deliveryApproved
+                          ? 'Open the files below, then approve when you’re happy.'
+                          : depositSettled && !payment?.fullyPaid && !balanceCollectOpen
+                            ? `You’re set for now — next is your event. ${vendorName} will update this page if they need anything else (including the balance later).`
+                            : `${vendorName} will update this page when they need you.`}
                 </p>
               </div>
             )}
@@ -651,17 +681,22 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
       return
     }
     setBusy(true)
-    const res = await fetch('/api/client/questionnaire', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: values, complete: true }),
-    })
-    setBusy(false)
-    if (res.ok) {
-      toast.success(`Thanks — wait for ${project?.vendor?.businessName || 'your vendor'} to send your quote here.`)
-      onDone()
-    } else {
-      const body = await res.json().catch(() => ({}))
-      toast.error(body.error || 'Could not save. Check your connection and try again.')
+    try {
+      const res = await fetch('/api/client/questionnaire', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: values, complete: true }),
+      })
+      if (res.ok) {
+        toast.success(`Thanks — wait for ${project?.vendor?.businessName || 'your vendor'} to send your quote here.`)
+        onDone()
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast.error(body.error || 'Could not save. Check your connection and try again.')
+      }
+    } catch {
+      toast.error('Could not save. Check your connection and try again.')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -1064,8 +1099,8 @@ function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone 
               £{Number(dueStage.amount).toFixed(2)}
             </p>
             <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 14px' }}>
-              Pay how you agreed with your vendor, then tell them how you paid. They confirm once it
-              clears — this page does not take the money.
+              Pay by bank/online transfer, cash, or card in person — however you agreed — then tell
+              them how you paid. They confirm once it clears. This page does not take the card itself.
             </p>
             {error && <div className="banner banner-error mb-3">{error}</div>}
             <label className="label" style={{ marginBottom: 8 }}>How did you pay?</label>

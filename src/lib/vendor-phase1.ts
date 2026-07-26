@@ -23,7 +23,16 @@ export type VendorProject = {
   invitation?: { url: string; expiresAt: string; openedAt: string | null; email: string | null; expired: boolean } | null
   updatedAt?: string
   lastClientMessageAt?: string | null
-  payments?: { id?: string; type?: string; status?: string; amount?: number | string; method?: string | null }[] | null
+  payments?: {
+    id?: string
+    type?: string
+    status?: string
+    amount?: number | string
+    method?: string | null
+    stageId?: string | null
+  }[] | null
+  /** True when Money uses payment stages (not legacy deposit/balance). */
+  hasPaymentSchedule?: boolean
   proposal?: {
     price?: number | string | null
     depositAmount?: number | string | null
@@ -70,6 +79,13 @@ export function needsBalanceRequest(project: VendorProject): boolean {
     project.status === 'FULLY_PAID' ||
     project.status === 'CANCELLED' ||
     project.paymentMethod === 'free'
+  ) {
+    return false
+  }
+  // Schedule bookings use stage request/confirm on Money — not legacy balance nudge.
+  if (
+    project.hasPaymentSchedule ||
+    (project.payments || []).some(p => !!p.stageId)
   ) {
     return false
   }

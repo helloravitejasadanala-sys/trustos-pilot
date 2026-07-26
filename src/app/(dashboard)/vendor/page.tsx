@@ -131,7 +131,10 @@ export default function TodayPage() {
     if (!soft) setLoadError(null)
     try {
       const cache = cacheRef.current
+      // Soft refresh always hits the network so Money confirms are not stuck
+      // behind the 15s shell cache while the vendor stays on Today.
       const cacheFresh =
+        !soft &&
         !!cache.projectsList &&
         Date.now() - cache.projectsListAt < PROJECTS_LIST_CACHE_MS
 
@@ -205,6 +208,13 @@ export default function TodayPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Shell soft-polls /api/vendor/projects — bind Today to that list so Money
+  // confirms clear "Payments to confirm" without waiting for a focus refetch.
+  useEffect(() => {
+    if (!projectsList) return
+    setProjects(projectsList.filter(p => !isArchivedProject(p)))
+  }, [projectsList])
 
   // Keep Today in sync when returning from Projects / another tab.
   useEffect(() => {

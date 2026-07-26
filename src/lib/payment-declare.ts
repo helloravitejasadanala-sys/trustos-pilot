@@ -33,7 +33,7 @@ export function declaredPaymentMethodLabel(method: string | null | undefined): s
 }
 
 export const DECLARED_PAYMENT_OPTIONS: { value: DeclaredPaymentMethod; label: string }[] = [
-  { value: 'bank_transfer', label: 'Bank transfer' },
-  { value: 'cash', label: 'Cash' },
+  { value: 'bank_transfer', label: 'Bank transfer / online transfer' },
+  { value: 'cash', label: 'Cash / by hand' },
   { value: 'card_in_person', label: 'Card in person' },
 ]

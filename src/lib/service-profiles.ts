@@ -251,28 +251,10 @@ export const SERVICE_PROFILES: Record<ServiceKey, ServiceProfile> = {
     allowedProjectTypes: DJ_TYPES,
     defaultProjectType: 'DJ',
     questionnaireLabel: 'Event Details',
-    questionnaireSectionLabel: 'Music preferences',
+    questionnaireSectionLabel: 'Music & guests',
     depositLabel: 'Deposit',
-    questionnaireExtras: [
-      {
-        key: 'mustPlay',
-        label: 'Must-play tracks or genres',
-        type: 'textarea',
-        placeholder: 'Songs, genres, or a playlist link',
-      },
-      {
-        key: 'doNotPlay',
-        label: 'Do-not-play list',
-        type: 'textarea',
-        placeholder: 'Optional',
-      },
-      {
-        key: 'specialMoments',
-        label: 'Special moments to cue',
-        type: 'textarea',
-        placeholder: 'First dance, entrances, cake cutting…',
-      },
-    ],
+    // Music questions live on the DJ project type (kept short — no duplicate extras).
+    questionnaireExtras: [],
     stages: [
       { key: 'created', label: 'Created', doneLabel: 'Created' },
       { key: 'questionnaire', label: 'Event Details', doneLabel: 'Details confirmed' },

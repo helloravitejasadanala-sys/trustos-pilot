@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const project = await prisma.project.findFirst({
       where: { id: params.id, vendor: { userId: user.id } },
-      include: { proposal: true },
+      include: { proposal: true, _count: { select: { paymentStages: true } } },
     })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     if (!project.proposal) {
@@ -19,6 +19,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const isFree = free === true || project.paymentMethod === 'free'
+    // Schedule path owns confirm/request — legacy DEPOSIT/FINAL would desync the client.
+    if (!isFree && (project._count?.paymentStages ?? 0) > 0 && body.requestBalance !== true) {
+      return NextResponse.json(
+        {
+          error:
+            'This booking uses a payment schedule. Confirm or request stages from the Money tab.',
+        },
+        { status: 409 },
+      )
+    }
     const deposit = Number(project.proposal.depositAmount ?? project.proposal.deposit ?? 0)
     const price = Number(project.proposal.price)
 

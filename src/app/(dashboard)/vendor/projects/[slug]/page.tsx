@@ -47,6 +47,8 @@ import { useVisiblePoll } from '@/hooks/useVisiblePoll'
 import { parseVendorWorkspaceTab } from '@/lib/vendor-workspace'
 import { declaredPaymentMethodLabel } from '@/lib/payment-declare'
 import PaymentScheduleEditor from '@/components/vendor/PaymentScheduleEditor'
+import { useVendorChrome } from '@/components/vendor/VendorShell'
+import type { VendorProject } from '@/lib/vendor-phase1'
 
 type Tab = string
 
@@ -73,6 +75,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { publishProjectsList } = useVendorChrome()
   const [project, setProject] = useState<any>(null)
   const [clients, setClients] = useState<any[]>([])
   const [tab, setTab] = useState<Tab>(() => parseVendorWorkspaceTab(searchParams.get('tab')) || 'Overview')
@@ -176,6 +179,13 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
     })
     setPrepLookupLocation(nextLocation.trim())
     setState('ready')
+    // Refresh shell/Today project list so payment PENDING clears after Money actions.
+    void fetch('/api/vendor/projects')
+      .then(r => parseJsonResponse<{ projects?: VendorProject[] }>(r))
+      .then(parsed => {
+        if (parsed.ok) publishProjectsList(parsed.data.projects || [])
+      })
+      .catch(() => {})
   }
 
   useEffect(() => { load() }, [params.slug])
@@ -594,6 +604,10 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
         return { label: na.ctaLabel || 'Send agreement →', action: sendContract }
       case 'CONTRACT_SIGNED':
         if (method === 'free') return { label: 'Confirm free collaboration →', action: completeFree }
+        // Schedule bookings: never legacy DEPOSIT confirm — that skips stageId and desyncs the client.
+        if (hasPaymentSchedule) {
+          return { label: 'Open Money →', action: () => selectTab('Money') }
+        }
         if (method === 'manual') {
           return {
             label: `Mark ${serviceProfile.depositLabel.toLowerCase()} received →`,

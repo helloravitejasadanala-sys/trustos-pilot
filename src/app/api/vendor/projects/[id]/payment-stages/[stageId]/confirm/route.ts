@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { trackEvent } from '@/lib/analytics'
 import {
   paymentTypeForStageIndex,
   projectStatusAfterScheduleProgress,
@@ -124,6 +125,12 @@ export async function POST(
         data: { status: newStatus },
       })
     }
+
+    await trackEvent('payment_confirmed', {
+      projectId: project.id,
+      userId: user.id,
+      metadata: { stageId: stage.id, amount, type, method: resolvedMethod },
+    })
 
     return NextResponse.json({
       ok: true,

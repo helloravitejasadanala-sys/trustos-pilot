@@ -22,6 +22,7 @@ const LABELS: Record<string, string> = {
   questionnaire_started: 'Client started Event Details',
   questionnaire_completed: 'Client completed Event Details',
   client_declared_payment: 'Client reported a payment',
+  payment_confirmed: 'Payment confirmed',
   approval_completed: 'Client approved delivery',
   changes_requested: 'Client requested changes',
   review_submitted: 'Client left a review',

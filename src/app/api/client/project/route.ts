@@ -32,6 +32,7 @@ export async function GET() {
         proposal: {
           select: { title: true, description: true, price: true, items: true, acceptedAt: true },
         },
+        questionnaire: { select: { completedAt: true } },
         contract: { select: { signedAt: true } },
         payments: {
           where: { status: 'COMPLETED' },
