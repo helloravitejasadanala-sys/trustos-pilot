@@ -199,6 +199,50 @@ body:has(.vendor-shell) {
   .vendor-mobile-head { display: none; }
 }
 
+/* Inside a booking on phone: topbar is desktop-only and the tab bar is hidden —
+   this sticky strip is the way back + New booking. */
+.vendor-workspace-mobilebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  min-height: 52px;
+  padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--line);
+  background: var(--canvas-2);
+  position: sticky;
+  top: 0;
+  z-index: 25;
+}
+
+.vendor-workspace-mobilebar__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 4px 0 0;
+  font: 600 14px var(--font-ui);
+  color: var(--forest);
+  text-decoration: none;
+}
+
+.vendor-workspace-mobilebar__back:hover {
+  color: var(--ink);
+}
+
+@media (min-width: 768px) {
+  .vendor-workspace-mobilebar { display: none; }
+}
+
+/* No bottom tab bar inside a booking on mobile — don't reserve 90px for it. */
+@media (max-width: 767px) {
+  .vendor-body--workspace {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .vendor-tabbar {
   position: fixed;
   inset-inline: 0;

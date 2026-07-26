@@ -383,16 +383,30 @@ export default function VendorShell({ children }: { children: ReactNode }) {
               <Bell size={15} strokeWidth={unreadCount > 0 ? 2.4 : 1.8} aria-hidden />
               {unreadCount > 0 ? `${unreadCount} new` : 'Inbox'}
             </Link>
-            {!inWorkspace && (
+            <button
+              type="button"
+              className="btn btn-forest"
+              onClick={openNewProject}
+            >
+              ＋ New booking
+            </button>
+          </header>
+
+          {inWorkspace && (
+            <div className="vendor-workspace-mobilebar">
+              <Link href="/vendor/projects" className="vendor-workspace-mobilebar__back">
+                ‹ Projects
+              </Link>
               <button
                 type="button"
                 className="btn btn-forest"
+                style={{ minHeight: 40, padding: '0 14px', fontSize: 13 }}
                 onClick={openNewProject}
               >
                 ＋ New booking
               </button>
-            )}
-          </header>
+            </div>
+          )}
 
           <main className={`vendor-body${inWorkspace ? ' vendor-body--workspace' : ''}`}>
             {children}
