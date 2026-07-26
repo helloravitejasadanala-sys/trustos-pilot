@@ -132,6 +132,8 @@ model Project {
   learnings        Learning[]
   venueNotes       VenueNote[]
 
+  @@index([vendorId])
+  @@index([vendorId, createdAt])
   @@map("projects")
 }
 
@@ -248,6 +250,7 @@ model Payment {
   paidAt    DateTime?     @map("paid_at")
   createdAt DateTime      @default(now()) @map("created_at")
 
+  @@index([projectId])
   @@map("payments")
 }
 
@@ -386,6 +389,7 @@ model Message {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([projectId])
+  @@index([projectId, type])
   @@map("messages")
 }
 

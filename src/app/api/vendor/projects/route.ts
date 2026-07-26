@@ -3,7 +3,7 @@ import { generateInvitationToken } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { appUrl, ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
+import { appUrl, formatInvitationLink } from '@/lib/invitations'
 import { ALL_DEMO_PROJECT_SLUGS, isDemoVendorEmail } from '@/lib/demo'
 import { getServiceProfile, isServiceKey } from '@/lib/service-profiles'
 import { noteClientDirectory, resolveOrCreateClient } from '@/lib/vendor-clients'
@@ -27,22 +27,36 @@ export async function GET() {
     // Demo projects remain visible only inside the seeded demo workspaces
     // (used by the passwordless /demo door).
     const showDemo = isDemoVendorEmail(user.email)
+    // Slim list payload for Today / Projects / shell poll — detail route has the rest.
     const projects = await prisma.project.findMany({
       where: {
         vendorId: vendor.id,
         ...(showDemo ? {} : { slug: { notIn: ALL_DEMO_PROJECT_SLUGS } }),
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        service: true,
+        type: true,
+        eventDate: true,
+        location: true,
+        notes: true,
+        paymentMethod: true,
+        balanceRequestedAt: true,
+        createdAt: true,
+        updatedAt: true,
         client: { select: { id: true, name: true, email: true } },
-        questionnaire: true,
-        proposal: true,
-        contract: true,
-        payments: true,
+        proposal: {
+          select: { price: true, depositAmount: true, deposit: true },
+        },
+        payments: {
+          select: { id: true, type: true, status: true, amount: true, method: true },
+        },
         review: { select: { id: true } },
         approvals: { select: { id: true }, take: 1 },
-        _count: { select: { messages: true, milestones: true } },
-        // The active invitation, so the vendor can copy the secure link.
-        // Only the owning vendor ever sees a raw token.
+        // Active invitation for copy-link on cards.
         invitations: {
           where: { revokedAt: null },
           orderBy: { createdAt: 'desc' },
@@ -66,18 +80,17 @@ export async function GET() {
       : []
     const lastMsgMap = new Map(lastClientMsg.map((m: any) => [m.projectId, m._max.createdAt]))
 
-    const withLinks = await Promise.all(projects.map(async (p: any) => {
-      let inv = p.invitations[0]
-      if (!inv) {
-        inv = await ensureActiveInvitation(vendor.id, p.id, { email: p.client?.email ?? null })
-      }
+    // Do not mint invitations on list GET — that N+1 writes under connection_limit=1.
+    // Share / detail / create paths call ensureActiveInvitation when a link is needed.
+    const withLinks = projects.map((p: any) => {
+      const inv = p.invitations[0] || null
       const { invitations, ...rest } = p
       return {
         ...rest,
-        invitation: formatInvitationLink(inv),
+        invitation: inv ? formatInvitationLink(inv) : null,
         lastClientMessageAt: lastMsgMap.get(p.id) ?? null,
       }
-    }))
+    })
 
     return NextResponse.json({ projects: withLinks })
   } catch (error: any) {

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { usePathname, useRouter } from 'next/navigation'
 import { CalendarDays, FolderKanban, Users, Settings, Bell } from 'lucide-react'
 import {
@@ -26,7 +27,10 @@ import {
 import { hasUnread } from '@/lib/unread'
 import { playMessageChime } from '@/lib/notify'
 import { vendorProjectHref } from '@/lib/vendor-workspace'
-import NewProjectModal from '@/components/vendor/NewProjectModal'
+
+const NewProjectModal = dynamic(() => import('@/components/vendor/NewProjectModal'), {
+  ssr: false,
+})
 
 const NAV = [
   { href: '/vendor', label: 'Today', icon: CalendarDays, exact: true },
@@ -42,9 +46,16 @@ type VendorChromeValue = {
   primaryService: string
   /** False until /api/auth/me has resolved (success or failure). */
   profileLoaded: boolean
+  /** Shared projects list from shell poll — Today/Projects reuse when fresh. */
+  projectsList: VendorProject[] | null
+  projectsListAt: number
+  publishProjectsList: (projects: VendorProject[]) => void
 }
 
 const VendorChromeContext = createContext<VendorChromeValue | null>(null)
+
+/** Reuse shell-polled list if younger than this (avoids double fetch on Today mount). */
+export const PROJECTS_LIST_CACHE_MS = 15_000
 
 export function useVendorChrome() {
   const ctx = useContext(VendorChromeContext)
@@ -55,6 +66,9 @@ export function useVendorChrome() {
       userName: '',
       primaryService: 'PHOTOGRAPHY',
       profileLoaded: false,
+      projectsList: null,
+      projectsListAt: 0,
+      publishProjectsList: () => {},
     }
   }
   return ctx
@@ -82,8 +96,22 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [firstUnreadSlug, setFirstUnreadSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [projectsList, setProjectsList] = useState<VendorProject[] | null>(null)
+  const [projectsListAt, setProjectsListAt] = useState(0)
   const lastInboundRef = useRef<Record<string, string>>({})
   const inboundPrimedRef = useRef(false)
+
+  const publishProjectsList = useCallback((projects: VendorProject[]) => {
+    setProjectsList(projects)
+    setProjectsListAt(Date.now())
+  }, [])
+  // Stable poll loop — must not restart on every Today↔Projects↔Clients nav.
+  const pathnameRef = useRef(pathname)
+  const primaryServiceRef = useRef(primaryService)
+  const routerRef = useRef(router)
+  pathnameRef.current = pathname
+  primaryServiceRef.current = primaryService
+  routerRef.current = router
 
   // Identity loads once — never flash "Workspace" / "Account" placeholders.
   useEffect(() => {
@@ -127,15 +155,15 @@ export default function VendorShell({ children }: { children: ReactNode }) {
         const projRes = await fetch('/api/vendor/projects')
         const proj = await parseJsonResponse<{ projects?: VendorProject[] }>(projRes)
         if (!cancelled && proj.ok) {
-          const live = (proj.data.projects || []).filter(
+          const all = proj.data.projects || []
+          publishProjectsList(all)
+          const live = all.filter(
             p => !isArchivedProject(p) && !isVendorClosedProject(p),
           )
-          setProjectCount(
-            (proj.data.projects || []).filter(p => !isArchivedProject(p)).length,
-          )
+          setProjectCount(all.filter(p => !isArchivedProject(p)).length)
           setTodayCount(
             live.filter(p => {
-              const service = p.service || primaryService
+              const service = p.service || primaryServiceRef.current
               return (
                 hasPendingPaymentConfirm(p) ||
                 needsBalanceRequest(p) ||
@@ -158,13 +186,14 @@ export default function VendorShell({ children }: { children: ReactNode }) {
             }
             lastInboundRef.current = seed
           } else {
-            const inChat = pathname.includes('/vendor/projects/') && pathname.split('/').length > 3
+            const path = pathnameRef.current
+            const inChat = path.includes('/vendor/projects/') && path.split('/').length > 3
             for (const p of live) {
               const at = p.lastClientMessageAt
               if (!at) continue
               const prev = lastInboundRef.current[p.id]
               if (prev && new Date(at).getTime() > new Date(prev).getTime()) {
-                if (!inChat || !pathname.includes(p.slug)) {
+                if (!inChat || !path.includes(p.slug)) {
                   const from = p.client?.name || p.title || 'Client'
                   const href = vendorProjectHref(p.slug, 'Chat')
                   toast(
@@ -172,7 +201,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
                       <button
                         type="button"
                         onClick={() => {
-                          router.push(href)
+                          routerRef.current.push(href)
                           toast.dismiss(t.id)
                         }}
                         style={{
@@ -221,13 +250,33 @@ export default function VendorShell({ children }: { children: ReactNode }) {
       if (timer) clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [pathname, primaryService, router])
+    // Intentionally empty deps: poll must not restart on pathname / service changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- publishProjectsList is stable
+  }, [publishProjectsList])
 
   const openNewProject = useCallback(() => setShowCreate(true), [])
 
   const chrome = useMemo(
-    () => ({ openNewProject, businessName, userName, primaryService, profileLoaded }),
-    [openNewProject, businessName, userName, primaryService, profileLoaded],
+    () => ({
+      openNewProject,
+      businessName,
+      userName,
+      primaryService,
+      profileLoaded,
+      projectsList,
+      projectsListAt,
+      publishProjectsList,
+    }),
+    [
+      openNewProject,
+      businessName,
+      userName,
+      primaryService,
+      profileLoaded,
+      projectsList,
+      projectsListAt,
+      publishProjectsList,
+    ],
   )
 
   const workspaceLabel = businessName.trim() || userName.trim()

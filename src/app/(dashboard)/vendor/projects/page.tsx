@@ -5,12 +5,12 @@ import { Search } from 'lucide-react'
 import ProjectCard from '@/components/vendor/ProjectCard'
 import { CardSkeleton, EmptyState } from '@/components/ui'
 import { PageHeader, PageLayout } from '@/components/layout'
-import { useVendorChrome } from '@/components/vendor/VendorShell'
+import { PROJECTS_LIST_CACHE_MS, useVendorChrome } from '@/components/vendor/VendorShell'
 import { isArchivedProject, type VendorProject } from '@/lib/vendor-phase1'
 import { parseJsonResponse } from '@/lib/safe-json'
 
 export default function ProjectsPage() {
-  const { openNewProject } = useVendorChrome()
+  const { openNewProject, projectsList, projectsListAt, publishProjectsList } = useVendorChrome()
   const [projects, setProjects] = useState<VendorProject[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -19,9 +19,20 @@ export default function ProjectsPage() {
   async function load() {
     setLoading(true)
     try {
+      const cacheFresh =
+        !!projectsList &&
+        Date.now() - projectsListAt < PROJECTS_LIST_CACHE_MS
+      if (cacheFresh) {
+        setProjects(projectsList)
+        return
+      }
       const res = await fetch('/api/vendor/projects')
       const { ok, data } = await parseJsonResponse<{ projects?: VendorProject[] }>(res)
-      if (ok) setProjects(data.projects || [])
+      if (ok) {
+        const list = data.projects || []
+        publishProjectsList(list)
+        setProjects(list)
+      }
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { getNextAction } from '@/lib/journey'
 import {
@@ -13,7 +13,7 @@ import {
 import { hasUnread } from '@/lib/unread'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { projectTypeLabel } from '@/lib/project-types'
-import { useVendorChrome } from '@/components/vendor/VendorShell'
+import { PROJECTS_LIST_CACHE_MS, useVendorChrome } from '@/components/vendor/VendorShell'
 import { tabForActivityEvent, vendorProjectHref } from '@/lib/vendor-workspace'
 
 const VENDOR_PRIORITY = [
@@ -107,43 +107,92 @@ function queueCopy(item: QueueItem) {
 }
 
 export default function TodayPage() {
-  const { openNewProject, userName, businessName, primaryService, profileLoaded } = useVendorChrome()
+  const {
+    openNewProject,
+    userName,
+    businessName,
+    primaryService,
+    profileLoaded,
+    projectsList,
+    projectsListAt,
+    publishProjectsList,
+  } = useVendorChrome()
   const [projects, setProjects] = useState<VendorProject[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [business, setBusiness] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const cacheRef = useRef({ projectsList, projectsListAt, profileLoaded, businessName, userName })
+  cacheRef.current = { projectsList, projectsListAt, profileLoaded, businessName, userName }
 
   const load = useCallback(async (opts?: { soft?: boolean }) => {
     const soft = !!opts?.soft
     if (!soft) setLoadError(null)
     try {
-      const [res, actRes, meRes] = await Promise.all([
-        fetch('/api/vendor/projects'),
+      const cache = cacheRef.current
+      const cacheFresh =
+        !!cache.projectsList &&
+        Date.now() - cache.projectsListAt < PROJECTS_LIST_CACHE_MS
+
+      const projectsPromise = cacheFresh
+        ? Promise.resolve({
+            status: 200,
+            ok: true as const,
+            projects: cache.projectsList,
+            fromCache: true,
+          })
+        : fetch('/api/vendor/projects').then(async res => {
+            const parsed = await parseJsonResponse<{ projects?: VendorProject[]; error?: string }>(res)
+            return {
+              status: res.status,
+              ok: parsed.ok,
+              projects: parsed.data.projects,
+              error: parsed.data.error,
+              fromCache: false,
+            }
+          })
+
+      const mePromise =
+        cache.profileLoaded && (cache.businessName || cache.userName)
+          ? Promise.resolve({ skip: true as const })
+          : fetch('/api/auth/me').then(async res => ({
+              skip: false as const,
+              status: res.status,
+              parsed: await parseJsonResponse<{
+                user?: { name?: string; vendorProfile?: { businessName?: string } }
+              }>(res),
+            }))
+
+      const [proj, actRes, me] = await Promise.all([
+        projectsPromise,
         fetch('/api/vendor/activity'),
-        fetch('/api/auth/me'),
+        mePromise,
       ])
-      if (res.status === 401 || meRes.status === 401) {
+
+      if (proj.status === 401 || (!me.skip && me.status === 401)) {
         setLoadError('Your session expired. Please sign in again.')
         return
       }
-      if (res.status === 403) {
+      if (proj.status === 403) {
         setLoadError('This workspace is suspended. Contact support if you need access restored.')
         return
       }
-      const { ok, data } = await parseJsonResponse<{ projects?: VendorProject[]; error?: string }>(res)
-      if (!ok) {
-        setLoadError(data.error || 'Could not load your projects. Please refresh and try again.')
+      if (!proj.ok) {
+        setLoadError(proj.error || 'Could not load your projects. Please refresh and try again.')
         return
       }
-      setProjects((data.projects || []).filter((p: VendorProject) => !isArchivedProject(p)))
+      const list = proj.projects || []
+      if (!proj.fromCache) publishProjectsList(list)
+      setProjects(list.filter((p: VendorProject) => !isArchivedProject(p)))
       const act = await parseJsonResponse<{ activity?: ActivityItem[] }>(actRes)
       if (act.ok) setActivity(act.data.activity || [])
-      const me = await parseJsonResponse<{ user?: { name?: string; vendorProfile?: { businessName?: string } } }>(meRes)
-      if (me.ok) {
-        setBusiness(me.data.user?.vendorProfile?.businessName || '')
-        setOwnerName(me.data.user?.name || '')
+      if (me.skip) {
+        setBusiness(cache.businessName || '')
+        setOwnerName(cache.userName || '')
+      } else if (me.parsed.ok) {
+        setBusiness(me.parsed.data.user?.vendorProfile?.businessName || '')
+        setOwnerName(me.parsed.data.user?.name || '')
       }
       if (soft) setLoadError(null)
     } catch {
@@ -151,7 +200,7 @@ export default function TodayPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [publishProjectsList])
 
   useEffect(() => {
     load()
