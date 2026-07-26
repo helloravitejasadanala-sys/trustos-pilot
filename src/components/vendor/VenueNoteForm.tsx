@@ -169,7 +169,7 @@ export default function VenueNoteForm({
           </button>
         </div>
         {expanded && (
-          <div style={{ marginTop: 14, displayTop: '1px solid var(--line-soft)', paddingTop: 12 }}>
+          <div style={{ marginTop: 14, borderTop: '1px solid var(--line-soft)', paddingTop: 12 }}>
             {lines.length === 0 && saved.confidence == null ? (
               <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>No details recorded.</p>
             ) : (
