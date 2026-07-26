@@ -19,8 +19,14 @@ import { playMessageChime } from '@/lib/notify'
 import TypingPreview from '@/components/ui/TypingPreview'
 import { getNextAction, isWaitingOnClient } from '@/lib/journey'
 import {
-  ARCHIVED_PREFIX, isArchivedProject, isTestProject, journeyProgress,
-  projectProgressSummary, hasDeliverables, hasDeliveryApproval,
+  ARCHIVED_PREFIX,
+  isArchivedProject,
+  isTestProject,
+  journeyProgress,
+  projectProgressSummary,
+  hasDeliverables,
+  hasDeliveryApproval,
+  type VendorProject,
 } from '@/lib/vendor-phase1'
 import { projectTypeLabel } from '@/lib/project-types'
 import {
@@ -47,8 +53,9 @@ import { useVisiblePoll } from '@/hooks/useVisiblePoll'
 import { parseVendorWorkspaceTab } from '@/lib/vendor-workspace'
 import { declaredPaymentMethodLabel } from '@/lib/payment-declare'
 import PaymentScheduleEditor from '@/components/vendor/PaymentScheduleEditor'
+import { ProjectDeleteDialog } from '@/components/vendor/ProjectDeleteDialog'
 import { useVendorChrome } from '@/components/vendor/VendorShell'
-import type { VendorProject } from '@/lib/vendor-phase1'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type Tab = string
 
@@ -83,6 +90,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmKind, setConfirmKind] = useState<'archive' | 'cancel' | 'delete' | null>(null)
   const [clientModal, setClientModal] = useState(false)
   const [primaryService, setPrimaryService] = useState('PHOTOGRAPHY')
   const [quote, setQuote] = useState({ method: 'manual', title: '', price: '', deposit: '', description: '' })
@@ -590,7 +598,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
       return { label: 'Restore booking →', action: restoreBooking }
     }
     if (vendorClosed) {
-      return { label: 'Archive booking →', action: archiveBooking }
+      return { label: 'Archive booking →', action: () => setConfirmKind('archive') }
     }
     switch (project.status) {
       case 'LEAD':
@@ -765,7 +773,10 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                  onClick={() => run('restore', restoreBooking)}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    void run('restore', restoreBooking)
+                  }}
                 >
                   Restore
                 </button>
@@ -773,7 +784,10 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                  onClick={() => run('archive', archiveBooking)}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setConfirmKind('archive')
+                  }}
                 >
                   Archive
                 </button>
@@ -782,7 +796,10 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left hover:bg-[color:var(--canvas-2)]"
-                  onClick={() => run('cancel', () => patchProject({ cancel: true }).then(() => toast.success('Cancelled')))}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setConfirmKind('cancel')
+                  }}
                 >
                   Cancel
                 </button>
@@ -791,10 +808,9 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left text-[color:var(--coral-deep)] hover:bg-[color:var(--coral-soft)]"
-                  onClick={async () => {
-                    if (!confirm('Delete test project?')) return
-                    const res = await fetch(`/api/vendor/projects/${params.slug}`, { method: 'DELETE' })
-                    if (res.ok) { toast.success('Deleted'); window.location.href = '/vendor/projects' }
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setConfirmKind('delete')
                   }}
                 >
                   Delete test project
@@ -1458,10 +1474,36 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   )}
                 </div>
               ) : hasPaymentSchedule ? (
-                <p style={{ fontSize: 13.5, margin: 0, color: 'var(--muted)' }}>
-                  Request and confirm each stage in the payment schedule above. Classic deposit / balance
-                  buttons stay off while a schedule is active.
-                </p>
+                <div>
+                  <p style={{ fontSize: 13.5, margin: '0 0 12px', color: 'var(--muted)' }}>
+                    Request and confirm each stage in the payment schedule above. Classic deposit /
+                    balance buttons stay off while a schedule is active.
+                  </p>
+                  {project.status === 'PROPOSAL_ACCEPTED' && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-forest"
+                        disabled={!!busy}
+                        onClick={() => run('contract', sendContract)}
+                      >
+                        {busy === 'contract' ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          'Send agreement →'
+                        )}
+                      </button>
+                      <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                        Quote accepted — send the agreement next. Payment stages open after they sign.
+                      </p>
+                    </>
+                  )}
+                  {project.status === 'CONTRACT_SENT' && (
+                    <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
+                      Agreement sent — waiting for {clientName} to sign on their link.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   <div className="panel" style={{ flex: '1 1 140px', minWidth: 0, padding: 12, boxShadow: 'none' }}>
@@ -1812,7 +1854,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                     className="btn btn-ghost"
                     style={{ marginTop: 12 }}
                     disabled={!!busy}
-                    onClick={() => run('archive', archiveBooking)}
+                    onClick={() => setConfirmKind('archive')}
                   >
                     Archive booking
                   </button>
@@ -1935,6 +1977,78 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmKind === 'archive'}
+        title="Archive this booking?"
+        onClose={() => !busy && setConfirmKind(null)}
+        busy={busy === 'archive'}
+        primaryLabel="Archive"
+        onPrimary={() =>
+          run('archive', async () => {
+            await archiveBooking()
+            setConfirmKind(null)
+          })
+        }
+      >
+        <p style={{ margin: 0 }}>
+          <strong>{project.title}</strong> moves to your Archived shelf. You can restore it anytime —
+          nothing is deleted.
+        </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmKind === 'cancel'}
+        title="Cancel this booking?"
+        onClose={() => !busy && setConfirmKind(null)}
+        busy={busy === 'cancel'}
+        primaryLabel="Cancel booking"
+        primaryVariant="danger"
+        onPrimary={() =>
+          run('cancel', async () => {
+            await patchProject({ cancel: true })
+            toast.success('Booking cancelled')
+            setConfirmKind(null)
+          })
+        }
+      >
+        <p style={{ margin: 0 }}>
+          <strong>{project.title}</strong> will leave your active work. Prefer Archive if you might
+          need it again.
+        </p>
+      </ConfirmDialog>
+
+      <ProjectDeleteDialog
+        open={confirmKind === 'delete'}
+        busy={busy === 'delete'}
+        onClose={() => !busy && setConfirmKind(null)}
+        onArchive={
+          archived
+            ? undefined
+            : () =>
+                run('archive', async () => {
+                  await archiveBooking()
+                  setConfirmKind(null)
+                })
+        }
+        onDelete={() =>
+          run('delete', async () => {
+            const res = await fetch(`/api/vendor/projects/${params.slug}`, { method: 'DELETE' })
+            const parsed = await parseJsonResponse<{ error?: string }>(res)
+            if (!parsed.ok) throw new Error(parsed.data.error || 'Delete failed')
+            toast.success('Test project deleted')
+            window.location.href = '/vendor/projects'
+          })
+        }
+        summary={{
+          title: project.title,
+          clientName: project.client?.name || project.client?.email,
+          paymentCount: (project.payments || []).length,
+          fileCount: Array.isArray(project.files) ? project.files.length : null,
+          canArchive: !archived,
+          simple: archived || vendorClosed || project.status === 'COMPLETED',
+        }}
+      />
     </WorkspaceLayout>
   )
 }

@@ -6,14 +6,23 @@ import { createPortal } from 'react-dom'
 import { Calendar, MoreVertical } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { StatusChip } from '@/components/ui'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ProjectDeleteDialog } from '@/components/vendor/ProjectDeleteDialog'
 import { hasUnread } from '@/lib/unread'
-import { isArchivedProject, isTestProject, projectNextAction, type VendorProject } from '@/lib/vendor-phase1'
+import {
+  isArchivedProject,
+  isTestProject,
+  isVendorClosedProject,
+  projectNextAction,
+  type VendorProject,
+} from '@/lib/vendor-phase1'
 
 const MENU_WIDTH = 176
 /** Enough room for Edit / Archive / Cancel / Delete test. */
 const MENU_EST_HEIGHT = 220
 
 type MenuPos = { top?: number; bottom?: number; left: number }
+type ConfirmKind = 'archive' | 'cancel' | 'delete' | null
 
 export default function ProjectCard({
   project,
@@ -24,6 +33,7 @@ export default function ProjectCard({
 }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [confirm, setConfirm] = useState<ConfirmKind>(null)
   const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
   const [mounted, setMounted] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -32,6 +42,8 @@ export default function ProjectCard({
   const archived = isArchivedProject(project)
   const test = isTestProject(project)
   const unread = hasUnread(project.id, project.lastClientMessageAt)
+  const closed = isVendorClosedProject(project)
+  const paymentCount = (project.payments || []).length
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -87,7 +99,7 @@ export default function ProjectCard({
     }
   }, [open])
 
-  async function patch(body: Record<string, unknown>) {
+  async function patch(body: Record<string, unknown>, success: string) {
     if (busy) return
     setBusy(true)
     try {
@@ -98,7 +110,8 @@ export default function ProjectCard({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Update failed')
-      toast.success('Project updated')
+      toast.success(success)
+      setConfirm(null)
       onChanged()
     } catch (e: any) {
       toast.error(e.message)
@@ -109,13 +122,14 @@ export default function ProjectCard({
   }
 
   async function remove() {
-    if (busy || !test || !confirm('Delete this test project permanently?')) return
+    if (busy || !test) return
     setBusy(true)
     try {
       const res = await fetch(`/api/vendor/projects/${project.slug}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Delete failed')
       toast.success('Test project deleted')
+      setConfirm(null)
       onChanged()
     } catch (e: any) {
       toast.error(e.message)
@@ -150,8 +164,11 @@ export default function ProjectCard({
             className="w-full px-3 py-2.5 text-left"
             style={{ color: 'var(--ink)' }}
             onClick={() => {
+              setOpen(false)
               const title = prompt('Project title', project.title)
-              if (title?.trim()) patch({ title: title.trim() })
+              if (title?.trim()) {
+                void patch({ title: title.trim() }, 'Project updated')
+              }
             }}
           >
             Edit
@@ -162,7 +179,10 @@ export default function ProjectCard({
               role="menuitem"
               className="w-full px-3 py-2.5 text-left"
               style={{ color: 'var(--ink)' }}
-              onClick={() => patch({ archive: true })}
+              onClick={() => {
+                setOpen(false)
+                setConfirm('archive')
+              }}
             >
               Archive
             </button>
@@ -173,7 +193,10 @@ export default function ProjectCard({
               role="menuitem"
               className="w-full px-3 py-2.5 text-left"
               style={{ color: 'var(--ink)' }}
-              onClick={() => patch({ unarchive: true })}
+              onClick={() => {
+                setOpen(false)
+                void patch({ unarchive: true }, 'Booking restored to your active list')
+              }}
             >
               Restore
             </button>
@@ -184,7 +207,10 @@ export default function ProjectCard({
               role="menuitem"
               className="w-full px-3 py-2.5 text-left"
               style={{ color: 'var(--ink)' }}
-              onClick={() => patch({ cancel: true })}
+              onClick={() => {
+                setOpen(false)
+                setConfirm('cancel')
+              }}
             >
               Cancel
             </button>
@@ -195,7 +221,10 @@ export default function ProjectCard({
               role="menuitem"
               className="w-full px-3 py-2.5 text-left"
               style={{ color: 'var(--coral-deep)' }}
-              onClick={remove}
+              onClick={() => {
+                setOpen(false)
+                setConfirm('delete')
+              }}
             >
               Delete test project
             </button>
@@ -268,6 +297,55 @@ export default function ProjectCard({
         </button>
         {menu}
       </div>
+
+      <ConfirmDialog
+        open={confirm === 'archive'}
+        title="Archive this booking?"
+        onClose={() => !busy && setConfirm(null)}
+        busy={busy}
+        primaryLabel="Archive"
+        onPrimary={() => patch({ archive: true }, 'Booking archived — find it under Archived')}
+      >
+        <p style={{ margin: 0 }}>
+          <strong>{project.title}</strong> moves to your Archived shelf. You can restore it anytime —
+          nothing is deleted.
+        </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirm === 'cancel'}
+        title="Cancel this booking?"
+        onClose={() => !busy && setConfirm(null)}
+        busy={busy}
+        primaryLabel="Cancel booking"
+        primaryVariant="danger"
+        onPrimary={() => patch({ cancel: true }, 'Booking cancelled')}
+      >
+        <p style={{ margin: 0 }}>
+          <strong>{project.title}</strong> will leave your active work. Prefer Archive if you might
+          need it again.
+        </p>
+      </ConfirmDialog>
+
+      <ProjectDeleteDialog
+        open={confirm === 'delete'}
+        busy={busy}
+        onClose={() => !busy && setConfirm(null)}
+        onArchive={
+          archived
+            ? undefined
+            : () => patch({ archive: true }, 'Booking archived — find it under Archived')
+        }
+        onDelete={remove}
+        summary={{
+          title: project.title,
+          clientName: project.client?.name || project.invitation?.email,
+          paymentCount,
+          fileCount: null,
+          canArchive: !archived,
+          simple: archived || closed || project.status === 'COMPLETED',
+        }}
+      />
     </div>
   )
 }

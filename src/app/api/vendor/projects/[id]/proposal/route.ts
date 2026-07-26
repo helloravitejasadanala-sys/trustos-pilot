@@ -119,19 +119,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       },
     })
 
-    // Never rewind status after money is settled (or terminal).
-    const preMoneyLane = new Set([
+    // First send / still pre-accept → PROPOSAL_SENT.
+    // Never rewind past accept (or agreement/money) — that hid "Send agreement"
+    // after vendors edited the quote or saved a payment schedule then resaved.
+    const preAcceptLane = new Set([
       'LEAD',
       'QUESTIONNAIRE_SENT',
       'QUESTIONNAIRE_COMPLETED',
       'PROPOSAL_SENT',
-      'PROPOSAL_ACCEPTED',
-      'CONTRACT_SENT',
-      'CONTRACT_SIGNED',
     ])
     await prisma.project.update({
       where: { id: project.id },
-      data: preMoneyLane.has(project.status)
+      data: preAcceptLane.has(project.status)
         ? { status: 'PROPOSAL_SENT', paymentMethod: method }
         : { paymentMethod: method },
     })

@@ -352,11 +352,32 @@ try {
     console.error(`FAIL: client accept quote (status=${r.status} err=${r.data?.error || ''})`)
     process.exit(1)
   }
+
+  // Resending quote after accept + schedule must NOT rewind past PROPOSAL_ACCEPTED
+  // (that hid "Send agreement" in the vendor UI).
+  r = await api(`/api/vendor/projects/${schedSlug}/proposal`, {
+    method: 'POST',
+    body: JSON.stringify({
+      title: 'Schedule package',
+      description: 'Schedule money test (resend)',
+      price: 800,
+      deposit: 200,
+      method: 'manual',
+    }),
+  })
+  const afterSchedResend = await api(`/api/vendor/projects/${schedSlug}/detail`)
+  ok(
+    '7b. Resend quote after accept keeps PROPOSAL_ACCEPTED (agreement still sendable)',
+    r.status === 200 && afterSchedResend.data?.project?.status === 'PROPOSAL_ACCEPTED',
+    `proposal=${r.status} status=${afterSchedResend.data?.project?.status}`,
+  )
+
   r = await api(`/api/vendor/projects/${schedId}/contract`, { method: 'POST' })
   if (r.status !== 200) {
     console.error(`FAIL: send contract (status=${r.status} err=${r.data?.error || ''})`)
     process.exit(1)
   }
+  ok('7c. Send agreement after schedule + accept', r.status === 200, `status=${r.status}`)
   r = await apiC('/api/client/contract', {
     method: 'POST',
     body: JSON.stringify({ signedBy: 'Schedule Tester', consent: true }),

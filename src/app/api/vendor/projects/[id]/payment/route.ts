@@ -19,12 +19,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const isFree = free === true || project.paymentMethod === 'free'
-    // Schedule path owns confirm/request — legacy DEPOSIT/FINAL would desync the client.
-    if (!isFree && (project._count?.paymentStages ?? 0) > 0 && body.requestBalance !== true) {
+    // Schedule path owns confirm/request/balance — legacy payment actions desync the client.
+    // Contract/agreement uses a separate route and must never hit this gate.
+    if (!isFree && (project._count?.paymentStages ?? 0) > 0) {
       return NextResponse.json(
         {
           error:
-            'This booking uses a payment schedule. Confirm or request stages from the Money tab.',
+            'This booking uses a payment schedule. Request or confirm stages from the Money tab.',
         },
         { status: 409 },
       )
