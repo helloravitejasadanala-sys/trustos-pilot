@@ -38,6 +38,10 @@ function emptyRow(order: number): StageRow {
   }
 }
 
+function money(n: number) {
+  return `£${round2(n).toFixed(2)}`
+}
+
 export default function PaymentScheduleEditor({
   projectId,
   quoteTotal,
@@ -45,6 +49,7 @@ export default function PaymentScheduleEditor({
   payments,
   amountLocked,
   readOnly,
+  contractSigned,
   busy,
   run,
   onChanged,
@@ -63,12 +68,15 @@ export default function PaymentScheduleEditor({
   /** True once any COMPLETED payment exists — stages read-only. */
   amountLocked: boolean
   readOnly: boolean
+  /** Confirm / request only after the client signed. */
+  contractSigned: boolean
   busy: string | null
   run: (label: string, fn: () => unknown) => void
   onChanged: () => void
 }) {
   const locked = amountLocked || readOnly
   const [draft, setDraft] = useState<StageRow[]>([])
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     if (savedStages.length === 0) {
@@ -153,6 +161,7 @@ export default function PaymentScheduleEditor({
     const parsed = await parseJsonResponse<{ error?: string }>(res)
     if (!parsed.ok) throw new Error(parsed.data.error || 'Could not save schedule')
     toast.success('Payment schedule saved')
+    setEditing(false)
     onChanged()
   }
 
@@ -194,17 +203,22 @@ export default function PaymentScheduleEditor({
     return { kind: 'open' as const, payment: null }
   }
 
+  const summaryLine = hasSaved
+    ? savedStages
+        .map(s => `${s.name || s.timingLabel} ${money(Number(s.amount))}`)
+        .join(' · ')
+    : null
+
   return (
     <div className="panel" style={{ padding: 18 }}>
-      <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Payment schedule</div>
+      <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Payment plan</div>
       <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)', maxWidth: '52ch' }}>
-        Named stages your client sees on the quote before they accept — no surprises later.
-        Max {MAX_PAYMENT_STAGES} stages.
+        Simple deposit + balance from your quote. Your client sees this before they accept.
       </p>
 
       {amountLocked && (
         <div className="banner banner-error" style={{ marginBottom: 12 }}>
-          Payment stage amounts are locked because a payment has been confirmed on this booking.
+          Payment amounts are locked because a payment has been confirmed on this booking.
         </div>
       )}
 
@@ -219,260 +233,308 @@ export default function PaymentScheduleEditor({
             {busy === 'sched-default' ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
-              'Apply default schedule'
+              'Apply default plan'
             )}
           </button>
           <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-            One tap: On booking (deposit) + Before the event (remainder). Edit after if you need.
+            Usually applied automatically when you send the quote.
           </p>
-          {quote <= 0 && (
-            <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--coral-deep)' }}>
-              Set a quote total first.
-            </p>
+        </div>
+      )}
+
+      {hasSaved && !editing && (
+        <div style={{ marginBottom: 12 }}>
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: 10,
+              border: '1px solid var(--line-soft)',
+              background: 'var(--canvas-2)',
+              fontSize: 14,
+              fontWeight: 600,
+              color: 'var(--ink)',
+            }}
+          >
+            {summaryLine}
+          </div>
+          {!locked && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ marginTop: 8, minHeight: 36 }}
+              onClick={() => setEditing(true)}
+            >
+              Edit schedule
+            </button>
           )}
         </div>
       )}
 
-      {(hasSaved || draft.length > 0) && (
-        <>
-          <div className="space-y-3" style={{ marginBottom: 12 }}>
-            {(locked ? savedStages.map(s => ({
-              id: s.id,
-              name: s.name,
-              amount: String(Number(s.amount)),
-              timingLabel: s.timingLabel,
-              sortOrder: s.sortOrder,
-              requestedAt: s.requestedAt,
-            })) : draft).map((row, i) => {
-              const status = row.id ? stageStatus(row.id) : null
-              return (
-                <div
-                  key={row.id || `draft-${i}`}
-                  style={{
-                    padding: 12,
-                    borderRadius: 10,
-                    border: '1px solid var(--line-soft)',
-                    background: 'var(--canvas-2)',
-                  }}
-                >
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <label className="label">Stage name</label>
-                      <input
-                        value={row.name}
-                        disabled={locked}
-                        onChange={e => updateRow(i, { name: e.target.value })}
-                        placeholder="e.g. On booking"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">When (rough)</label>
-                      <input
-                        value={row.timingLabel}
-                        disabled={locked}
-                        onChange={e => updateRow(i, { timingLabel: e.target.value })}
-                        placeholder="e.g. Before the event"
-                      />
+      {/* Stage actions (confirm / request) — always visible when saved */}
+      {hasSaved && (
+        <div className="space-y-3" style={{ marginBottom: editing ? 14 : 0 }}>
+          {savedStages.map((row, i) => {
+            const status = stageStatus(row.id)
+            return (
+              <div
+                key={row.id}
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  border: '1px solid var(--line-soft)',
+                  background: 'var(--panel)',
+                }}
+              >
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{row.name}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+                      {row.timingLabel} · {money(Number(row.amount))}
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-end gap-2">
-                    <div style={{ flex: '1 1 120px' }}>
-                      <label className="label">Amount (£)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        inputMode="decimal"
-                        value={row.amount}
-                        disabled={locked}
-                        onChange={e => updateRow(i, { amount: e.target.value })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    {!locked && draft.length > 1 && (
+                  {status.kind === 'confirmed' && (
+                    <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: 12.5 }}>Confirmed</span>
+                  )}
+                </div>
+
+                {status.kind === 'waiting' && (
+                  <div style={{ marginTop: 10, fontSize: 12.5 }}>
+                    <span style={{ color: 'var(--coral-deep)', fontWeight: 600 }}>
+                      Client reported
+                      {status.payment?.method
+                        ? ` (${declaredPaymentMethodLabel(status.payment.method)})`
+                        : ''}{' '}
+                      — waiting for you
+                    </span>
+                    {!readOnly && contractSigned && (
                       <button
                         type="button"
-                        className="btn"
-                        style={{ minHeight: 40, background: 'transparent', border: '1px solid var(--line)' }}
-                        onClick={() => removeRow(i)}
-                        aria-label="Remove stage"
+                        className="btn btn-forest"
+                        style={{ display: 'block', marginTop: 8, minHeight: 36 }}
+                        disabled={!!busy}
+                        onClick={() => run(`confirm-${row.id}`, () => confirmStage(row.id))}
                       >
-                        <Trash2 size={15} />
+                        {busy === `confirm-${row.id}` ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : (
+                          'Confirm received'
+                        )}
                       </button>
                     )}
                   </div>
+                )}
 
-                  {row.id && status && (
-                    <div style={{ marginTop: 10, fontSize: 12.5 }}>
-                      {status.kind === 'confirmed' && (
-                        <span style={{ color: 'var(--success)', fontWeight: 600 }}>Confirmed</span>
-                      )}
-                      {status.kind === 'waiting' && (
-                        <div>
-                          <span style={{ color: 'var(--coral-deep)', fontWeight: 600 }}>
-                            Client reported
-                            {status.payment?.method
-                              ? ` (${declaredPaymentMethodLabel(status.payment.method)})`
-                              : ''}{' '}
-                            — waiting for you
-                          </span>
-                          {!readOnly && (
-                            <button
-                              type="button"
-                              className="btn btn-forest"
-                              style={{ display: 'block', marginTop: 8, minHeight: 36 }}
-                              disabled={!!busy}
-                              onClick={() => run(`confirm-${row.id}`, () => confirmStage(row.id!))}
-                            >
-                              {busy === `confirm-${row.id}` ? (
-                                <Loader2 size={15} className="animate-spin" />
-                              ) : (
-                                'Confirm received'
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {status.kind === 'open' && (
-                        <div>
-                          {i === 0 ? (
-                            <span style={{ color: 'var(--muted)' }}>
-                              Open for client after they sign (no request needed)
-                            </span>
-                          ) : row.requestedAt ? (
-                            <span style={{ color: 'var(--muted)' }}>
-                              Requested — waiting for client to report
-                            </span>
+                {status.kind === 'open' && (
+                  <div style={{ marginTop: 10, fontSize: 12.5 }}>
+                    {!contractSigned ? (
+                      <span style={{ color: 'var(--muted)' }}>
+                        Opens after the client signs the agreement
+                      </span>
+                    ) : i === 0 ? (
+                      <>
+                        <span style={{ color: 'var(--muted)' }}>
+                          Open for client (no request needed)
+                        </span>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{
+                              display: 'block',
+                              marginTop: 8,
+                              minHeight: 36,
+                              background: 'var(--panel)',
+                              border: '1px solid var(--line)',
+                            }}
+                            disabled={!!busy}
+                            onClick={() => run(`confirm-${row.id}`, () => confirmStage(row.id))}
+                          >
+                            Confirm received (no client report)
+                          </button>
+                        )}
+                      </>
+                    ) : row.requestedAt ? (
+                      <>
+                        <span style={{ color: 'var(--muted)' }}>
+                          Requested — waiting for client to report
+                        </span>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{
+                              display: 'block',
+                              marginTop: 8,
+                              minHeight: 36,
+                              background: 'var(--panel)',
+                              border: '1px solid var(--line)',
+                            }}
+                            disabled={!!busy}
+                            onClick={() => run(`confirm-${row.id}`, () => confirmStage(row.id))}
+                          >
+                            Confirm received (no client report)
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      !readOnly && (
+                        <button
+                          type="button"
+                          className="btn btn-forest"
+                          style={{ minHeight: 36 }}
+                          disabled={!!busy}
+                          onClick={() => run(`req-${row.id}`, () => requestStage(row.id))}
+                        >
+                          {busy === `req-${row.id}` ? (
+                            <Loader2 size={15} className="animate-spin" />
                           ) : (
-                            !readOnly && (
-                              <button
-                                type="button"
-                                className="btn btn-forest"
-                                style={{ minHeight: 36 }}
-                                disabled={!!busy}
-                                onClick={() => run(`req-${row.id}`, () => requestStage(row.id!))}
-                              >
-                                {busy === `req-${row.id}` ? (
-                                  <Loader2 size={15} className="animate-spin" />
-                                ) : (
-                                  'Request from client'
-                                )}
-                              </button>
-                            )
+                            'Request from client'
                           )}
-                          {/* Vendor can confirm without client declare */}
-                          {!readOnly && i === 0 && (
-                            <button
-                              type="button"
-                              className="btn"
-                              style={{
-                                display: 'block',
-                                marginTop: 8,
-                                minHeight: 36,
-                                background: 'var(--panel)',
-                                border: '1px solid var(--line)',
-                              }}
-                              disabled={!!busy}
-                              onClick={() => run(`confirm-${row.id}`, () => confirmStage(row.id!))}
-                            >
-                              Confirm received (no client report)
-                            </button>
-                          )}
-                          {!readOnly && i > 0 && row.requestedAt && (
-                            <button
-                              type="button"
-                              className="btn"
-                              style={{
-                                display: 'block',
-                                marginTop: 8,
-                                minHeight: 36,
-                                background: 'var(--panel)',
-                                border: '1px solid var(--line)',
-                              }}
-                              disabled={!!busy}
-                              onClick={() => run(`confirm-${row.id}`, () => confirmStage(row.id!))}
-                            >
-                              Confirm received (no client report)
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
-          {!locked && (
-            <>
+      {/* Advanced edit — collapsed by default */}
+      {editing && !locked && (
+        <>
+          <div className="space-y-3" style={{ marginBottom: 12 }}>
+            {draft.map((row, i) => (
               <div
+                key={row.id || `draft-${i}`}
                 style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  marginBottom: 10,
-                  padding: '10px 12px',
+                  padding: 12,
                   borderRadius: 10,
-                  border: `1px solid ${sumOk ? 'var(--line-soft)' : 'var(--coral-deep, #c45c3e)'}`,
-                  background: sumOk ? 'var(--canvas-2)' : 'var(--coral-soft, #f8ebe6)',
+                  border: '1px solid var(--line-soft)',
+                  background: 'var(--canvas-2)',
                 }}
               >
-                <div style={{ fontSize: 13 }}>
-                  <span style={{ color: 'var(--muted)' }}>Stages total </span>
-                  <strong className="num">£{runningTotal.toFixed(2)}</strong>
-                  <span style={{ color: 'var(--muted)' }}> · Quote </span>
-                  <strong className="num">£{quote.toFixed(2)}</strong>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <label className="label">Stage name</label>
+                    <input
+                      value={row.name}
+                      onChange={e => updateRow(i, { name: e.target.value })}
+                      placeholder="e.g. On booking"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">When (rough)</label>
+                    <input
+                      value={row.timingLabel}
+                      onChange={e => updateRow(i, { timingLabel: e.target.value })}
+                      placeholder="e.g. Before the event"
+                    />
+                  </div>
                 </div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: sumOk ? 'var(--success)' : 'var(--coral-deep)' }}>
-                  {sumOk
-                    ? 'Matches quote'
-                    : diff > 0
-                      ? `Over by £${Math.abs(diff).toFixed(2)}`
-                      : `Under by £${Math.abs(diff).toFixed(2)}`}
-                </div>
-              </div>
-
-              {liveError && !sumOk && (
-                <div className="banner banner-error" style={{ marginBottom: 10 }}>
-                  {liveError}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {draft.length < MAX_PAYMENT_STAGES && (
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ background: 'var(--panel)', border: '1px solid var(--line)' }}
-                    onClick={addRow}
-                  >
-                    <Plus size={15} className="mr-1" /> Add stage
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-lime"
-                  disabled={!!busy || !sumOk || !!liveError || draft.length === 0}
-                  onClick={() => run('sched-save', saveSchedule)}
-                >
-                  {busy === 'sched-save' ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    'Save schedule'
+                <div className="mt-2 flex flex-wrap items-end gap-2">
+                  <div style={{ flex: '1 1 120px' }}>
+                    <label className="label">Amount (£)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={row.amount}
+                      onChange={e => updateRow(i, { amount: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {draft.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ minHeight: 40, background: 'transparent', border: '1px solid var(--line)' }}
+                      onClick={() => removeRow(i)}
+                      aria-label="Remove stage"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
-            </>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginBottom: 10,
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: `1px solid ${sumOk ? 'var(--line-soft)' : 'var(--coral-deep, #c45c3e)'}`,
+              background: sumOk ? 'var(--canvas-2)' : 'var(--coral-soft, #f8ebe6)',
+            }}
+          >
+            <div style={{ fontSize: 13 }}>
+              <span style={{ color: 'var(--muted)' }}>Stages total </span>
+              <strong className="num">£{runningTotal.toFixed(2)}</strong>
+              <span style={{ color: 'var(--muted)' }}> · Quote </span>
+              <strong className="num">£{quote.toFixed(2)}</strong>
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: sumOk ? 'var(--success)' : 'var(--coral-deep)' }}>
+              {sumOk
+                ? 'Matches quote'
+                : diff > 0
+                  ? `Over by £${Math.abs(diff).toFixed(2)}`
+                  : `Under by £${Math.abs(diff).toFixed(2)}`}
+            </div>
+          </div>
+
+          {liveError && !sumOk && (
+            <div className="banner banner-error" style={{ marginBottom: 10 }}>
+              {liveError}
+            </div>
           )}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {draft.length < MAX_PAYMENT_STAGES && (
+              <button
+                type="button"
+                className="btn"
+                style={{ background: 'var(--panel)', border: '1px solid var(--line)' }}
+                onClick={addRow}
+              >
+                <Plus size={15} className="mr-1" /> Add stage
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-lime"
+              disabled={!!busy || !sumOk || !!liveError || draft.length === 0}
+              onClick={() => run('sched-save', saveSchedule)}
+            >
+              {busy === 'sched-save' ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                'Save schedule'
+              )}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={!!busy}
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </button>
+          </div>
         </>
       )}
 
       {!hasSaved && locked && (
         <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>
-          No payment schedule on this booking — it stays on the classic deposit / balance path.
+          No payment plan on this booking yet.
         </p>
       )}
     </div>

@@ -24,6 +24,21 @@ export async function POST(
     })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+    const requestable = new Set([
+      'CONTRACT_SIGNED',
+      'DEPOSIT_PAID',
+      'FULLY_PAID',
+    ])
+    if (!requestable.has(project.status)) {
+      return NextResponse.json(
+        {
+          error:
+            'Request a stage only after the client has signed the agreement.',
+        },
+        { status: 409 },
+      )
+    }
+
     const stage = await prisma.paymentStage.findFirst({
       where: { id: params.stageId, projectId: project.id },
     })

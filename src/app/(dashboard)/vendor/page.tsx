@@ -513,6 +513,41 @@ export default function TodayPage() {
             </div>
           )}
 
+          {waitingClient.length > 0 && (
+            <div>
+              <div className="mb-2.5 flex items-baseline justify-between">
+                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Waiting on client</h2>
+                <span className="num text-[12px] text-[color:var(--muted)]">{waitingClient.length}</span>
+              </div>
+              <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--lavender, #b8a9d4)' }}>
+                {waitingClient.slice(0, 5).map(p => {
+                  const na = getNextAction(p.status, bookingService(p, primaryService))
+                  const clientLabel = p.client?.name || 'Client'
+                  return (
+                    <Link
+                      key={`wait-${p.id}`}
+                      href={vendorProjectHref(p.slug, 'Overview')}
+                      className="today-service-row"
+                    >
+                      <span className={markerClass(p.type)} style={{ width: 32, height: 32, fontSize: 12 }} aria-hidden>
+                        {markerLetter(p.type, p.title)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13.5px] font-semibold">{clientLabel}</div>
+                        <div className="truncate text-[12px] text-[color:var(--muted)]">
+                          {na.status === 'CONTRACT_SENT'
+                            ? `Waiting for ${clientLabel} to sign`
+                            : na.nextAction}
+                        </div>
+                      </div>
+                      <span className="chip chip-lav">Waiting</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {servicesSoon.length > 0 && (
             <div>
               <div className="mb-2.5 flex items-baseline justify-between">

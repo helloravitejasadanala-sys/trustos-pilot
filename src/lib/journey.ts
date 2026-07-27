@@ -42,7 +42,7 @@ const MAP: Record<string, Omit<NextAction, 'status'>> = {
   },
   PROPOSAL_ACCEPTED: {
     label: 'Quote accepted',
-    nextAction: 'Send the agreement',
+    nextAction: 'Agreement should send automatically — resend if needed',
     responsible: 'Vendor',
     ctaLabel: 'Send agreement →',
   },

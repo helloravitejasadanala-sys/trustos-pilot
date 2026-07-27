@@ -132,6 +132,49 @@ try {
     `status=${r.status} error=${JSON.stringify(r.data?.error)}`,
   )
 
+  // Money path required before complete (deposit confirmed).
+  r = await apiV(`/api/vendor/projects/${slug}/proposal`, {
+    method: 'POST',
+    body: JSON.stringify({
+      title: 'Review package',
+      description: 'Review test quote',
+      price: 100,
+      deposit: 100,
+      method: 'manual',
+    }),
+  })
+  if (r.status !== 200) {
+    console.error(`FAIL: review quote (status=${r.status} err=${r.data?.error || ''})`)
+    process.exit(1)
+  }
+  const stagesRes = await apiV(`/api/vendor/projects/${projectId}/payment-stages`)
+  const stage0 = (stagesRes.data?.stages || [])[0]
+  if (!stage0?.id) {
+    console.error(`FAIL: review stages missing (body=${JSON.stringify(stagesRes.data)})`)
+    process.exit(1)
+  }
+  r = await apiC('/api/client/proposal', { method: 'POST' })
+  if (r.status !== 200) {
+    console.error(`FAIL: review accept (status=${r.status} err=${r.data?.error || ''})`)
+    process.exit(1)
+  }
+  r = await apiC('/api/client/contract', {
+    method: 'POST',
+    body: JSON.stringify({ signedBy: 'Review Tester', consent: true }),
+  })
+  if (r.status !== 200) {
+    console.error(`FAIL: review sign (status=${r.status} err=${r.data?.error || ''})`)
+    process.exit(1)
+  }
+  r = await apiV(`/api/vendor/projects/${projectId}/payment-stages/${stage0.id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ method: 'manual' }),
+  })
+  if (r.status !== 200) {
+    console.error(`FAIL: review confirm pay (status=${r.status} err=${r.data?.error || ''})`)
+    process.exit(1)
+  }
+
   // Vendor marks COMPLETED (client-side close gate: COMPLETED OR approval)
   r = await apiV(`/api/vendor/projects/${projectId}/complete`, { method: 'POST' })
   if (r.status !== 200) {

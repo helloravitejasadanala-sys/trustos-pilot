@@ -288,7 +288,10 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   }, [draft, projectId, tab])
 
   async function run(label: string, fn: () => unknown) {
-    if (busy) return // guards against double-clicks firing the same action twice
+    if (busy) {
+      toast.error('Still finishing the last action…')
+      return
+    }
     setBusy(label)
     try {
       await fn()
@@ -1431,17 +1434,29 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           </div>
 
           {project.proposal && quote.method !== 'free' && (
-            <PaymentScheduleEditor
-              projectId={project.id}
-              quoteTotal={Number(quote.price || project.proposal.price || 0)}
-              savedStages={paymentStages}
-              payments={project.payments || []}
-              amountLocked={stagesAmountLocked}
-              readOnly={vendorClosed}
-              busy={busy}
-              run={run}
-              onChanged={load}
-            />
+            <>
+              <div className="panel" style={{ padding: 14 }}>
+                <div className="kicker" style={{ color: 'var(--muted)', marginBottom: 8 }}>Money path</div>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  Quote → Plan (auto) → Client accepts → Agreement (auto) → Sign → Pay → Confirm
+                </p>
+              </div>
+              <PaymentScheduleEditor
+                projectId={project.id}
+                quoteTotal={Number(quote.price || project.proposal.price || 0)}
+                savedStages={paymentStages}
+                payments={project.payments || []}
+                amountLocked={stagesAmountLocked}
+                readOnly={vendorClosed}
+                contractSigned={
+                  !!project.contract?.signedAt ||
+                  ['CONTRACT_SIGNED', 'DEPOSIT_PAID', 'FULLY_PAID', 'COMPLETED'].includes(project.status)
+                }
+                busy={busy}
+                run={run}
+                onChanged={load}
+              />
+            </>
           )}
 
           {project.proposal && (
@@ -1463,8 +1478,8 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
               ) : hasPaymentSchedule ? (
                 <div>
                   <p style={{ fontSize: 13.5, margin: '0 0 12px', color: 'var(--muted)' }}>
-                    Request and confirm each stage in the payment schedule above. Classic deposit /
-                    balance buttons stay off while a schedule is active.
+                    Confirm each stage in the payment plan above after the client signs. Classic deposit /
+                    balance buttons stay off while a plan is active.
                   </p>
                   {project.status === 'PROPOSAL_ACCEPTED' && (
                     <>
@@ -1481,7 +1496,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                         )}
                       </button>
                       <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
-                        Quote accepted — send the agreement next. Payment stages open after they sign.
+                        Quote accepted — agreement usually sends automatically. Use this if they still can’t see it.
                       </p>
                     </>
                   )}
@@ -1501,7 +1516,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   </div>
                   <div className="panel" style={{ flex: '1 1 140px', minWidth: 0, padding: 12, boxShadow: 'none' }}>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>You confirm received</div>
-                    {pendingDeposit || (!deposit && ['CONTRACT_SIGNED', 'PROPOSAL_ACCEPTED'].includes(project.status)) ? (
+                    {pendingDeposit || (!deposit && project.status === 'CONTRACT_SIGNED') ? (
                       <button
                         type="button"
                         className="btn btn-forest btn-block"

@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { trackEvent } from '@/lib/analytics'
 import { isStripeCheckoutReady, normalizePaymentMethod } from '@/lib/stripe-config'
+import { applyDefaultPaymentStages } from '@/lib/apply-default-stages'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,8 +135,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         ? { status: 'PROPOSAL_SENT', paymentMethod: method }
         : { paymentMethod: method },
     })
-    await trackEvent('proposal_sent', { projectId: project.id, userId: user.id, metadata: { method, price, deposit } })
-    return NextResponse.json({ ok: true, method, free })
+
+    // Paid quotes get a simple deposit + balance plan automatically so vendors
+    // don't fight the schedule editor before the client can accept.
+    let scheduleApplied = false
+    let stageCount = 0
+    if (!free) {
+      const stages = await applyDefaultPaymentStages(project.id)
+      scheduleApplied = stages.applied
+      stageCount = stages.stageCount
+    }
+
+    await trackEvent('proposal_sent', {
+      projectId: project.id,
+      userId: user.id,
+      metadata: { method, price, deposit, scheduleApplied, stageCount },
+    })
+    return NextResponse.json({ ok: true, method, free, scheduleApplied, stageCount })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: e.status || 500 })
   }

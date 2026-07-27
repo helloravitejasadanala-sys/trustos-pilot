@@ -850,7 +850,11 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
       })
       const data = await r.json().catch(() => ({} as { error?: string }))
       if (r.ok) {
-        toast.success('Quote accepted — next you’ll get the agreement to sign.')
+        toast.success(
+          data.agreementSent === false
+            ? 'Quote accepted — your vendor will send the agreement next.'
+            : 'Quote accepted — please sign the agreement next.',
+        )
         onDone()
       } else setError(data.error || 'We could not accept that just now. Please try again.')
     } catch {

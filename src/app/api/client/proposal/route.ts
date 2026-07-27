@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
+import { sendProjectAgreement } from '@/lib/send-agreement'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,6 +80,8 @@ export async function POST() {
       return NextResponse.json({ error: 'No proposal to accept' }, { status: 404 })
     }
     if (proposal.acceptedAt) {
+      // Recover if accept landed but agreement auto-send failed earlier.
+      await sendProjectAgreement(projectId)
       return NextResponse.json({ ok: true, alreadyAccepted: true })
     }
     if (proposal.expiryDate && proposal.expiryDate.getTime() < Date.now()) {
@@ -115,7 +118,16 @@ export async function POST() {
     })
     await trackEvent('proposal_accepted', { projectId })
 
-    return NextResponse.json({ ok: true })
+    // Auto-send agreement so the client can sign immediately (no vendor click).
+    const agreement = await sendProjectAgreement(projectId)
+    if (!agreement.ok) {
+      console.error('[client/proposal POST] auto agreement failed', agreement.error)
+    }
+
+    return NextResponse.json({
+      ok: true,
+      agreementSent: agreement.ok,
+    })
   } catch (err: any) {
     console.error('[client/proposal POST]', err)
     return NextResponse.json(

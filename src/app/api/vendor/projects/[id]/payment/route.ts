@@ -58,6 +58,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ ok: true, balanceRequested: true })
     }
 
+    const confirmable = new Set(['CONTRACT_SIGNED', 'DEPOSIT_PAID', 'FULLY_PAID'])
+    if (!confirmable.has(project.status)) {
+      return NextResponse.json(
+        {
+          error:
+            'Confirm payment only after the client has signed the agreement.',
+        },
+        { status: 409 },
+      )
+    }
+
     // Free collaboration: record a £0 settlement and complete the money stage.
     if (isFree) {
       await prisma.payment.create({
