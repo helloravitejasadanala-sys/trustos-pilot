@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Mail, Phone, Plus, Search } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -75,8 +74,9 @@ export default function ClientsPage() {
     <PageLayout>
       <PageHeader
         title="Clients"
+        description="Open anyone to see their bookings and next steps."
         actions={
-          <button onClick={() => setModal({ mode: 'create' })} className="btn-primary shrink-0">
+          <button type="button" onClick={() => setModal({ mode: 'create' })} className="btn btn-forest shrink-0">
             <Plus size={16} className="mr-1.5" />New client
           </button>
         }
@@ -116,7 +116,7 @@ export default function ClientsPage() {
           description={tab === 'active'
             ? 'Add someone here, or create a booking with their email — they get a secure link, no account.'
             : 'People you archive will rest here — out of the way until you need them.'}
-          action={tab === 'active' ? <button className="btn-primary" onClick={() => setModal({ mode: 'create' })}>＋ New client</button> : undefined}
+          action={tab === 'active' ? <button type="button" className="btn btn-forest" onClick={() => setModal({ mode: 'create' })}>＋ New client</button> : undefined}
         />
       ) : (
         <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-visible">
@@ -127,8 +127,8 @@ export default function ClientsPage() {
             >
               <button
                 type="button"
-                className="min-w-0 flex-1 rounded-lg px-2 py-3 text-left"
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                className="min-w-0 flex-1 rounded-lg px-2 py-3.5 text-left"
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', minHeight: 64 }}
                 onClick={() => router.push(`/vendor/clients/${client.id}`)}
               >
                 <p className="text-[14px] font-semibold text-forest-950 truncate">{client.name}</p>

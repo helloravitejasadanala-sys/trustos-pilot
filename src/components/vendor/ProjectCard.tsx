@@ -28,7 +28,7 @@ export default function ProjectCard({
 }) {
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmKind>(null)
-  const na = projectNextAction(project.status)
+  const na = projectNextAction(project.status, project.service)
   const archived = isArchivedProject(project)
   const test = isTestProject(project)
   const unread = hasUnread(project.id, project.lastClientMessageAt)
@@ -75,15 +75,15 @@ export default function ProjectCard({
 
   return (
     <div
-      className="relative flex items-center gap-3 px-4 py-3 transition-colors"
-      style={{ background: 'var(--panel)' }}
+      className="relative flex items-center gap-3 px-4 py-3.5 transition-colors"
+      style={{ background: 'var(--panel)', minHeight: 64 }}
       onMouseEnter={e => { e.currentTarget.style.background = 'var(--canvas-2)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'var(--panel)' }}
     >
       <Link
         href={`/vendor/projects/${project.slug}`}
-        className="min-w-0 flex-1"
-        style={{ color: 'var(--ink)' }}
+        className="min-w-0 flex-1 py-1"
+        style={{ color: 'var(--ink)', textDecoration: 'none' }}
       >
         <div className="flex items-center gap-2">
           <h3 className="truncate text-[14.5px] font-bold" style={{ color: 'var(--ink)' }}>

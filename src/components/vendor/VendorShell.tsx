@@ -50,6 +50,8 @@ type VendorChromeValue = {
   businessName: string
   userName: string
   primaryService: string
+  /** Keep New booking defaults in sync after Settings changes. */
+  setPrimaryService: (service: string) => void
   /** False until /api/auth/me has resolved (success or failure). */
   profileLoaded: boolean
   /** Shared projects list from shell poll — Today/Projects reuse when fresh. */
@@ -71,6 +73,7 @@ export function useVendorChrome() {
       businessName: '',
       userName: '',
       primaryService: 'PHOTOGRAPHY',
+      setPrimaryService: () => {},
       profileLoaded: false,
       projectsList: null,
       projectsListAt: 0,
@@ -266,12 +269,18 @@ export default function VendorShell({ children }: { children: ReactNode }) {
     setShowCreate(true)
   }, [])
 
+  const setPrimaryServiceSafe = useCallback((service: string) => {
+    const next = service.trim() || 'PHOTOGRAPHY'
+    setPrimaryService(next)
+  }, [])
+
   const chrome = useMemo(
     () => ({
       openNewProject,
       businessName,
       userName,
       primaryService,
+      setPrimaryService: setPrimaryServiceSafe,
       profileLoaded,
       projectsList,
       projectsListAt,
@@ -282,6 +291,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
       businessName,
       userName,
       primaryService,
+      setPrimaryServiceSafe,
       profileLoaded,
       projectsList,
       projectsListAt,
