@@ -80,9 +80,13 @@ function queueCopy(item: QueueItem) {
     }
   }
   if (item.kind === 'balance') {
+    const schedule =
+      item.p.hasPaymentSchedule || (item.p.paymentStages || []).length > 0
     return {
       headline: `Request the balance from ${clientLabel}`,
-      why: 'Deposit is in and the job is past the event (or delivery is confirmed). Open Money to ask for the balance — the client won’t see it until you request it.',
+      why: schedule
+        ? 'Deposit is in — open Money and request the next payment stage. The client won’t see it until you ask.'
+        : 'Deposit is in and the job is past the event (or delivery is confirmed). Open Money to ask for the balance — the client won’t see it until you request it.',
       cta: 'Request balance →',
       ctaHref: vendorProjectHref(item.p.slug, 'Money'),
       chip: 'Balance' as const,

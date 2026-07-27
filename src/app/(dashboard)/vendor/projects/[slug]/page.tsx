@@ -58,6 +58,7 @@ import PaymentScheduleEditor from '@/components/vendor/PaymentScheduleEditor'
 import { ProjectDeleteDialog } from '@/components/vendor/ProjectDeleteDialog'
 import { RenameBookingDialog } from '@/components/vendor/RenameBookingDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { canCompleteForMoney, needsScheduleBalanceRequest } from '@/lib/money-settlement'
 
 type Tab = string
 
@@ -627,7 +628,19 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           }
         }
         return null
-      case 'DEPOSIT_PAID':
+      case 'DEPOSIT_PAID': {
+        const moneyOk = canCompleteForMoney({
+          status: project.status,
+          stages: paymentStages,
+          payments: project.payments || [],
+          quoteTotal: Number(project.proposal?.price ?? 0),
+          depositAmount: Number(
+            project.proposal?.depositAmount ?? project.proposal?.deposit ?? 0,
+          ),
+        }).ok
+        if (hasPaymentSchedule && !moneyOk) {
+          return { label: 'Request balance →', action: () => selectTab('Money') }
+        }
         if (serviceProfile.features.showPrep) {
           return {
             label: na.ctaLabel || 'Open preparation →',
@@ -635,16 +648,27 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           }
         }
         return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
+      }
       case 'FULLY_PAID':
         if (serviceProfile.features.showDelivery) {
           return { label: na.ctaLabel || 'Add delivery →', action: () => selectTab('Delivery') }
         }
         return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
-      case 'COMPLETED':
+      case 'COMPLETED': {
+        const rescueBalance = needsScheduleBalanceRequest({
+          status: project.status,
+          paymentMethod: method,
+          stages: paymentStages,
+          payments: project.payments || [],
+        })
+        if (rescueBalance) {
+          return { label: 'Request balance →', action: () => selectTab('Money') }
+        }
         if (serviceProfile.features.showDelivery && !deliverablesSent) {
           return { label: na.ctaLabel || 'Add delivery →', action: () => selectTab('Delivery') }
         }
         return { label: na.ctaLabel || 'Request a review →', action: requestReview }
+      }
       default:
         return null
     }
@@ -1699,10 +1723,22 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 </p>
               </>
             )}
-            {/* Makeup / DJ have no Delivery tab — complete from Prep after the job. */}
+            {/* Makeup / DJ have no Delivery tab — complete from Prep only when money is settled. */}
             {!vendorClosed &&
               !serviceProfile.features.showDelivery &&
-              (project.status === 'DEPOSIT_PAID' || project.status === 'FULLY_PAID') && (
+              canCompleteForMoney({
+                status: project.status,
+                stages: paymentStages.map((s: { id: string; sortOrder: number; requestedAt?: string | null }) => ({
+                  id: s.id,
+                  sortOrder: s.sortOrder,
+                  requestedAt: s.requestedAt,
+                })),
+                payments: project.payments || [],
+                quoteTotal: Number(project.proposal?.price ?? 0),
+                depositAmount: Number(
+                  project.proposal?.depositAmount ?? project.proposal?.deposit ?? 0,
+                ),
+              }).ok && (
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
                 <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 10px' }}>
                   When the {serviceProfile.key === 'DJ' ? 'performance' : 'appointment'} is done, mark it complete.
@@ -1718,6 +1754,32 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                     : serviceProfile.key === 'MAKEUP_ARTIST'
                       ? 'Mark appointment complete →'
                       : 'Mark service complete →'}
+                </button>
+              </div>
+            )}
+            {!vendorClosed &&
+              !serviceProfile.features.showDelivery &&
+              project.status === 'DEPOSIT_PAID' &&
+              paymentStages.some((s: { sortOrder: number; id: string }) => s.sortOrder > 0) &&
+              !canCompleteForMoney({
+                status: project.status,
+                stages: paymentStages,
+                payments: project.payments || [],
+                quoteTotal: Number(project.proposal?.price ?? 0),
+                depositAmount: Number(
+                  project.proposal?.depositAmount ?? project.proposal?.deposit ?? 0,
+                ),
+              }).ok && (
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
+                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 10px' }}>
+                  Deposit is in — request and confirm the balance on Money before you mark this complete.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-forest"
+                  onClick={() => setTab('Money')}
+                >
+                  Open Money →
                 </button>
               </div>
             )}

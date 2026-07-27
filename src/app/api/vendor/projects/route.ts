@@ -54,7 +54,10 @@ export async function GET() {
         payments: {
           select: { id: true, type: true, status: true, amount: true, method: true, stageId: true },
         },
-        _count: { select: { paymentStages: true } },
+        paymentStages: {
+          select: { id: true, sortOrder: true, requestedAt: true },
+          orderBy: { sortOrder: 'asc' },
+        },
         review: { select: { id: true } },
         approvals: { select: { id: true }, take: 1 },
         // Active invitation for copy-link on cards.
@@ -85,10 +88,12 @@ export async function GET() {
     // Share / detail / create paths call ensureActiveInvitation when a link is needed.
     const withLinks = projects.map((p: any) => {
       const inv = p.invitations[0] || null
-      const { invitations, _count, ...rest } = p
+      const { invitations, paymentStages, ...rest } = p
+      const stages = paymentStages || []
       return {
         ...rest,
-        hasPaymentSchedule: (_count?.paymentStages ?? 0) > 0,
+        paymentStages: stages,
+        hasPaymentSchedule: stages.length > 0,
         invitation: inv ? formatInvitationLink(inv) : null,
         lastClientMessageAt: lastMsgMap.get(p.id) ?? null,
       }

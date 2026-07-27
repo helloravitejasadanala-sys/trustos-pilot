@@ -1,4 +1,5 @@
 import { getNextAction } from '@/lib/journey'
+import { needsScheduleBalanceRequest } from '@/lib/money-settlement'
 import {
   getServiceProfile,
   journeyStagesForService,
@@ -30,6 +31,12 @@ export type VendorProject = {
     amount?: number | string
     method?: string | null
     stageId?: string | null
+  }[] | null
+  /** Slim stages for Today balance nudge (schedule path). */
+  paymentStages?: {
+    id: string
+    sortOrder: number
+    requestedAt?: string | Date | null
   }[] | null
   /** True when Money uses payment stages (not legacy deposit/balance). */
   hasPaymentSchedule?: boolean
@@ -69,12 +76,12 @@ export function isEventDateStrictlyBeforeTodayLocal(
 }
 
 /**
- * Vendor should open Money and request the balance — deposit settled, balance
- * still owed, not yet requested, and event day has passed OR delivery approved.
+ * Vendor should open Money and request the balance.
+ * Schedule: deposit in + later stage not yet requested (includes COMPLETED recovery).
+ * Legacy: deposit settled, balance owed, not yet requested, event past OR delivery approved.
  */
 export function needsBalanceRequest(project: VendorProject): boolean {
-  if (isArchivedProject(project) || isVendorClosedProject(project)) return false
-  if (project.balanceRequestedAt) return false
+  if (isArchivedProject(project)) return false
   if (
     project.status === 'FULLY_PAID' ||
     project.status === 'CANCELLED' ||
@@ -82,13 +89,20 @@ export function needsBalanceRequest(project: VendorProject): boolean {
   ) {
     return false
   }
-  // Schedule bookings use stage request/confirm on Money — not legacy balance nudge.
-  if (
-    project.hasPaymentSchedule ||
-    (project.payments || []).some(p => !!p.stageId)
-  ) {
-    return false
+
+  const stages = project.paymentStages || []
+  if (project.hasPaymentSchedule || stages.length > 0 || (project.payments || []).some(p => !!p.stageId)) {
+    return needsScheduleBalanceRequest({
+      status: project.status,
+      paymentMethod: project.paymentMethod,
+      stages,
+      payments: project.payments,
+    })
   }
+
+  // Legacy deposit / balance — skip closed-with-review (no recovery path there).
+  if (isVendorClosedProject(project)) return false
+  if (project.balanceRequestedAt) return false
 
   const payments = project.payments || []
   const depositDone = payments.some(p => p.type === 'DEPOSIT' && p.status === 'COMPLETED')

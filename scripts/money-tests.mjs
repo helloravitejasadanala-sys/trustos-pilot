@@ -6,6 +6,7 @@
  */
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { PrismaClient } from '@prisma/client'
 
 function loadEnvLocal() {
   try {
@@ -79,7 +80,7 @@ const STAGE_LOCK_MSG =
   'Payment stage amounts are locked because a payment has been confirmed on this booking.'
 const SIGN_GATE_MSG = 'Confirm payment only after the client has signed the agreement.'
 const COMPLETE_GATE_MSG =
-  'Mark the booking complete only after a deposit (or full payment) is confirmed.'
+  'Confirm every payment stage (including the balance) before marking this booking complete.'
 
 const cleanupSlugs = []
 
@@ -174,7 +175,7 @@ try {
   // Complete before paid must fail
   r = await api(`/api/vendor/projects/${projectId}/complete`, { method: 'POST' })
   ok(
-    '1d. Complete rejected before DEPOSIT_PAID/FULLY_PAID',
+    '1d. Complete rejected while payment stages unpaid',
     r.status === 409 && r.data?.error === COMPLETE_GATE_MSG,
     `status=${r.status} error=${JSON.stringify(r.data?.error)}`,
   )
@@ -254,6 +255,24 @@ try {
     console.error(`FAIL: confirm stage1 (status=${r.status} body=${JSON.stringify(r.data)})`)
     process.exit(1)
   }
+
+  // Complete blocked while balance stage unpaid
+  r = await api(`/api/vendor/projects/${projectId}/complete`, { method: 'POST' })
+  ok(
+    '2d. Complete rejected while unpaid stages remain',
+    r.status === 409 && /every payment stage|balance/i.test(r.data?.error || ''),
+    `status=${r.status} error=${JSON.stringify(r.data?.error)}`,
+  )
+
+  // Request balance while DEPOSIT_PAID
+  r = await api(`/api/vendor/projects/${projectId}/payment-stages/${stage2.id}/request`, {
+    method: 'POST',
+  })
+  ok(
+    '2e. Balance request allowed on DEPOSIT_PAID',
+    r.status === 200 && !!r.data?.stage?.requestedAt,
+    `status=${r.status} requestedAt=${r.data?.stage?.requestedAt}`,
+  )
 
   // ── 3. Second confirm → alreadyConfirmed ─────────────────────────────
   r = await api(`/api/vendor/projects/${projectId}/payment-stages/${stage1.id}/confirm`, {
@@ -537,6 +556,116 @@ try {
       r.data?.alreadyConfirmed === true &&
       d12.data?.project?.status === 'FULLY_PAID',
     `alreadyConfirmed=${r.data?.alreadyConfirmed} status=${d12.data?.project?.status}`,
+  )
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Recovery fixture — COMPLETED with unpaid balance (broken makeup path)
+  // ══════════════════════════════════════════════════════════════════════
+  const recStamp = Date.now().toString(36)
+  r = await api('/api/vendor/projects', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: `Money recovery test ${recStamp}`,
+      type: 'MAKEUP',
+      service: 'MAKEUP_ARTIST',
+      clientName: 'Recovery Test Client',
+      clientEmail: `money.rec.${recStamp}@example.com`,
+      location: 'Recovery City',
+      notes: '[test] money-tests.mjs recovery',
+    }),
+  })
+  if (r.status !== 200 || !r.data?.project?.id || !r.data?.invitation?.url) {
+    console.error(`FAIL: create recovery fixture (status=${r.status} err=${r.data?.error || ''})`)
+    process.exit(1)
+  }
+  const recSlug = r.data.project.slug
+  const recId = r.data.project.id
+  const recInvite = String(r.data.invitation.url).split('/p/').pop()
+  cleanupSlugs.push(recSlug)
+  console.log(`Recovery fixture: ${recSlug}`)
+
+  r = await api(`/api/vendor/projects/${recSlug}/proposal`, {
+    method: 'POST',
+    body: JSON.stringify({
+      title: 'Makeup package',
+      description: 'Recovery money test',
+      price: 300,
+      deposit: 30,
+      method: 'manual',
+    }),
+  })
+  if (r.status !== 200) {
+    console.error(`FAIL: recovery quote (status=${r.status})`)
+    process.exit(1)
+  }
+  const recStages = await api(`/api/vendor/projects/${recId}/payment-stages`)
+  const r1 = (recStages.data?.stages || [])[0]
+  const r2 = (recStages.data?.stages || [])[1]
+  if (!r1?.id || !r2?.id) {
+    console.error(`FAIL: recovery stages missing`)
+    process.exit(1)
+  }
+
+  jarC.clear()
+  r = await apiC(`/api/client/invite/${encodeURIComponent(recInvite)}`, { method: 'POST' })
+  if (r.status !== 200) {
+    console.error(`FAIL: recovery invite (status=${r.status})`)
+    process.exit(1)
+  }
+  r = await apiC('/api/client/proposal', { method: 'POST' })
+  if (r.status !== 200) {
+    console.error(`FAIL: recovery accept (status=${r.status})`)
+    process.exit(1)
+  }
+  r = await apiC('/api/client/contract', {
+    method: 'POST',
+    body: JSON.stringify({ signedBy: 'Recovery Tester', consent: true }),
+  })
+  if (r.status !== 200) {
+    console.error(`FAIL: recovery sign (status=${r.status})`)
+    process.exit(1)
+  }
+  r = await api(`/api/vendor/projects/${recId}/payment-stages/${r1.id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ method: 'manual' }),
+  })
+  if (r.status !== 200) {
+    console.error(`FAIL: recovery confirm deposit (status=${r.status})`)
+    process.exit(1)
+  }
+
+  // Simulate early complete (what broke the makeup booking)
+  const prisma = new PrismaClient()
+  try {
+    await prisma.project.update({
+      where: { id: recId },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    })
+  } finally {
+    await prisma.$disconnect()
+  }
+
+  r = await api(`/api/vendor/projects/${recId}/payment-stages/${r2.id}/request`, {
+    method: 'POST',
+  })
+  ok(
+    '13. Recovery: request £balance on COMPLETED booking',
+    r.status === 200 && !!r.data?.stage?.requestedAt,
+    `status=${r.status} requestedAt=${r.data?.stage?.requestedAt}`,
+  )
+
+  r = await api(`/api/vendor/projects/${recId}/payment-stages/${r2.id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ method: 'manual' }),
+  })
+  const recDetail = await api(`/api/vendor/projects/${recSlug}/detail`)
+  const r2Paid = (recDetail.data?.project?.payments || []).some(
+    p => p.stageId === r2.id && p.status === 'COMPLETED',
+  )
+  ok(
+    '14. Recovery: confirm balance on COMPLETED settles £270-style stage',
+    r.status === 200 && r2Paid && Number(r2.amount) === 270,
+    `status=${r.status} r2Paid=${r2Paid} amount=${r2.amount} project=${recDetail.data?.project?.status}`,
   )
 } finally {
   for (const s of cleanupSlugs) {

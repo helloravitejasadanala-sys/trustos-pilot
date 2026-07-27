@@ -24,16 +24,26 @@ export async function POST(
     })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+    // DEPOSIT_PAID = normal. COMPLETED = recovery when booking was closed early
+    // with a balance still owed. CONTRACT_SIGNED = rare pre-deposit later stage.
     const requestable = new Set([
       'CONTRACT_SIGNED',
       'DEPOSIT_PAID',
-      'FULLY_PAID',
+      'COMPLETED',
     ])
+    if (project.status === 'FULLY_PAID' || project.status === 'CANCELLED') {
+      return NextResponse.json(
+        { error: 'No payment to request on this booking.' },
+        { status: 409 },
+      )
+    }
     if (!requestable.has(project.status)) {
       return NextResponse.json(
         {
           error:
-            'Request a stage only after the client has signed the agreement.',
+            project.status === 'PROPOSAL_ACCEPTED' || project.status === 'CONTRACT_SENT'
+              ? 'Wait until the client has signed the agreement before requesting a stage.'
+              : 'Request a balance stage after the deposit is confirmed (or from a completed booking that still owes a balance).',
         },
         { status: 409 },
       )
@@ -63,13 +73,6 @@ export async function POST(
     if (completed) {
       return NextResponse.json(
         { error: 'This stage is already paid.' },
-        { status: 409 },
-      )
-    }
-
-    if (project.status === 'FULLY_PAID' || project.status === 'CANCELLED') {
-      return NextResponse.json(
-        { error: 'No payment to request on this booking.' },
         { status: 409 },
       )
     }

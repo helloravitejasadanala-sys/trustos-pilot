@@ -30,10 +30,12 @@ export async function POST(
     })
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+    // COMPLETED allowed so early-complete bookings can still settle a balance.
     const confirmable = new Set([
       'CONTRACT_SIGNED',
       'DEPOSIT_PAID',
       'FULLY_PAID',
+      'COMPLETED',
     ])
     if (!confirmable.has(project.status)) {
       return NextResponse.json(
