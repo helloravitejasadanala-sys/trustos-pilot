@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Calendar, Mail, Phone, Plus } from 'lucide-react'
-import { toast } from 'react-hot-toast'
 import BackLink from '@/components/vendor/BackLink'
 import { StatusChip, CardSkeleton } from '@/components/ui'
 import { PageLayout } from '@/components/layout'
 import { useVendorChrome } from '@/components/vendor/VendorShell'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { projectTypeLabel } from '@/lib/project-types'
+import { getNextAction } from '@/lib/journey'
+import { getServiceProfile } from '@/lib/service-profiles'
 
 type ClientProject = {
   id: string
@@ -35,7 +36,7 @@ type ClientDetail = {
 export default function ClientOverviewPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
-  const { openNewProject } = useVendorChrome()
+  const { openNewProject, primaryService } = useVendorChrome()
   const [client, setClient] = useState<ClientDetail | null>(null)
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading')
 
@@ -155,32 +156,48 @@ export default function ClientOverviewPage() {
         </div>
       ) : (
         <div className="divide-y divide-forest-100 overflow-hidden rounded-xl border border-forest-100 bg-white">
-          {client.projects.map(p => (
-            <Link
-              key={p.id}
-              href={`/vendor/projects/${p.slug}`}
-              className="flex min-h-[56px] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-forest-50/50"
-              style={{ color: 'var(--ink)', textDecoration: 'none' }}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-[15px] font-bold">{p.title}</span>
-                  <StatusChip status={p.status} />
+          {client.projects.map(p => {
+            const service = p.service || primaryService
+            const na = getNextAction(p.status, service)
+            const serviceLabel = getServiceProfile(service).label
+            return (
+              <Link
+                key={p.id}
+                href={`/vendor/projects/${p.slug}`}
+                className="flex min-h-[64px] items-center gap-3 px-4 py-4 transition-colors hover:bg-forest-50/50"
+                style={{ color: 'var(--ink)', textDecoration: 'none' }}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-[15px] font-bold">{p.title}</span>
+                    <StatusChip status={p.status} />
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-[color:var(--muted)]">
+                    <span>{serviceLabel}</span>
+                    {p.type && <span>{projectTypeLabel(p.type)}</span>}
+                    {p.eventDate && (
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar size={12} aria-hidden />
+                        {new Date(p.eventDate).toLocaleDateString('en-GB')}
+                      </span>
+                    )}
+                    {p.location && <span className="truncate">{p.location}</span>}
+                  </div>
+                  <p className="mt-1.5 text-[12.5px]" style={{ color: 'var(--muted)' }}>
+                    <span className="font-semibold" style={{ color: 'var(--ink)' }}>Next:</span>{' '}
+                    {na.nextAction}
+                    {na.responsible !== 'Nobody' && (
+                      <>
+                        <span className="mx-1.5" style={{ color: 'var(--faint)' }}>·</span>
+                        Waiting on {na.responsible === 'Vendor' ? 'you' : 'client'}
+                      </>
+                    )}
+                  </p>
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-[color:var(--muted)]">
-                  {p.type && <span>{projectTypeLabel(p.type)}</span>}
-                  {p.eventDate && (
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar size={12} aria-hidden />
-                      {new Date(p.eventDate).toLocaleDateString('en-GB')}
-                    </span>
-                  )}
-                  {p.location && <span className="truncate">{p.location}</span>}
-                </div>
-              </div>
-              <span className="shrink-0 text-[13px] font-semibold text-forest-700">Open →</span>
-            </Link>
-          ))}
+                <span className="shrink-0 text-[13px] font-semibold text-forest-700">Open →</span>
+              </Link>
+            )
+          })}
         </div>
       )}
     </PageLayout>

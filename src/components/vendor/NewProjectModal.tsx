@@ -193,7 +193,7 @@ export default function NewProjectModal({
             </div>
           </div>
 
-          <button onClick={create} disabled={!canCreate || saving} className="btn-primary w-full">
+          <button onClick={create} disabled={!canCreate || saving} className="btn btn-forest w-full">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} className="mr-2" />Create booking</>}
           </button>
         </div>

@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { PageHeader, PageLayout } from '@/components/layout'
+import { useVendorChrome } from '@/components/vendor/VendorShell'
 import { getServiceProfile, serviceOptions, type ServiceKey } from '@/lib/service-profiles'
 
 type Me = {
@@ -17,6 +18,7 @@ type Me = {
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { setPrimaryService } = useVendorChrome()
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
   const [signingOut, setSigningOut] = useState(false)
@@ -50,7 +52,8 @@ export default function SettingsPage() {
       toast.error(parsed.data.error || 'Could not update service')
       return
     }
-    toast.success(`Primary service: ${getServiceProfile(next).label}`)
+    toast.success(`Default service: ${getServiceProfile(next).label}`)
+    setPrimaryService(next)
     setMe(m => m ? {
       ...m,
       vendorProfile: { ...m.vendorProfile, primaryService: next },
@@ -88,15 +91,16 @@ export default function SettingsPage() {
               <Row icon={Building2} label="Workspace" value={me?.vendorProfile?.businessName || '—'} />
               <Row icon={User} label="Owner" value={me?.name || '—'} />
               <Row icon={Mail} label="Email" value={me?.email || '—'} />
-              <Row icon={Briefcase} label="Primary service" value={profile.label} />
+              <Row icon={Briefcase} label="Default service" value={profile.label} />
             </dl>
           )}
         </section>
 
         <section className="rounded-xl border border-forest-100 bg-white p-4">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-forest-500">Primary service</h2>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-forest-500">Default service</h2>
           <p className="mt-1 text-[13px] text-[color:var(--muted)]">
-            Changes questionnaires, timeline, prep and deliverables for new work.
+            Starting point for new bookings only. Each booking still picks its own service
+            (Photography, Live streaming, Makeup, or DJ) — questionnaire and prep follow that booking.
           </p>
           <select
             value={service}

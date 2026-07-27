@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { Settings } from 'lucide-react'
 import { getNextAction } from '@/lib/journey'
 import {
   hasPendingPaymentConfirm,
@@ -300,7 +301,6 @@ export default function TodayPage() {
   const workspaceName = business || businessName
   const greeting = greetingFor(new Date().getHours())
   const greetingLine = firstName ? `${greeting}, ${firstName}` : greeting
-  const avatarLetter = firstName ? firstName.charAt(0).toUpperCase() : (workspaceName ? workspaceName.charAt(0).toUpperCase() : '')
 
   if (loading || !profileLoaded) {
     return (
@@ -390,9 +390,9 @@ export default function TodayPage() {
 
   return (
     <div>
-      {/* Mobile compact greeting */}
+      {/* Mobile compact greeting — Settings is labelled, not a mystery letter */}
       <div className="vendor-mobile-head mb-3">
-        <div>
+        <div className="min-w-0">
           <div className="num text-[12px] text-[color:var(--muted)]">
             {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
@@ -405,19 +405,18 @@ export default function TodayPage() {
         </div>
         <Link
           href="/vendor/settings"
-          className="marker"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-[11px] px-3 text-[13px] font-semibold"
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 11,
-            background: 'var(--forest)',
-            color: '#fff',
+            minHeight: 44,
+            background: 'var(--panel)',
+            border: '1px solid var(--line)',
+            color: 'var(--ink)',
             textDecoration: 'none',
           }}
           aria-label="Open settings"
-          title="Settings"
         >
-          {avatarLetter || '·'}
+          <Settings size={16} strokeWidth={2} aria-hidden />
+          Settings
         </Link>
       </div>
 
