@@ -13,9 +13,9 @@ export const dynamic = 'force-dynamic'
  * - Approval is recorded as an Approval row (not project status, not Review)
  * - Vendor "service completed" is independent (project.status COMPLETED)
  */
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {

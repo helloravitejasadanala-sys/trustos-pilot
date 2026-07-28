@@ -23,8 +23,18 @@ import {
 /**
  * Client portal — secure link journey.
  * Presentation follows Phase 1 (light & warm, forest CTA).
- * Data flow unchanged: every fetch derives the project from the secure session.
+ * Session cookie authenticates; each tab sends its URL invitation token
+ * on every /api/client/* call so two tabs in one cookie jar stay isolated.
  */
+
+/** Must match CLIENT_INVITATION_HEADER in client-session.ts (server-only). */
+const INVITATION_HEADER = 'x-trustos-invitation'
+
+function clientFetch(inviteToken: string, path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers)
+  headers.set(INVITATION_HEADER, inviteToken)
+  return fetch(path, { ...init, credentials: 'same-origin', headers })
+}
 
 type Data = { project: any; questionnaire: any; proposal: any; contract: any; payment: any }
 
@@ -64,17 +74,18 @@ function clientSteps(service?: string | null) {
 }
 
 export default function ClientJourney({ params }: { params: { token: string } }) {
+  const inviteToken = params.token
   const [state, setState] = useState<'loading' | 'invalid' | 'session' | 'transient' | 'ready'>('loading')
   const [d, setD] = useState<Data | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function refresh(): Promise<'ok' | 'session' | 'transient' | 'error'> {
     const [project, questionnaire, proposal, contract, payment] = await Promise.all([
-      fetch('/api/client/project', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
-      fetch('/api/client/questionnaire', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
-      fetch('/api/client/proposal', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
-      fetch('/api/client/contract', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
-      fetch('/api/client/payment', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+      clientFetch(inviteToken, '/api/client/project').then(r => parseJsonResponse(r)),
+      clientFetch(inviteToken, '/api/client/questionnaire').then(r => parseJsonResponse(r)),
+      clientFetch(inviteToken, '/api/client/proposal').then(r => parseJsonResponse(r)),
+      clientFetch(inviteToken, '/api/client/contract').then(r => parseJsonResponse(r)),
+      clientFetch(inviteToken, '/api/client/payment').then(r => parseJsonResponse(r)),
     ])
     if (!project.ok) {
       if (project.status === 401) return 'session'
@@ -165,8 +176,8 @@ export default function ClientJourney({ params }: { params: { token: string } })
     intervalMs: 8000,
     tick: async () => {
       const [project, payment] = await Promise.all([
-        fetch('/api/client/project', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
-        fetch('/api/client/payment', { credentials: 'same-origin' }).then(r => parseJsonResponse(r)),
+        clientFetch(inviteToken, '/api/client/project').then(r => parseJsonResponse(r)),
+        clientFetch(inviteToken, '/api/client/payment').then(r => parseJsonResponse(r)),
       ])
       if (!project.ok || !(project.data as any).project) return
       const p = (project.data as any).project
@@ -508,16 +519,17 @@ export default function ClientJourney({ params }: { params: { token: string } })
                     {currentStep.why}
                   </p>
                   {current === 'questionnaire' && (
-                    <ProjectDetails project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />
+                    <ProjectDetails inviteToken={inviteToken} project={project} existing={questionnaire?.answers} busy={busy} setBusy={setBusy} onDone={refresh} />
                   )}
                   {current === 'proposal' && (
-                    <ProposalStep proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />
+                    <ProposalStep inviteToken={inviteToken} proposal={proposal} busy={busy} setBusy={setBusy} onDone={refresh} />
                   )}
                   {current === 'contract' && (
-                    <ContractStep contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />
+                    <ContractStep inviteToken={inviteToken} contract={contract} busy={busy} setBusy={setBusy} onDone={refresh} />
                   )}
                   {current === 'payment' && (
                     <PaymentStep
+                      inviteToken={inviteToken}
                       payment={payment}
                       depositLabel={serviceProfile.depositLabel}
                       busy={busy}
@@ -582,6 +594,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
                 </ul>
                 {serviceProfile.features.showApproval && !deliveryApproved && (
                   <DeliveryApproval
+                    inviteToken={inviteToken}
                     approved={false}
                     busy={busy}
                     setBusy={setBusy}
@@ -605,11 +618,11 @@ export default function ClientJourney({ params }: { params: { token: string } })
                 <p style={{ margin: '0 0 14px', fontSize: 13.5, color: 'var(--muted)' }}>
                   About 30 seconds — stars plus two short answers. Only {vendorName} sees this.
                 </p>
-                <ReviewStep busy={busy} setBusy={setBusy} onDone={refresh} />
+                <ReviewStep inviteToken={inviteToken} busy={busy} setBusy={setBusy} onDone={refresh} />
               </div>
             ) : null}
 
-            <ClientMessages vendorName={vendorName} />
+            <ClientMessages inviteToken={inviteToken} vendorName={vendorName} />
 
             <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
               <HelpCircle size={13} />
@@ -627,7 +640,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
 
 // ---- steps -----------------------------------------------------------
 
-function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
+function ProjectDetails({ inviteToken, project, existing, busy, setBusy, onDone }: any) {
   const service = project?.service || project?.vendor?.primaryService
   const profile = getServiceProfile(service)
   const essentials = BASE_DETAIL_FIELDS
@@ -682,7 +695,7 @@ function ProjectDetails({ project, existing, busy, setBusy, onDone }: any) {
     }
     setBusy(true)
     try {
-      const res = await fetch('/api/client/questionnaire', {
+      const res = await clientFetch(inviteToken, '/api/client/questionnaire', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: values, complete: true }),
       })
@@ -834,7 +847,7 @@ function QuotePaymentSchedule({
   )
 }
 
-function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
+function ProposalStep({ inviteToken, proposal, busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
   const schedule = Array.isArray(proposal?.paymentSchedule) ? proposal.paymentSchedule : []
   const legacyDeposit = Number(proposal?.depositAmount ?? proposal?.deposit ?? 0)
@@ -844,9 +857,8 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
     setError('')
     setBusy(true)
     try {
-      const r = await fetch('/api/client/proposal', {
+      const r = await clientFetch(inviteToken, '/api/client/proposal', {
         method: 'POST',
-        credentials: 'same-origin',
       })
       const data = await r.json().catch(() => ({} as { error?: string }))
       if (r.ok) {
@@ -898,7 +910,7 @@ function ProposalStep({ proposal, busy, setBusy, onDone }: any) {
   )
 }
 
-function ContractStep({ contract, busy, setBusy, onDone }: any) {
+function ContractStep({ inviteToken, contract, busy, setBusy, onDone }: any) {
   const [name, setName] = useState('')
   const [consent, setConsent] = useState(false)
   const [error, setError] = useState('')
@@ -907,7 +919,7 @@ function ContractStep({ contract, busy, setBusy, onDone }: any) {
     setError('')
     setBusy(true)
     try {
-      const r = await fetch('/api/client/contract', {
+      const r = await clientFetch(inviteToken, '/api/client/contract', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signedBy: name, consent }),
       })
@@ -958,7 +970,7 @@ function stageStateLabel(state: string) {
   return 'Upcoming'
 }
 
-function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone }: any) {
+function PaymentStep({ inviteToken, payment, depositLabel = 'Deposit', busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
   const [declaredMethod, setDeclaredMethod] = useState<DeclaredPaymentMethod | ''>('')
   const total = Number(payment?.total ?? 0)
@@ -1016,7 +1028,7 @@ function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone 
       setError('')
       setBusy(true)
       try {
-        const r = await fetch('/api/client/payment', {
+        const r = await clientFetch(inviteToken, '/api/client/payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1207,7 +1219,7 @@ function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone 
     setError('')
     setBusy(true)
     try {
-      const r = await fetch('/api/client/payment', {
+      const r = await clientFetch(inviteToken, '/api/client/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1296,7 +1308,7 @@ function PaymentStep({ payment, depositLabel = 'Deposit', busy, setBusy, onDone 
   )
 }
 
-function ReviewStep({ busy, setBusy, onDone }: any) {
+function ReviewStep({ inviteToken, busy, setBusy, onDone }: any) {
   const [overall, setOverall] = useState(0)
   const [wentWell, setWentWell] = useState('')
   const [wouldRecommend, setWouldRecommend] = useState('')
@@ -1311,7 +1323,7 @@ function ReviewStep({ busy, setBusy, onDone }: any) {
     setError('')
     setBusy(true)
     try {
-      const r = await fetch('/api/client/review', {
+      const r = await clientFetch(inviteToken, '/api/client/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ overall, wentWell, wouldRecommend }),
@@ -1383,7 +1395,7 @@ function ReviewStep({ busy, setBusy, onDone }: any) {
   )
 }
 
-function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
+function DeliveryApproval({ inviteToken, approved, busy, setBusy, onDone }: any) {
   const [error, setError] = useState('')
   if (approved) {
     return (
@@ -1397,7 +1409,7 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
     setError('')
     setBusy(true)
     try {
-      const r = await fetch('/api/client/complete', { method: 'POST' })
+      const r = await clientFetch(inviteToken, '/api/client/complete', { method: 'POST' })
       if (r.ok) {
         toast.success('Approved — one quick review next.')
         onDone()
@@ -1422,7 +1434,7 @@ function DeliveryApproval({ approved, busy, setBusy, onDone }: any) {
   )
 }
 
-function ClientMessages({ vendorName, quiet = false }: { vendorName: string; quiet?: boolean }) {
+function ClientMessages({ inviteToken, vendorName, quiet = false }: { inviteToken: string; vendorName: string; quiet?: boolean }) {
   const [messages, setMessages] = useState<any[]>([])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -1431,7 +1443,7 @@ function ClientMessages({ vendorName, quiet = false }: { vendorName: string; qui
   const [peerTyping, setPeerTyping] = useState<{ name: string } | null>(null)
 
   async function loadMessages() {
-    const res = await fetch('/api/client/messages')
+    const res = await clientFetch(inviteToken, '/api/client/messages')
     const parsed = await parseJsonResponse<{
       messages?: any[]
       peerTyping?: { name: string } | null
@@ -1443,12 +1455,12 @@ function ClientMessages({ vendorName, quiet = false }: { vendorName: string; qui
     setLoaded(true)
   }
 
-  useEffect(() => { loadMessages() }, [])
+  useEffect(() => { loadMessages() }, [inviteToken])
 
   useMessagePoll({
     enabled: loaded,
     fetchMessages: async () => {
-      const res = await fetch('/api/client/messages')
+      const res = await clientFetch(inviteToken, '/api/client/messages')
       const parsed = await parseJsonResponse<{
         messages?: any[]
         peerTyping?: { name: string } | null
@@ -1470,7 +1482,7 @@ function ClientMessages({ vendorName, quiet = false }: { vendorName: string; qui
     if (!loaded) return
     const active = draft.trim().length > 0
     const timer = setTimeout(() => {
-      fetch('/api/client/typing', {
+      clientFetch(inviteToken, '/api/client/typing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active, draft }),
@@ -1482,7 +1494,7 @@ function ClientMessages({ vendorName, quiet = false }: { vendorName: string; qui
         .catch(() => {})
     }, active ? 280 : 0)
     return () => clearTimeout(timer)
-  }, [draft, loaded])
+  }, [draft, loaded, inviteToken])
 
   async function send() {
     const content = draft.trim()
@@ -1491,12 +1503,12 @@ function ClientMessages({ vendorName, quiet = false }: { vendorName: string; qui
     setSendError('')
     setDraft('')
     setPeerTyping(null)
-    fetch('/api/client/typing', {
+    clientFetch(inviteToken, '/api/client/typing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: false, draft: '' }),
     }).catch(() => {})
-    const res = await fetch('/api/client/messages', {
+    const res = await clientFetch(inviteToken, '/api/client/messages', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     })

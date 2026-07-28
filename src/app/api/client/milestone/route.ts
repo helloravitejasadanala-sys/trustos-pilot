@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const body = await req.json().catch(() => ({}))
     const { milestoneId, action, detail, by } = body
     const name = String(by ?? 'Client').slice(0, 120)

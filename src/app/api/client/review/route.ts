@@ -36,9 +36,9 @@ async function canLeaveReview(projectId: string): Promise<{ ok: true } | { ok: f
   return { ok: true }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const review = await prisma.review.findUnique({ where: { projectId } })
     const gate = await canLeaveReview(projectId)
     return NextResponse.json({
@@ -56,7 +56,7 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const gate = await canLeaveReview(projectId)
     if (!gate.ok) {
       return NextResponse.json({ error: gate.error }, { status: gate.status })

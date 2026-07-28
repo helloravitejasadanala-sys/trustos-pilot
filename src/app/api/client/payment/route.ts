@@ -26,9 +26,9 @@ function stripe() {
 }
 
 // What is owed, and HOW it is paid. Read-only.
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const b = await breakdown(projectId)
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -131,7 +131,7 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const body = await req.json().catch(() => ({}))
 
     const proposal = await prisma.proposal.findUnique({ where: { projectId } })

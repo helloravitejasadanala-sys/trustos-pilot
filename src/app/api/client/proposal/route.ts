@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
 import { trackEvent } from '@/lib/analytics'
@@ -18,9 +18,9 @@ const PROPOSAL_SELECT = {
   declinedAt: true,
 } as const
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const proposal = await prisma.proposal.findUnique({
       where: { projectId },
       select: PROPOSAL_SELECT,
@@ -67,9 +67,9 @@ export async function GET() {
 }
 
 // Accept the proposal. No amount, no id from the browser.
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     // Select only fields needed for accept — avoid depending on optional
     // columns (e.g. deposit) that may lag behind schema on some deploys.
     const proposal = await prisma.proposal.findUnique({

@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
-import type { NextResponse } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { prisma } from './prisma'
 
@@ -8,20 +8,21 @@ import { prisma } from './prisma'
  * STAGE 2 — secure client access.
  *
  * Clients never authenticate with a password. They arrive by an
- * invitation link, /p/[token]. That token is exchanged, once, for an
- * httpOnly session cookie that is scoped to EXACTLY ONE project.
+ * invitation link, /p/[token]. That token is exchanged for an
+ * httpOnly session cookie (authenticator) AND must be presented again
+ * on every /api/client/* call as X-TrustOS-Invitation (selector).
  *
- * The rule that makes this safe:
+ *   Cookie  = you opened a valid portal link (authenticated client).
+ *   Header  = which invitation/project THIS tab is acting on.
  *
- *   No client API accepts a project identifier from the browser.
- *   Not a slug, not an id, not a token in the query string.
- *   The project is ALWAYS derived server-side from the session cookie.
- *
- * This is what closes audit issue C1, where any visitor who guessed a
- * slug could read a contract and forge a signature on it.
+ * Project id is NEVER taken from the client body/query. It comes from
+ * the validated invitation token in the header. That way two tabs with
+ * the same cookie jar still isolate to their own tokens.
  */
 
 const CLIENT_COOKIE = 'trustos_client'
+/** Tab must send the URL invitation token on every client API call. */
+export const CLIENT_INVITATION_HEADER = 'x-trustos-invitation'
 const SESSION_MAX_AGE_S = 60 * 60 * 24 * 7 // 7 days
 
 let cachedSecret: Uint8Array | null = null
@@ -95,12 +96,9 @@ async function signClientSessionToken(invitationId: string, projectId: string) {
 }
 
 /**
- * Issue the scoped session. The cookie carries the projectId; the
- * browser never sees it and cannot choose it.
- *
- * Prefer passing the Route Handler `NextResponse` so Set-Cookie is
- * attached to that response (reliable on Vercel). Falls back to
- * `cookies().set` when no response is provided.
+ * Issue the scoped session. The cookie authenticates the browser as a
+ * client who exchanged a valid invite. Per-call X-TrustOS-Invitation
+ * selects which project to serve.
  */
 export async function createClientSession(
   invitationId: string,
@@ -129,9 +127,8 @@ export async function clearClientSession() {
 export type ClientSession = { projectId: string; invitationId: string }
 
 /**
- * Read the session. Re-checks the invitation against the database on
- * every call, so revoking an invitation kills live sessions
- * immediately rather than waiting 7 days for the JWT to lapse.
+ * Read the authenticator cookie. Re-checks the invitation against the
+ * database so revoking kills live sessions immediately.
  */
 export async function getClientSession(): Promise<ClientSession | null> {
   const raw = cookies().get(CLIENT_COOKIE)?.value
@@ -163,16 +160,40 @@ export async function getClientSession(): Promise<ClientSession | null> {
   return { projectId: invitation.projectId, invitationId: invitation.id }
 }
 
+function invitationTokenFromRequest(req: NextRequest): string | null {
+  const h = req.headers.get(CLIENT_INVITATION_HEADER)?.trim()
+  if (h && h.length >= 20) return h
+  return null
+}
+
 /**
- * Use this in every client API route. Throws 401 when there is no valid
- * session. There is no parameter for the project — that is the point.
+ * Authenticator (cookie) + selector (invitation header).
+ * Project ALWAYS comes from the validated header token — never from a
+ * client-supplied projectId, and never from the cookie alone (so two
+ * tabs sharing one cookie jar stay isolated).
  */
-export async function requireClientSession(): Promise<ClientSession> {
+export async function requireClientSession(req: NextRequest): Promise<ClientSession> {
   const session = await getClientSession()
   if (!session) {
     const err = new Error('Unauthorized') as any
     err.status = 401
     throw err
   }
-  return session
+
+  const inviteToken = invitationTokenFromRequest(req)
+  if (!inviteToken) {
+    const err = new Error('Missing invitation identity for this tab.') as any
+    err.status = 403
+    throw err
+  }
+
+  const check = await validateInvitationToken(inviteToken)
+  if (!check.ok) {
+    const err = new Error('This invitation is not valid for this request.') as any
+    err.status = 403
+    throw err
+  }
+
+  // Selector wins: return the project unlocked by THIS tab's token.
+  return { projectId: check.projectId, invitationId: check.invitationId }
 }

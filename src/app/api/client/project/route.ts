@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireClientSession } from '@/lib/client-session'
 import { DB_UNAVAILABLE_USER_MESSAGE, isDbInfrastructureError } from '@/lib/db-errors'
@@ -8,14 +8,13 @@ export const dynamic = 'force-dynamic'
 /**
  * STAGE 2, step 7 — the booking summary.
  *
- * Note what this route does NOT do: it takes no slug, no id, no token,
- * no query parameter of any kind. The project comes from the session.
- * Editing the URL cannot reach another project because there is no URL
- * to edit.
+ * Project comes from the validated X-TrustOS-Invitation header (selector),
+ * after the session cookie authenticates the browser. No bare projectId
+ * from the client — only an invitation token this tab was given.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -70,6 +69,9 @@ export async function GET() {
   } catch (err: any) {
     if (err?.status === 401) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (err?.status === 403) {
+      return NextResponse.json({ error: err.message || 'Forbidden' }, { status: 403 })
     }
     if (isDbInfrastructureError(err)) {
       console.error('[client project] database unavailable:', err?.message || err)

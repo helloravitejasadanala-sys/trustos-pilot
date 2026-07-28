@@ -7,9 +7,9 @@ import { missingRequiredDetails } from '@/lib/questionnaire-complete'
 export const dynamic = 'force-dynamic'
 
 // GET existing answers (project derived from session, never the URL)
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const q = await prisma.questionnaire.findUnique({
       where: { projectId },
       select: { answers: true, completedAt: true, startedAt: true },
@@ -23,7 +23,7 @@ export async function GET() {
 // POST answers. `answers` is free-form JSON keyed off the vendor's template.
 export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const body = await req.json().catch(() => ({}))
     const answers = body?.answers
     const complete = body?.complete === true

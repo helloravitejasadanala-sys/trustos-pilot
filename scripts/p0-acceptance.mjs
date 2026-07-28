@@ -152,8 +152,13 @@ ok('Mark service complete', r.status === 200, `status=${r.status}`)
 
 const token = inviteUrl.split('/p/')[1]
 const clientJar = new Map()
-const clientApi = (path, opts) => withJar(clientJar, path, opts)
-r = await clientApi(`/api/client/invite/${token}`, { method: 'POST' })
+const INVITE_HEADER = 'x-trustos-invitation'
+const clientApi = (path, opts = {}) =>
+  withJar(clientJar, path, {
+    ...opts,
+    headers: { ...(opts.headers || {}), [INVITE_HEADER]: token },
+  })
+r = await withJar(clientJar, `/api/client/invite/${token}`, { method: 'POST' })
 ok('Client invite exchange', r.status === 200 && clientJar.has('trustos_client'), `status=${r.status}`)
 r = await clientApi('/api/client/project')
 ok('Client sees deliverables', (r.data?.project?.files || []).some(f => f.type === 'gallery'))

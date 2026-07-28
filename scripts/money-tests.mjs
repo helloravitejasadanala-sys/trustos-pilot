@@ -70,6 +70,14 @@ const jar = new Map()
 const api = (path, opts) => withJar(jar, path, opts)
 const jarC = new Map()
 const apiC = (path, opts) => withJar(jarC, path, opts)
+const INVITE_HEADER = 'x-trustos-invitation'
+/** Client routes need the invitation selector header (cookie alone is not enough). */
+function apiClient(token, path, opts = {}) {
+  return apiC(path, {
+    ...opts,
+    headers: { ...(opts.headers || {}), [INVITE_HEADER]: token },
+  })
+}
 
 const stamp = Date.now().toString(36)
 const title = `Money test ${stamp}`
@@ -186,7 +194,7 @@ try {
     console.error(`FAIL: client invite (status=${r.status} err=${r.data?.error || ''})`)
     process.exit(1)
   }
-  r = await apiC('/api/client/proposal', { method: 'POST' })
+  r = await apiClient(inviteToken, '/api/client/proposal', { method: 'POST' })
   if (r.status !== 200) {
     console.error(`FAIL: client accept quote (status=${r.status} err=${r.data?.error || ''})`)
     process.exit(1)
@@ -228,7 +236,7 @@ try {
   )
 
   // Sign
-  r = await apiC('/api/client/contract', {
+  r = await apiClient(inviteToken, '/api/client/contract', {
     method: 'POST',
     body: JSON.stringify({ signedBy: 'Money Tester', consent: true }),
   })
@@ -453,12 +461,12 @@ try {
     console.error(`FAIL: sched client invite (status=${r.status} err=${r.data?.error || ''})`)
     process.exit(1)
   }
-  r = await apiC('/api/client/proposal', { method: 'POST' })
+  r = await apiClient(schedInvite, '/api/client/proposal', { method: 'POST' })
   if (r.status !== 200) {
     console.error(`FAIL: sched accept (status=${r.status} err=${r.data?.error || ''})`)
     process.exit(1)
   }
-  r = await apiC('/api/client/contract', {
+  r = await apiClient(schedInvite, '/api/client/contract', {
     method: 'POST',
     body: JSON.stringify({ signedBy: 'Schedule Tester', consent: true }),
   })
@@ -468,7 +476,7 @@ try {
   }
 
   // ── 8. Declare against a stage that isn't open is rejected ───────────
-  r = await apiC('/api/client/payment', {
+  r = await apiClient(schedInvite, '/api/client/payment', {
     method: 'POST',
     body: JSON.stringify({
       stageId: s2.id,
@@ -612,12 +620,12 @@ try {
     console.error(`FAIL: recovery invite (status=${r.status})`)
     process.exit(1)
   }
-  r = await apiC('/api/client/proposal', { method: 'POST' })
+  r = await apiClient(recInvite, '/api/client/proposal', { method: 'POST' })
   if (r.status !== 200) {
     console.error(`FAIL: recovery accept (status=${r.status})`)
     process.exit(1)
   }
-  r = await apiC('/api/client/contract', {
+  r = await apiClient(recInvite, '/api/client/contract', {
     method: 'POST',
     body: JSON.stringify({ signedBy: 'Recovery Tester', consent: true }),
   })

@@ -70,6 +70,13 @@ const jarV = new Map()
 const jarC = new Map()
 const apiV = (path, opts) => withJar(jarV, path, opts)
 const apiC = (path, opts) => withJar(jarC, path, opts)
+const INVITE_HEADER = 'x-trustos-invitation'
+function apiClient(token, path, opts = {}) {
+  return apiC(path, {
+    ...opts,
+    headers: { ...(opts.headers || {}), [INVITE_HEADER]: token },
+  })
+}
 
 const stamp = Date.now().toString(36)
 const title = `Review test ${stamp}`
@@ -122,7 +129,7 @@ try {
   console.log(`Client invite: status=${r.status} cookies=${[...jarC.keys()].join(',') || '(none)'}`)
 
   // 1. Review blocked before approved/COMPLETED
-  r = await apiC('/api/client/review', {
+  r = await apiClient(inviteToken, '/api/client/review', {
     method: 'POST',
     body: JSON.stringify({ overall: 5, wentWell: 'Great', wouldRecommend: 'Yes' }),
   })
@@ -153,12 +160,12 @@ try {
     console.error(`FAIL: review stages missing (body=${JSON.stringify(stagesRes.data)})`)
     process.exit(1)
   }
-  r = await apiC('/api/client/proposal', { method: 'POST' })
+  r = await apiClient(inviteToken, '/api/client/proposal', { method: 'POST' })
   if (r.status !== 200) {
     console.error(`FAIL: review accept (status=${r.status} err=${r.data?.error || ''})`)
     process.exit(1)
   }
-  r = await apiC('/api/client/contract', {
+  r = await apiClient(inviteToken, '/api/client/contract', {
     method: 'POST',
     body: JSON.stringify({ signedBy: 'Review Tester', consent: true }),
   })
@@ -183,7 +190,7 @@ try {
   }
 
   // 2. Client can submit review
-  r = await apiC('/api/client/review', {
+  r = await apiClient(inviteToken, '/api/client/review', {
     method: 'POST',
     body: JSON.stringify({
       overall: 5,
@@ -212,7 +219,7 @@ try {
   )
 
   // 4. Idempotent second submit
-  r = await apiC('/api/client/review', {
+  r = await apiClient(inviteToken, '/api/client/review', {
     method: 'POST',
     body: JSON.stringify({ overall: 1, wentWell: 'dup' }),
   })
@@ -223,7 +230,7 @@ try {
   )
 
   // 5. Confirm Review model fields only — GET shape
-  r = await apiC('/api/client/review')
+  r = await apiClient(inviteToken, '/api/client/review')
   ok(
     '5. Client GET review has stars + short answers only',
     r.status === 200 &&

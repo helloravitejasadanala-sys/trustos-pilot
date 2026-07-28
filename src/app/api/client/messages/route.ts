@@ -7,9 +7,9 @@ import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const messages = await prisma.message.findMany({
       where: { projectId },
       orderBy: { createdAt: 'asc' },
@@ -65,7 +65,7 @@ async function ensureProjectClientId(projectId: string): Promise<string | null> 
 
 export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const { content } = sendSchema.parse(await req.json().catch(() => ({})))
 
     const clientId = await ensureProjectClientId(projectId)

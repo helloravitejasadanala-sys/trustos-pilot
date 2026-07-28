@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 /** Heartbeat while the client is composing a message. */
 export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const body = await req.json().catch(() => ({}))
     const active = body.active !== false && String(body.draft || '').trim().length > 0
 
@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     return NextResponse.json({ peerTyping: getPeerTyping(projectId, 'client') })
   } catch (err: any) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: err.status ?? 401 })

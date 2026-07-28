@@ -9,9 +9,9 @@ export const dynamic = 'force-dynamic'
 const ACCEPTANCE_TEXT =
   'By typing my name and confirming, I agree to the terms of this agreement.'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { projectId } = await requireClientSession()
+    const { projectId } = await requireClientSession(req)
     const contract = await prisma.contract.findUnique({
       where: { projectId },
       select: { content: true, version: true, signedAt: true, signedBy: true },
@@ -34,7 +34,7 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { projectId, invitationId } = await requireClientSession()
+    const { projectId, invitationId } = await requireClientSession(req)
     const body = await req.json().catch(() => ({}))
     const signedBy = String(body?.signedBy ?? '').trim()
     const consent = body?.consent === true

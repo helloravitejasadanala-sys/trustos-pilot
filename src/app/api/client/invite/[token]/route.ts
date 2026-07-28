@@ -7,10 +7,9 @@ import { DB_UNAVAILABLE_USER_MESSAGE, isDbInfrastructureError } from '@/lib/db-e
 export const dynamic = 'force-dynamic'
 
 /**
- * STAGE 2, step 5 — exchange an invitation token for a scoped session.
- *
- * This is the ONLY route that accepts a token from the URL. Everything
- * afterwards reads the session cookie instead.
+ * STAGE 2, step 5 — exchange an invitation token for a session cookie
+ * (authenticator). Every later /api/client/* call must also send
+ * X-TrustOS-Invitation with this same token (selector) so tabs isolate.
  */
 export async function POST(
   _req: NextRequest,
