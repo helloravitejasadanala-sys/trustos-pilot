@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { Users, FileText, Truck, Star, ArrowRight, Briefcase, MapPin } from "lucide-react";
+import { ProofSection } from "@/components/marketing/ProofSection";
+import { PressStrip } from "@/components/marketing/PressStrip";
 
 const steps = [
   {
@@ -174,6 +176,12 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Empty until PRESS_LOGOS has real outlets — renders nothing today. */}
+      <PressStrip />
+
+      {/* Visible TODO scaffolding — populate after tester sessions. */}
+      <ProofSection />
 
       <section className="relative z-10 border-t border-ink-200/30 bg-white/30 px-6 py-16 backdrop-blur-sm">
         <div className="mx-auto max-w-2xl text-center">
