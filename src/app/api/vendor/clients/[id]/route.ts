@@ -117,7 +117,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     const { vendor, client } = await vendorClient(params.id, user.id)
 
     if (!isTestClient(client)) {
-      return NextResponse.json({ error: 'Only test clients can be deleted' }, { status: 403 })
+      return NextResponse.json(
+        {
+          error:
+            'Real clients can only be archived — permanent delete is limited to test clients.',
+        },
+        { status: 403 },
+      )
     }
 
     const nonTestProjects = await prisma.project.count({
@@ -131,8 +137,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Cannot delete client with non-test projects' }, { status: 409 })
     }
 
-    await prisma.project.updateMany({ where: { clientId: client.id, vendorId: vendor.id }, data: { clientId: null } })
-    await prisma.user.delete({ where: { id: client.id } })
+    // Message.sender has no onDelete Cascade — clear sender rows before User delete.
+    await prisma.$transaction(async tx => {
+      await tx.message.deleteMany({ where: { senderId: client.id } })
+      await tx.project.updateMany({
+        where: { clientId: client.id, vendorId: vendor.id },
+        data: { clientId: null },
+      })
+      await tx.user.delete({ where: { id: client.id } })
+    })
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Error' }, { status: error.status || 500 })

@@ -63,7 +63,16 @@ export default function ClientsPage() {
   }
 
   async function deleteClient(client: ClientRow) {
-    if (!isTestClient(client) || !confirm('Delete this test client?')) return
+    if (!isTestClient(client)) {
+      toast.error('Real clients can only be archived — use Archive instead of Delete.')
+      return
+    }
+    const warned = confirm(
+      `Permanently delete test client “${client.name}”?\n\n` +
+        'This cannot be undone. Their messages and link to test projects will be removed.\n\n' +
+        'Real clients should be Archived, not deleted.',
+    )
+    if (!warned) return
     const res = await fetch(`/api/vendor/clients/${client.id}`, { method: 'DELETE' })
     const data = await parseJsonResponse(res)
     if (!data.ok) return toast.error((data.data as { error?: string }).error || 'Delete failed')
