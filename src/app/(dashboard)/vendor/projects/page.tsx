@@ -62,14 +62,8 @@ export default function ProjectsPage() {
         }
       />
 
-      {/* Toolbar: segmented tabs + search */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div
-          className="inline-flex self-start rounded-[var(--r-md)] border p-0.5"
-          style={{ borderColor: 'var(--line)', background: 'var(--panel)' }}
-          role="tablist"
-          aria-label="Project filter"
-        >
+        <div className="vendor-seg" role="tablist" aria-label="Project filter">
           {(['active', 'archived'] as const).map(key => {
             const active = tab === key
             return (
@@ -79,31 +73,21 @@ export default function ProjectsPage() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTab(key)}
-                className="rounded-[var(--r-sm)] px-3 py-1.5 text-[13px] font-semibold transition"
-                style={
-                  active
-                    ? { background: 'var(--nav)', color: 'var(--on-dark)' }
-                    : { background: 'transparent', color: 'var(--muted)' }
-                }
+                className="vendor-seg__btn"
               >
                 {key === 'active' ? 'Active' : 'Archived'}
               </button>
             )
           })}
         </div>
-        <div className="relative flex-1">
-          <Search
-            size={15}
-            aria-hidden
-            className="pointer-events-none absolute left-3.5 top-1/2 z-[1] -translate-y-1/2 text-[color:var(--faint)]"
-          />
+        <div className="vendor-search-wrap">
+          <Search size={16} aria-hidden />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search by client, title or location"
             aria-label="Search projects"
-            className="w-full border-[color:var(--line)] bg-[color:var(--panel)] text-[13px] text-[color:var(--ink)]"
-            style={{ paddingLeft: 40, minHeight: 40, paddingTop: 8, paddingBottom: 8 }}
+            className="vendor-search"
           />
         </div>
       </div>

@@ -75,7 +75,7 @@ export function WorkspaceTabs({
             aria-selected={isActive}
             onClick={() => onChange(t)}
             className={cn(
-              'relative min-w-0 max-w-full shrink rounded-[6px] px-2.5 py-2 text-[12px] font-semibold transition-colors sm:px-3 sm:text-[12.5px]',
+              'relative min-w-0 max-w-full shrink rounded-[6px] px-3 py-2.5 text-[13px] font-semibold transition-colors sm:px-3.5 sm:text-[13.5px]',
             )}
             style={
               isActive

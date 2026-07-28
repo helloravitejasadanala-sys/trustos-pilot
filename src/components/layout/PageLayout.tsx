@@ -25,7 +25,7 @@ export function PageLayout({
   return (
     <div
       className={cn(
-        'mx-auto w-full min-w-0 max-w-full px-4 py-5 md:px-6 md:py-6',
+        'mx-auto w-full min-w-0 max-w-full overflow-x-hidden px-4 py-5 md:px-6 md:py-6',
         WIDTH[width],
         className,
       )}

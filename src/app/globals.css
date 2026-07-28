@@ -62,6 +62,7 @@ html {
 }
 
 @layer components {
+  /* Same as .btn.btn-forest — keep alias for auth / older call sites. */
   .btn-primary {
     display: inline-flex;
     align-items: center;
@@ -75,6 +76,7 @@ html {
     background: var(--forest);
     color: #fff;
     cursor: pointer;
+    text-decoration: none;
   }
 
   .btn-secondary {

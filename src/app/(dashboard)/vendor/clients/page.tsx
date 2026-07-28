@@ -76,34 +76,35 @@ export default function ClientsPage() {
       <PageHeader
         title="Clients"
         actions={
-          <button onClick={() => setModal({ mode: 'create' })} className="btn-primary shrink-0">
+          <button type="button" onClick={() => setModal({ mode: 'create' })} className="btn btn-forest shrink-0">
             <Plus size={16} className="mr-1.5" />New client
           </button>
         }
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-        <div className="inline-flex rounded-lg border border-forest-100 bg-white p-0.5 self-start">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="vendor-seg" role="tablist" aria-label="Client filter">
           {(['active', 'archived'] as const).map(key => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${tab === key ? 'bg-forest-950 text-paper-50' : 'text-forest-600 hover:text-forest-950'}`}>
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className="vendor-seg__btn"
+            >
               {key === 'active' ? 'Active' : 'Archived'}
             </button>
           ))}
         </div>
-        <div className="relative flex-1 min-w-0">
-          <Search
-            size={15}
-            aria-hidden
-            className="pointer-events-none absolute left-3.5 top-1/2 z-[1] -translate-y-1/2 text-[color:var(--faint)]"
-          />
+        <div className="vendor-search-wrap">
+          <Search size={16} aria-hidden />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search by name or email"
             aria-label="Search clients by name or email"
-            className="w-full border-[color:var(--line)] bg-[color:var(--panel)] text-[13px] text-[color:var(--ink)]"
-            style={{ paddingLeft: 40, minHeight: 40, paddingTop: 8, paddingBottom: 8 }}
+            className="vendor-search"
           />
         </div>
       </div>
@@ -116,22 +117,22 @@ export default function ClientsPage() {
           description={tab === 'active'
             ? 'Add someone here, or create a booking with their email — they get a secure link, no account.'
             : 'People you archive will rest here — out of the way until you need them.'}
-          action={tab === 'active' ? <button className="btn-primary" onClick={() => setModal({ mode: 'create' })}>＋ New client</button> : undefined}
+          action={tab === 'active' ? <button type="button" className="btn btn-forest" onClick={() => setModal({ mode: 'create' })}>＋ New client</button> : undefined}
         />
       ) : (
         <div className="divide-y divide-forest-100 rounded-xl border border-forest-100 bg-white overflow-visible">
           {filtered.map(client => (
             <div
               key={client.id}
-              className="relative z-0 flex items-stretch gap-2 px-2 py-1 hover:bg-forest-50/40 transition-colors sm:px-3"
+              className="relative z-0 flex items-stretch gap-1 px-1.5 py-0.5 hover:bg-forest-50/40 transition-colors sm:px-2"
             >
               <button
                 type="button"
-                className="min-w-0 flex-1 rounded-lg px-2 py-3 text-left"
+                className="min-h-[64px] min-w-0 flex-1 rounded-lg px-2.5 py-3 text-left"
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                 onClick={() => router.push(`/vendor/clients/${client.id}`)}
               >
-                <p className="text-[14px] font-semibold text-forest-950 truncate">{client.name}</p>
+                <p className="text-[15px] font-semibold text-forest-950 truncate">{client.name}</p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[13px] text-[color:var(--muted)]">
                   <span className="inline-flex items-center gap-1 min-w-0">
                     <Mail size={12} className="shrink-0" />
@@ -148,11 +149,17 @@ export default function ClientsPage() {
                   </span>
                 </div>
               </button>
+              <span
+                className="pointer-events-none self-center pr-1 text-[13px] font-semibold text-forest-700 sm:pr-2"
+                aria-hidden
+              >
+                Open →
+              </span>
               <div className="relative shrink-0 self-center" onClick={e => e.stopPropagation()}>
                 <ActionMenu
                   closeKey={`${tab}:${query}`}
                   ariaLabel={`Actions for ${client.name}`}
-                  triggerClassName="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--muted)] hover:bg-forest-100 hover:text-forest-700"
+                  triggerClassName="flex h-11 w-11 items-center justify-center rounded-lg text-[color:var(--muted)] hover:bg-forest-100 hover:text-forest-700"
                   triggerStyle={{}}
                 >
                   {({ close }) => (

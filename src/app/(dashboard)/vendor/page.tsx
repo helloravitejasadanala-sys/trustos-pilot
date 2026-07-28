@@ -269,6 +269,12 @@ export default function TodayPage() {
   const unreadProjects = liveProjects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
   const pendingPayments = liveProjects.filter(p => hasPendingPaymentConfirm(p))
   const balanceNudges = liveProjects.filter(p => needsBalanceRequest(p))
+  /** Client owes deposit (signed, not yet paid). */
+  const depositWaiting = liveProjects.filter(p => p.status === 'CONTRACT_SIGNED')
+  /** Deposit or full payment confirmed on live bookings. */
+  const moneySettled = liveProjects.filter(
+    p => p.status === 'DEPOSIT_PAID' || p.status === 'FULLY_PAID',
+  )
 
   // Order: payment confirm → balance request → unread → journey action.
   const queue: QueueItem[] = useMemo(() => {
@@ -287,7 +293,13 @@ export default function TodayPage() {
   }, [pendingPayments, balanceNudges, unreadProjects, vendorActionable])
 
   const focus = queue[0] || null
-  const nextUp = queue.slice(1, 1 + QUEUE_NEXT_N)
+  // Unreads get their own Messages panel — keep Next up for other work.
+  const nextUp = queue.slice(1, 1 + QUEUE_NEXT_N).filter(item => item.kind !== 'unread')
+
+  const moneyHref = (list: VendorProject[], tab: 'Money' | 'Chat' = 'Money') =>
+    list[0] ? vendorProjectHref(list[0].slug, tab) : '/vendor/projects'
+
+  const showMoneyGlance = liveProjects.length > 0
 
   const deadlines = useMemo(() => {
     return projects
@@ -433,6 +445,46 @@ export default function TodayPage() {
 
       <div className="today-grid">
         <div className="today-stack">
+          {showMoneyGlance && (
+            <div>
+              <div className="kicker mb-2.5">Money at a glance</div>
+              <div className="today-money-glance" aria-label="Money at a glance">
+                <Link
+                  href={moneyHref(pendingPayments)}
+                  className="today-money-tile"
+                  data-alert={pendingPayments.length > 0 ? 'true' : 'false'}
+                >
+                  <span className="today-money-tile__num num">{pendingPayments.length}</span>
+                  <span className="today-money-tile__label">To confirm</span>
+                </Link>
+                <Link
+                  href={moneyHref(balanceNudges)}
+                  className="today-money-tile"
+                  data-alert={balanceNudges.length > 0 ? 'true' : 'false'}
+                >
+                  <span className="today-money-tile__num num">{balanceNudges.length}</span>
+                  <span className="today-money-tile__label">Balance due</span>
+                </Link>
+                <Link
+                  href={moneyHref(depositWaiting)}
+                  className="today-money-tile"
+                  data-alert={depositWaiting.length > 0 ? 'true' : 'false'}
+                >
+                  <span className="today-money-tile__num num">{depositWaiting.length}</span>
+                  <span className="today-money-tile__label">Deposit waiting</span>
+                </Link>
+                <Link
+                  href={moneyHref(moneySettled)}
+                  className="today-money-tile"
+                  data-tone="settled"
+                >
+                  <span className="today-money-tile__num num">{moneySettled.length}</span>
+                  <span className="today-money-tile__label">Deposit in</span>
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Do This First */}
           <div>
             <div className="kicker mb-2.5 text-[color:var(--coral-deep)]">● Do this first</div>
@@ -482,6 +534,47 @@ export default function TodayPage() {
               </div>
             </div>
           </div>
+
+          {unreadProjects.length > 0 && (
+            <div>
+              <div className="mb-2.5 flex items-baseline justify-between">
+                <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Messages</h2>
+                <span className="num text-[12px] text-[color:var(--coral-deep,#c45c3e)]">
+                  {unreadProjects.length} unread
+                </span>
+              </div>
+              <div
+                className="panel overflow-hidden"
+                style={{ borderLeft: '3px solid var(--coral-deep, #c45c3e)' }}
+              >
+                {unreadProjects.slice(0, 6).map(p => {
+                  const clientLabel = p.client?.name || p.title
+                  return (
+                    <Link
+                      key={p.id}
+                      href={vendorProjectHref(p.slug, 'Chat')}
+                      className="today-service-row"
+                    >
+                      <span
+                        className={markerClass(p.type)}
+                        style={{ width: 32, height: 32, fontSize: 12 }}
+                        aria-hidden
+                      >
+                        {markerLetter(p.type, p.title)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13.5px] font-semibold">{clientLabel}</div>
+                        <div className="truncate text-[12px] text-[color:var(--muted)]">
+                          New message — reply in Chat
+                        </div>
+                      </div>
+                      <span className="chip chip-coral">Unread</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {nextUp.length > 0 && (
             <div>
@@ -604,6 +697,36 @@ export default function TodayPage() {
 
         {/* Context rail */}
         <div className="today-stack hidden gap-4 md:flex" style={{ gap: 16 }}>
+          {unreadProjects.length > 0 && (
+            <div className="context" style={{ padding: 18 }}>
+              <div className="mb-3 flex items-center gap-2">
+                <span
+                  style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--coral-deep, #c45c3e)' }}
+                  aria-hidden
+                />
+                <div style={{ font: 'var(--t-xs)', fontWeight: 700 }}>Unread messages</div>
+                <span className="num ml-auto text-[12px] text-[color:var(--coral-deep,#c45c3e)]">
+                  {unreadProjects.length}
+                </span>
+              </div>
+              {unreadProjects.slice(0, 4).map(p => (
+                <Link
+                  key={p.id}
+                  href={vendorProjectHref(p.slug, 'Chat')}
+                  className="panel mb-2.5 last:mb-0 block"
+                  style={{ padding: 13, boxShadow: 'none', textDecoration: 'none', color: 'inherit' }}
+                >
+                  <div className="mb-1 truncate text-[13px] font-semibold">
+                    {p.client?.name || p.title}
+                  </div>
+                  <div className="text-[12px] font-semibold text-[color:var(--coral-deep,#c45c3e)]">
+                    Open chat →
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
           <div className="context" style={{ padding: 18 }}>
             <div className="mb-3 flex items-center gap-2">
               <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--lav)' }} aria-hidden />
@@ -626,9 +749,10 @@ export default function TodayPage() {
                   </div>
                   <Link
                     href={`/vendor/projects/${p.slug}`}
-                    className="text-[12.5px] font-semibold text-[color:var(--lav)] underline-offset-2 hover:underline"
+                    className="btn btn-ghost"
+                    style={{ minHeight: 40, padding: '0 14px', fontSize: 13.5 }}
                   >
-                    Open project →
+                    Open booking →
                   </Link>
                 </div>
               ))

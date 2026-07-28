@@ -382,7 +382,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
         <div className="vendor-main">
           <header className="vendor-topbar">
             {inWorkspace ? (
-              <Link href="/vendor/projects" className="text-[13.5px] font-semibold text-[color:var(--muted)]">
+              <Link href="/vendor/projects" className="vendor-back">
                 ‹ Projects
               </Link>
             ) : (

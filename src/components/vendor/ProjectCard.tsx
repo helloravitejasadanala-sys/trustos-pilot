@@ -75,7 +75,7 @@ export default function ProjectCard({
 
   return (
     <div
-      className="relative flex items-center gap-3 px-4 py-3 transition-colors"
+      className="relative flex min-h-[64px] items-center gap-2 px-3 py-3.5 transition-colors sm:gap-3 sm:px-4"
       style={{ background: 'var(--panel)' }}
       onMouseEnter={e => { e.currentTarget.style.background = 'var(--canvas-2)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'var(--panel)' }}
@@ -83,10 +83,10 @@ export default function ProjectCard({
       <Link
         href={`/vendor/projects/${project.slug}`}
         className="min-w-0 flex-1"
-        style={{ color: 'var(--ink)' }}
+        style={{ color: 'var(--ink)', textDecoration: 'none' }}
       >
         <div className="flex items-center gap-2">
-          <h3 className="truncate text-[14.5px] font-bold" style={{ color: 'var(--ink)' }}>
+          <h3 className="truncate text-[15px] font-bold" style={{ color: 'var(--ink)' }}>
             {project.title}
           </h3>
           <StatusChip status={project.status} />
@@ -94,7 +94,7 @@ export default function ProjectCard({
             <span
               className="num shrink-0"
               style={{
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: 700,
                 color: 'var(--coral-deep, #c45c3e)',
                 letterSpacing: '0.02em',
@@ -104,24 +104,32 @@ export default function ProjectCard({
             </span>
           )}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs" style={{ color: 'var(--muted)' }}>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px]" style={{ color: 'var(--muted)' }}>
           <span>{project.client?.name || project.invitation?.email || 'No client yet'}</span>
           {project.eventDate && (
             <span className="inline-flex items-center gap-1">
-              <Calendar size={12} aria-hidden />
+              <Calendar size={13} aria-hidden />
               {new Date(project.eventDate).toLocaleDateString('en-GB')}
             </span>
           )}
           {project.location && <span className="truncate">{project.location}</span>}
         </div>
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--muted)' }}>
-          <span className="font-semibold" style={{ color: 'var(--ink)' }}>Current:</span> {na.label}
-          <span className="mx-1.5" style={{ color: 'var(--faint)' }}>·</span>
+        <p className="mt-1.5 text-[13px]" style={{ color: 'var(--muted)' }}>
           <span className="font-semibold" style={{ color: 'var(--ink)' }}>Next:</span> {na.nextAction}
         </p>
       </Link>
+      <span
+        className="pointer-events-none hidden shrink-0 text-[13px] font-semibold text-forest-700 sm:inline"
+        aria-hidden
+      >
+        Open →
+      </span>
       <div className="relative shrink-0">
-        <ActionMenu disabled={busy} ariaLabel="Project actions">
+        <ActionMenu
+          disabled={busy}
+          ariaLabel="Project actions"
+          triggerClassName="flex h-11 w-11 items-center justify-center rounded-lg text-[color:var(--muted)] hover:bg-forest-100 hover:text-forest-700"
+        >
           {({ close }) => (
             <>
               <ActionMenuItem

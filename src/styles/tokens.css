@@ -112,9 +112,11 @@
 
 /* ============================ COMPONENT LAYER ============================ */
 
+/* Buttons — forest is the default primary (create / nav / confirm).
+   Lime is reserved for Today’s single “do this first” focus CTA. */
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px;
   min-height:44px; padding:0 20px; border:none; border-radius:var(--r-md);
-  font:700 14.5px/1 var(--font-ui); cursor:pointer; }
+  font:700 14.5px/1 var(--font-ui); cursor:pointer; text-decoration:none; }
 .btn-block { width:100%; }
 .btn-lime      { background:var(--lime);        color:var(--lime-ink); }
 .btn-forest    { background:var(--forest);      color:#fff; }

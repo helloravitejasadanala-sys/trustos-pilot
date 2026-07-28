@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { PRODUCT_NAME } from '@/lib/brand'
 import { PageHeader, PageLayout } from '@/components/layout'
+import BackLink from '@/components/vendor/BackLink'
 import { getServiceProfile, serviceOptions, type ServiceKey } from '@/lib/service-profiles'
 
 type Me = {
@@ -69,6 +70,9 @@ export default function SettingsPage() {
 
   return (
     <PageLayout>
+      <div className="mb-2">
+        <BackLink href="/vendor" label="Today" />
+      </div>
       <PageHeader
         title="Settings"
         description={

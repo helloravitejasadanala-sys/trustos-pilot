@@ -82,7 +82,7 @@ export default function ClientFormModal({
             </p>
             <button
               type="button"
-              className="btn-primary w-full"
+              className="btn btn-forest w-full"
               onClick={() => {
                 onClose()
                 openNewProject({
@@ -137,7 +137,7 @@ export default function ClientFormModal({
             <label className="label">Phone <span className="text-forest-300">(optional)</span></label>
             <input type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07…" />
           </div>
-          <button onClick={save} disabled={saving || !canSave} className="btn-primary w-full">
+          <button onClick={save} disabled={saving || !canSave} className="btn btn-forest w-full">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} className="mr-2" />{isEdit ? 'Save changes' : 'Create client'}</>}
           </button>
         </div>

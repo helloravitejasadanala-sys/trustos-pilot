@@ -1,15 +1,24 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronLeft } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-export default function BackLink({ href, label }: { href: string; label: string }) {
+/**
+ * Consistent vendor back control — large tap target, same look as the
+ * mobile workspace bar.
+ */
+export default function BackLink({
+  href,
+  label,
+  className,
+}: {
+  href: string
+  label: string
+  className?: string
+}) {
   return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-forest-700 hover:text-forest-950 transition"
-    >
-      <ChevronLeft size={16} />
+    <Link href={href} className={cn('vendor-back', className)}>
+      <span aria-hidden>‹</span>
       {label}
     </Link>
   )
