@@ -225,6 +225,38 @@ body:has(.vendor-shell) {
   z-index: 25;
 }
 
+.vendor-workspace-mobilebar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.vendor-workspace-mobilebar__notify {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* List pages on phone: topbar hidden — persistent Inbox Bell. */
+.vendor-mobile-inboxbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 8px 12px 0;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  background: var(--canvas);
+}
+
+.vendor-mobile-inboxbar__notify {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (min-width: 768px) {
+  .vendor-mobile-inboxbar { display: none; }
+}
+
 /* Shared back control (BackLink + workspace mobile bar). */
 .vendor-back,
 .vendor-workspace-mobilebar__back {

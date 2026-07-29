@@ -99,7 +99,9 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [todayCount, setTodayCount] = useState(0)
   const [projectCount, setProjectCount] = useState(0)
-  const [unreadCount, setUnreadCount] = useState(0)
+  /** Messages + payment-to-confirm + agreement signed (CONTRACT_SIGNED). */
+  const [inboxCount, setInboxCount] = useState(0)
+  const [firstPaymentSlug, setFirstPaymentSlug] = useState<string | null>(null)
   const [firstUnreadSlug, setFirstUnreadSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [createPrefill, setCreatePrefill] = useState<NewBookingPrefill | null>(null)
@@ -181,7 +183,13 @@ export default function VendorShell({ children }: { children: ReactNode }) {
           )
 
           const unread = live.filter(p => hasUnread(p.id, p.lastClientMessageAt))
-          setUnreadCount(unread.length)
+          const waitingPay = live.filter(p => hasPendingPaymentConfirm(p))
+          const signedAwaitingDeposit = live.filter(p => p.status === 'CONTRACT_SIGNED')
+          // One project once — same signals Today already surfaces.
+          const inboxIds = new Set<string>()
+          for (const p of [...waitingPay, ...unread, ...signedAwaitingDeposit]) inboxIds.add(p.id)
+          setInboxCount(inboxIds.size)
+          setFirstPaymentSlug(waitingPay[0]?.slug || null)
           setFirstUnreadSlug(unread[0]?.slug || null)
 
           // Toast + soft when a client message lands while the vendor is elsewhere.
@@ -294,21 +302,42 @@ export default function VendorShell({ children }: { children: ReactNode }) {
   const profileInitial = (userName || businessName).charAt(0).toUpperCase()
   const profileLabel = userName.trim() || businessName.trim()
   const showIdentity = profileLoaded && !!workspaceLabel
-  const notifyHref = firstUnreadSlug
-    ? vendorProjectHref(firstUnreadSlug, 'Chat')
-    : '/vendor'
+  // Most urgent: payment confirm → Money; else unread chat; else Today.
+  const notifyHref = firstPaymentSlug
+    ? vendorProjectHref(firstPaymentSlug, 'Money')
+    : firstUnreadSlug
+      ? vendorProjectHref(firstUnreadSlug, 'Chat')
+      : '/vendor'
+
+  const notifyActive = inboxCount > 0
+  const notifyLabel = notifyActive ? `${inboxCount} new` : 'Inbox'
+  const notifyAria = notifyActive
+    ? `${inboxCount} waiting — payments, signed agreements, or messages`
+    : 'Inbox — nothing waiting'
 
   const badgeFor = (href: string) => {
-    if (href === '/vendor' && unreadCount > 0) return unreadCount
+    if (href === '/vendor' && inboxCount > 0) return inboxCount
     if (href === '/vendor' && todayCount > 0) return todayCount
     if (href === '/vendor/projects' && projectCount > 0) return projectCount
     return null
   }
 
   const tabBadgeFor = (href: string) => {
-    if (href === '/vendor' && unreadCount > 0) return unreadCount
+    if (href === '/vendor' && inboxCount > 0) return inboxCount
     return null
   }
+
+  const notifyLink = (className: string) => (
+    <Link
+      href={notifyHref}
+      className={className}
+      data-active={notifyActive ? 'true' : 'false'}
+      aria-label={notifyAria}
+    >
+      <Bell size={15} strokeWidth={notifyActive ? 2.4 : 1.8} aria-hidden />
+      {notifyLabel}
+    </Link>
+  )
 
   return (
     <VendorChromeContext.Provider value={chrome}>
@@ -388,15 +417,7 @@ export default function VendorShell({ children }: { children: ReactNode }) {
             ) : (
               <span className="num text-[13px] text-[color:var(--muted)]">{formatTopbarDate()}</span>
             )}
-            <Link
-              href={notifyHref}
-              className="vendor-topbar__notify"
-              data-active={unreadCount > 0 ? 'true' : 'false'}
-              aria-label={unreadCount > 0 ? `${unreadCount} unread messages` : 'No unread messages'}
-            >
-              <Bell size={15} strokeWidth={unreadCount > 0 ? 2.4 : 1.8} aria-hidden />
-              {unreadCount > 0 ? `${unreadCount} new` : 'Inbox'}
-            </Link>
+            {notifyLink('vendor-topbar__notify')}
             <button
               type="button"
               className="btn btn-forest"
@@ -406,19 +427,29 @@ export default function VendorShell({ children }: { children: ReactNode }) {
             </button>
           </header>
 
+          {/* Mobile list pages: topbar is hidden — Bell must still be reachable. */}
+          {!inWorkspace && (
+            <div className="vendor-mobile-inboxbar">
+              {notifyLink('vendor-topbar__notify vendor-mobile-inboxbar__notify')}
+            </div>
+          )}
+
           {inWorkspace && (
             <div className="vendor-workspace-mobilebar">
               <Link href="/vendor/projects" className="vendor-workspace-mobilebar__back">
                 ‹ Projects
               </Link>
-              <button
-                type="button"
-                className="btn btn-forest"
-                style={{ minHeight: 40, padding: '0 14px', fontSize: 13 }}
-                onClick={() => openNewProject()}
-              >
-                ＋ New booking
-              </button>
+              <div className="vendor-workspace-mobilebar__actions">
+                {notifyLink('vendor-topbar__notify vendor-workspace-mobilebar__notify')}
+                <button
+                  type="button"
+                  className="btn btn-forest"
+                  style={{ minHeight: 40, padding: '0 14px', fontSize: 13 }}
+                  onClick={() => openNewProject()}
+                >
+                  ＋ New booking
+                </button>
+              </div>
             </div>
           )}
 
