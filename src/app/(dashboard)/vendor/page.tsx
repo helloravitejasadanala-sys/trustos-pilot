@@ -68,13 +68,31 @@ function markerLetter(type: string | null, title: string) {
   return (title || 'P').charAt(0).toUpperCase()
 }
 
+function formatGbp(amount: number) {
+  const n = Number(amount)
+  if (!Number.isFinite(n)) return null
+  return `£${n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)}`
+}
+
+/** Sum of PENDING payments awaiting vendor confirm — display only. */
+function pendingConfirmTotal(p: VendorProject): number | null {
+  const pending = (p.payments || []).filter(x => x.status === 'PENDING')
+  if (!pending.length) return null
+  const sum = pending.reduce((s, x) => s + Number(x.amount || 0), 0)
+  return Number.isFinite(sum) ? sum : null
+}
+
 function queueCopy(item: QueueItem) {
   const clientLabel = item.p.client?.name?.split(' ')[0] || item.p.title || 'your client'
   if (item.kind === 'payment') {
+    const total = pendingConfirmTotal(item.p)
+    const money = total != null ? formatGbp(total) : null
     return {
-      headline: `Confirm payment from ${clientLabel}`,
+      headline: money
+        ? `Confirm ${money} from ${clientLabel}`
+        : `Confirm payment from ${clientLabel}`,
       why: 'They said they paid — check and confirm so the job can move on.',
-      cta: 'Confirm payment →',
+      cta: money ? `Confirm ${money} →` : 'Confirm payment →',
       ctaHref: vendorProjectHref(item.p.slug, 'Money'),
       chip: 'Payment' as const,
     }
