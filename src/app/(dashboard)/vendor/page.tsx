@@ -11,19 +11,15 @@ import {
   type VendorProject,
 } from '@/lib/vendor-phase1'
 import { hasUnread } from '@/lib/unread'
+import {
+  buildTodayQueue,
+  pendingConfirmTotal,
+  type TodayQueueItem,
+} from '@/lib/today-queue'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { projectTypeLabel } from '@/lib/project-types'
 import { PROJECTS_LIST_CACHE_MS, useVendorChrome } from '@/components/vendor/VendorShell'
 import { tabForActivityEvent, vendorProjectHref } from '@/lib/vendor-workspace'
-
-const VENDOR_PRIORITY = [
-  'QUESTIONNAIRE_COMPLETED',
-  'PROPOSAL_ACCEPTED',
-  'LEAD',
-  'DEPOSIT_PAID',
-  'FULLY_PAID',
-  'COMPLETED',
-]
 
 /** Max items after "Do this first". */
 const QUEUE_NEXT_N = 4
@@ -35,12 +31,6 @@ type ActivityItem = {
   createdAt: string
   project: { title: string; slug: string } | null
 }
-
-type QueueItem =
-  | { kind: 'payment'; p: VendorProject }
-  | { kind: 'balance'; p: VendorProject }
-  | { kind: 'unread'; p: VendorProject }
-  | { kind: 'action'; p: VendorProject; na: ReturnType<typeof getNextAction> }
 
 /** Prefer per-booking service over workspace primary (makeup in a photo workspace). */
 function bookingService(p: VendorProject, workspacePrimary: string) {
@@ -74,19 +64,11 @@ function formatGbp(amount: number) {
   return `£${n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)}`
 }
 
-/** Sum of PENDING payments awaiting vendor confirm — display only. */
-function pendingConfirmTotal(p: VendorProject): number | null {
-  const pending = (p.payments || []).filter(x => x.status === 'PENDING')
-  if (!pending.length) return null
-  const sum = pending.reduce((s, x) => s + Number(x.amount || 0), 0)
-  return Number.isFinite(sum) ? sum : null
-}
-
-function queueCopy(item: QueueItem) {
+function queueCopy(item: TodayQueueItem) {
   const clientLabel = item.p.client?.name?.split(' ')[0] || item.p.title || 'your client'
   if (item.kind === 'payment') {
     const total = pendingConfirmTotal(item.p)
-    const money = total != null ? formatGbp(total) : null
+    const money = total > 0 ? formatGbp(total) : null
     return {
       headline: money
         ? `Confirm ${money} from ${clientLabel}`
@@ -119,10 +101,46 @@ function queueCopy(item: QueueItem) {
       chip: 'Message' as const,
     }
   }
+  if (item.kind === 'delivery') {
+    return {
+      headline: `Follow up after ${clientLabel} approved delivery`,
+      why: 'They signed off on the files — request a review or wrap the booking.',
+      cta: 'Open project →',
+      ctaHref: vendorProjectHref(item.p.slug, 'Overview'),
+      chip: 'Delivery' as const,
+    }
+  }
+  if (item.kind === 'deadline') {
+    return {
+      headline: `Finish prep for ${clientLabel} — event tomorrow`,
+      why: 'Date is close and prep still looks incomplete.',
+      cta: 'Open prep →',
+      ctaHref: vendorProjectHref(item.p.slug, 'Prep'),
+      chip: 'Tomorrow' as const,
+    }
+  }
+  if (item.kind === 'optional') {
+    if (item.p.status === 'COMPLETED' && !item.p.review) {
+      return {
+        headline: `Request a review from ${clientLabel}`,
+        why: 'Optional — closes the loop when you have a minute.',
+        cta: item.na?.ctaLabel || 'Request review →',
+        ctaHref: vendorProjectHref(item.p.slug, 'Overview'),
+        chip: null,
+      }
+    }
+    return {
+      headline: `Capture a venue note for ${clientLabel}`,
+      why: 'Optional — next time at this venue you’ll thank yourself.',
+      cta: 'Open project →',
+      ctaHref: vendorProjectHref(item.p.slug, 'Overview'),
+      chip: null,
+    }
+  }
   return {
-    headline: item.na.nextAction,
+    headline: item.na?.nextAction || 'Open project',
     why: `Next step for ${clientLabel}.`,
-    cta: item.na.ctaLabel || 'Open project →',
+    cta: item.na?.ctaLabel || 'Open project →',
     ctaHref: vendorProjectHref(item.p.slug, 'Overview'),
     chip: null,
   }
@@ -277,13 +295,6 @@ export default function TodayPage() {
     p => getNextAction(p.status, bookingService(p, primaryService)).responsible === 'Client',
   )
 
-  const vendorActionable = waitingVendor
-    .map(p => ({ p, na: getNextAction(p.status, bookingService(p, primaryService)) }))
-    .sort((a, b) => {
-      const ai = VENDOR_PRIORITY.indexOf(a.p.status)
-      const bi = VENDOR_PRIORITY.indexOf(b.p.status)
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
-    })
   const unreadProjects = liveProjects.filter(p => hasUnread(p.id, p.lastClientMessageAt))
   const pendingPayments = liveProjects.filter(p => hasPendingPaymentConfirm(p))
   const balanceNudges = liveProjects.filter(p => needsBalanceRequest(p))
@@ -294,21 +305,15 @@ export default function TodayPage() {
     p => p.status === 'DEPOSIT_PAID' || p.status === 'FULLY_PAID',
   )
 
-  // Order: payment confirm → balance request → unread → journey action.
-  const queue: QueueItem[] = useMemo(() => {
-    const seen = new Set<string>()
-    const out: QueueItem[] = []
-    const push = (item: QueueItem) => {
-      if (seen.has(item.p.id)) return
-      seen.add(item.p.id)
-      out.push(item)
-    }
-    for (const p of pendingPayments) push({ kind: 'payment', p })
-    for (const p of balanceNudges) push({ kind: 'balance', p })
-    for (const p of unreadProjects) push({ kind: 'unread', p })
-    for (const { p, na } of vendorActionable) push({ kind: 'action', p, na })
-    return out
-  }, [pendingPayments, balanceNudges, unreadProjects, vendorActionable])
+  // Tiered Today queue — oldest / longest-wait within each tier (never last-created).
+  const queue: TodayQueueItem[] = useMemo(
+    () =>
+      buildTodayQueue(projects, {
+        primaryService,
+        isUnread: p => hasUnread(p.id, p.lastClientMessageAt),
+      }),
+    [projects, primaryService],
+  )
 
   const focus = queue[0] || null
   // Unreads get their own Messages panel — keep Next up for other work.
@@ -539,6 +544,8 @@ export default function TodayPage() {
                       {focusUi.chip === 'Payment' && <span className="chip chip-coral">Payment</span>}
                       {focusUi.chip === 'Balance' && <span className="chip chip-amber">Balance</span>}
                       {focusUi.chip === 'Message' && <span className="chip chip-coral">Message</span>}
+                      {focusUi.chip === 'Delivery' && <span className="chip chip-coral">Delivery</span>}
+                      {focusUi.chip === 'Tomorrow' && <span className="chip chip-amber">Tomorrow</span>}
                     </div>
                   )}
                   <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>{focusUi.headline}</div>
@@ -617,7 +624,13 @@ export default function TodayPage() {
                         </div>
                       </div>
                       {copy.chip && (
-                        <span className={copy.chip === 'Message' || copy.chip === 'Payment' ? 'chip chip-coral' : 'chip chip-amber'}>
+                        <span
+                          className={
+                            copy.chip === 'Message' || copy.chip === 'Payment' || copy.chip === 'Delivery'
+                              ? 'chip chip-coral'
+                              : 'chip chip-amber'
+                          }
+                        >
                           {copy.chip}
                         </span>
                       )}

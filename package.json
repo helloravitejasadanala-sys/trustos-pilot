@@ -16,7 +16,8 @@
     "test:money": "node scripts/money-tests.mjs",
     "test:learning": "node scripts/learning-tests.mjs",
     "test:review": "node scripts/review-tests.mjs",
-    "test:client-isolation": "node scripts/client-isolation-tests.mjs"
+    "test:client-isolation": "node scripts/client-isolation-tests.mjs",
+    "test:today-queue": "tsx scripts/today-queue-tests.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.0",

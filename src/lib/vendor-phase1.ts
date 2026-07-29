@@ -31,6 +31,7 @@ export type VendorProject = {
     amount?: number | string
     method?: string | null
     stageId?: string | null
+    createdAt?: string | Date | null
   }[] | null
   /** Slim stages for Today balance nudge (schedule path). */
   paymentStages?: {
@@ -46,7 +47,10 @@ export type VendorProject = {
     deposit?: number | string | null
   } | null
   review?: { id: string } | null
-  approvals?: { id: string }[] | null
+  approvals?: { id: string; createdAt?: string | Date | null }[] | null
+  createdAt?: string | Date | null
+  /** List payload: whether a VenueNote exists for this project. */
+  hasVenueNote?: boolean
 }
 
 /** Projects where the client declared payment and the vendor still needs to confirm. */
@@ -182,6 +186,11 @@ function prepComplete(project: any, service?: string | null) {
     return true
   }
   return deposit && filled > 0
+}
+
+/** Exported for Today Tier 2 (event tomorrow + prep incomplete). */
+export function isPrepComplete(project: VendorProject, service?: string | null) {
+  return prepComplete(project, service)
 }
 
 export function journeyProgress(

@@ -52,14 +52,22 @@ export async function GET() {
           select: { price: true, depositAmount: true, deposit: true },
         },
         payments: {
-          select: { id: true, type: true, status: true, amount: true, method: true, stageId: true },
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            amount: true,
+            method: true,
+            stageId: true,
+            createdAt: true,
+          },
         },
         paymentStages: {
           select: { id: true, sortOrder: true, requestedAt: true },
           orderBy: { sortOrder: 'asc' },
         },
         review: { select: { id: true } },
-        approvals: { select: { id: true }, take: 1 },
+        approvals: { select: { id: true, createdAt: true }, take: 1 },
         // Active invitation for copy-link on cards.
         invitations: {
           where: { revokedAt: null },
@@ -84,6 +92,17 @@ export async function GET() {
       : []
     const lastMsgMap = new Map(lastClientMsg.map((m: any) => [m.projectId, m._max.createdAt]))
 
+    const venueNoteRows = projectIds.length
+      ? await prisma.venueNote.findMany({
+          where: { projectId: { in: projectIds } },
+          select: { projectId: true },
+          distinct: ['projectId'],
+        })
+      : []
+    const venueNoteSet = new Set(
+      venueNoteRows.map((r: { projectId: string | null }) => r.projectId).filter(Boolean) as string[],
+    )
+
     // Do not mint invitations on list GET — that N+1 writes under connection_limit=1.
     // Share / detail / create paths call ensureActiveInvitation when a link is needed.
     const withLinks = projects.map((p: any) => {
@@ -96,6 +115,7 @@ export async function GET() {
         hasPaymentSchedule: stages.length > 0,
         invitation: inv ? formatInvitationLink(inv) : null,
         lastClientMessageAt: lastMsgMap.get(p.id) ?? null,
+        hasVenueNote: venueNoteSet.has(p.id),
       }
     })
 
