@@ -473,7 +473,7 @@ export default function PaymentScheduleEditor({
               padding: '10px 12px',
               borderRadius: 10,
               border: `1px solid ${sumOk ? 'var(--line-soft)' : 'var(--coral-deep, #c45c3e)'}`,
-              background: sumOk ? 'var(--canvas-2)' : 'var(--coral-soft, #f8ebe6)',
+              background: sumOk ? 'var(--canvas-2)' : 'var(--coral-soft)',
             }}
           >
             <div style={{ fontSize: 13 }}>

@@ -369,7 +369,7 @@ body:has(.vendor-shell) {
 
 .vendor-topbar__notify[data-active='true'] {
   border-color: color-mix(in srgb, var(--coral-deep, #c45c3e) 35%, var(--line));
-  background: color-mix(in srgb, var(--coral-soft, #f5e4dc) 70%, var(--panel));
+  background: color-mix(in srgb, var(--coral-soft) 70%, var(--panel));
   color: var(--coral-deep, #c45c3e);
 }
 

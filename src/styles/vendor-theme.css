@@ -41,6 +41,11 @@
   --success-soft: #143028;
   --amber-soft: #2e2618;
   --gold-soft: #2e2818;
+  /* Text on gold-soft — light gold, not cream-era brown #7a4a1e */
+  --gold-ink: #e8c97a;
+  --forest-soft: #10312f;
+  --lime-soft: #10312f;
+  --lavender: #5a5fa6;
 
   /* Accent surface helper */
   --accent-surface: #10312f;
@@ -293,7 +298,7 @@
 /* Chip soft markers */
 .vendor-shell .marker-photo {
   background: var(--gold-soft);
-  color: #e8c97a;
+  color: var(--gold-ink);
 }
 
 .vendor-shell .marker-stream {
@@ -358,4 +363,14 @@
 
 .vendor-shell .today-money-tile[data-tone='settled'] .today-money-tile__num {
   color: var(--ink);
+}
+
+/* Chat bubbles use forest fill + hardcoded white in chrome — fix contrast */
+.vendor-shell .ws-msg-mine {
+  color: var(--lime-ink);
+}
+
+.vendor-shell .vendor-rail__avatar {
+  background: var(--forest);
+  color: var(--lime-ink);
 }

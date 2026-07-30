@@ -143,7 +143,7 @@
 }
 
 .marker { display:grid; place-items:center; border-radius:var(--r); font:800 15px/1 var(--font-ui); flex-shrink:0; }
-.marker-photo  { background:var(--gold-soft);   color:#7a4a1e; }
+.marker-photo  { background:var(--gold-soft);   color:var(--gold-ink, #7a4a1e); }
 .marker-stream { background:var(--lav-soft);    color:var(--lav); }
 .marker-done   { background:var(--success-soft);color:var(--success); }
 

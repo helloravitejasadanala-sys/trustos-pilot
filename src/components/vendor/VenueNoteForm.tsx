@@ -259,7 +259,7 @@ export default function VenueNoteForm({
                   minWidth: 40,
                   padding: 0,
                   borderColor: fields.confidence === n ? 'var(--forest, #2f5d50)' : undefined,
-                  background: fields.confidence === n ? 'var(--lime-soft, #eef6e8)' : undefined,
+                  background: fields.confidence === n ? 'var(--lime-soft)' : undefined,
                 }}
                 onClick={() => setFields(f => ({ ...f, confidence: f.confidence === n ? null : n }))}
               >

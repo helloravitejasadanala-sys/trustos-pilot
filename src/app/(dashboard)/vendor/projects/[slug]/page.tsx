@@ -747,10 +747,10 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
         </span>
         <div className="min-w-0 flex-1 basis-[min(100%,12rem)]">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <span className="chip" style={{ background: 'var(--forest-soft, #e8f2f0)', color: 'var(--forest)' }}>
+            <span className="chip" style={{ background: 'var(--forest-soft)', color: 'var(--forest)' }}>
               {serviceProfile.label}
             </span>
-            <span className="chip" style={{ background: 'var(--gold-soft)', color: '#7a4a1e' }}>{typeLabel}</span>
+            <span className="chip" style={{ background: 'var(--gold-soft)', color: 'var(--gold-ink, #7a4a1e)' }}>{typeLabel}</span>
             <span className="num" style={{ fontSize: 12, color: 'var(--muted)' }}>
               Stage {stageNum} of {stageOf}
             </span>
@@ -859,7 +859,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   className="ws-journey__dot num"
                   style={
                     filled
-                      ? { background: 'var(--forest)', color: '#fff' }
+                      ? { background: 'var(--forest)', color: 'var(--lime-ink)' }
                       : isCurrent
                         ? { background: 'var(--lime)', color: 'var(--lime-ink)', border: '2px solid var(--lime-deep)' }
                         : { background: 'var(--panel)', color: 'var(--faint)', border: '2px solid var(--line)' }
@@ -1222,7 +1222,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                   style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
                 >
-                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--gold-soft)', color: '#7a4a1e', fontSize: 12 }}>✓</span>
+                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--gold-soft)', color: 'var(--gold-ink, #7a4a1e)', fontSize: 12 }}>✓</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>
                       {journeySteps.find(s => s.key === 'prep')?.label || 'Prep'}
@@ -1971,7 +1971,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                           borderRadius: '50%',
                           fontSize: 11,
                           background: mine ? 'var(--forest)' : undefined,
-                          color: mine ? '#fff' : undefined,
+                          color: mine ? 'var(--lime-ink)' : undefined,
                         }}
                       >
                         {mine ? 'V' : initials(m.sender?.name || project.client?.name)}
