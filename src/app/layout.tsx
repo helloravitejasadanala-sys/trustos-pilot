@@ -20,10 +20,18 @@ const instrument = Instrument_Serif({
 export const metadata: Metadata = {
   title: 'TrustOS — For creative professionals',
   description: 'From first enquiry to final delivery. The calm way to run a creative business.',
+  applicationName: 'TrustOS',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'TrustOS',
+  },
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   formatDetection: {
     telephone: false,

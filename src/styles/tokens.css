@@ -168,3 +168,63 @@
 .banner-offline { background:var(--recessed);     color:var(--muted);      border:1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) { * { animation-duration:.01ms !important; } }
+
+/* Instant press feedback on touch — apps respond; hover alone does nothing on phones. */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-accent,
+.btn-sage,
+.btn-danger,
+.vendor-tabbar__link,
+.vendor-rail__link,
+.vendor-topbar__notify,
+.vendor-back,
+.vendor-workspace-mobilebar__back,
+.today-service-row,
+.wl-row,
+.vendor-pressable,
+a.marker {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.08s ease, opacity 0.08s ease;
+}
+
+.btn:active:not([disabled]),
+.btn-primary:active:not([disabled]),
+.btn-secondary:active:not([disabled]),
+.btn-accent:active:not([disabled]),
+.btn-sage:active:not([disabled]),
+.btn-danger:active:not([disabled]),
+.vendor-tabbar__link:active,
+.vendor-rail__link:active,
+.vendor-topbar__notify:active,
+.vendor-back:active,
+.vendor-workspace-mobilebar__back:active,
+.today-service-row:active,
+.wl-row:active,
+.vendor-pressable:active,
+a.marker:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not([disabled]),
+  .btn-primary:active:not([disabled]),
+  .btn-secondary:active:not([disabled]),
+  .btn-accent:active:not([disabled]),
+  .btn-sage:active:not([disabled]),
+  .btn-danger:active:not([disabled]),
+  .vendor-tabbar__link:active,
+  .vendor-rail__link:active,
+  .vendor-topbar__notify:active,
+  .vendor-back:active,
+  .vendor-workspace-mobilebar__back:active,
+  .today-service-row:active,
+  .wl-row:active,
+  .vendor-pressable:active,
+  a.marker:active {
+    transform: none;
+  }
+}
+

@@ -82,7 +82,7 @@ export default function ProjectCard({
     >
       <Link
         href={`/vendor/projects/${project.slug}`}
-        className="min-w-0 flex-1"
+        className="vendor-pressable min-w-0 flex-1"
         style={{ color: 'var(--ink)', textDecoration: 'none' }}
       >
         <div className="flex items-center gap-2">

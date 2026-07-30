@@ -205,7 +205,7 @@ export default function ClientOverviewPage() {
                 <Link
                   key={p.id}
                   href={continueHref(p)}
-                  className="flex min-h-[64px] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-forest-50/50"
+                  className="vendor-pressable flex min-h-[64px] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-forest-50/50"
                   style={{ color: 'var(--ink)', textDecoration: 'none' }}
                 >
                   <div className="min-w-0 flex-1">

@@ -182,7 +182,7 @@ body:has(.vendor-shell) {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 12px 12px calc(90px + env(safe-area-inset-bottom, 0px));
+  padding: 16px 16px calc(90px + env(safe-area-inset-bottom, 0px));
   max-width: 100%;
   min-width: 0;
 }
@@ -216,7 +216,7 @@ body:has(.vendor-shell) {
   gap: 10px;
   flex-shrink: 0;
   min-height: 52px;
-  padding: 8px 12px;
+  padding: 8px 16px;
   padding-top: max(8px, env(safe-area-inset-top, 0px));
   border-bottom: 1px solid var(--line);
   background: var(--canvas-2);
@@ -237,20 +237,32 @@ body:has(.vendor-shell) {
   margin-right: 0;
 }
 
-/* List pages on phone: topbar hidden — persistent Inbox Bell. */
+/* List pages on phone: pinned top strip — date + Inbox Bell (app chrome). */
 .vendor-mobile-inboxbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-  padding: 8px 12px 0;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 16px;
   padding-top: max(8px, env(safe-area-inset-top, 0px));
-  background: var(--canvas);
+  background: var(--canvas-2);
+  border-bottom: 1px solid var(--line);
+  z-index: 25;
+}
+
+.vendor-mobile-inboxbar__date {
+  font: 600 13px var(--font-ui);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .vendor-mobile-inboxbar__notify {
   margin-left: 0;
   margin-right: 0;
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px) {
@@ -826,3 +838,55 @@ body:has(.portal-app) {
   line-height: 1.25;
   max-width: 100%;
 }
+
+/* First-visit Add to Home Screen — mobile only, sits above tab bar */
+.vendor-a2hs {
+  display: none;
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--nav);
+  color: var(--on-dark);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh);
+  font: 500 12.5px/1.35 var(--font-ui);
+}
+
+@media (max-width: 767px) {
+  .vendor-a2hs { display: flex; }
+}
+
+.vendor-a2hs__text {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.vendor-a2hs__hint {
+  color: var(--on-dark-mut);
+  font-weight: 400;
+}
+
+.vendor-a2hs__dismiss {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--lime);
+  color: var(--lime-ink);
+  font: 700 12px var(--font-ui);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vendor-a2hs__dismiss:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+

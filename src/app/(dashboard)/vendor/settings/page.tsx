@@ -82,7 +82,7 @@ export default function SettingsPage() {
         }
       />
 
-      <div className="max-w-lg space-y-4">
+      <div className="w-full space-y-4 md:max-w-lg">
         <section className="rounded-xl border border-forest-100 bg-white">
           <h2 className="border-b border-forest-50 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-forest-500">Your workspace</h2>
           {loading ? (

@@ -425,12 +425,9 @@ export default function TodayPage() {
 
   return (
     <div>
-      {/* Mobile compact greeting */}
+      {/* Mobile compact greeting — date lives in pinned chrome (VendorShell). */}
       <div className="vendor-mobile-head mb-3">
         <div>
-          <div className="num text-[12px] text-[color:var(--muted)]">
-            {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-          </div>
           <h1 className="serif" style={{ fontSize: 26, lineHeight: 1.05 }}>
             {greetingLine}
           </h1>

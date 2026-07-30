@@ -137,7 +137,7 @@ export default function ClientsPage() {
             >
               <button
                 type="button"
-                className="min-h-[64px] min-w-0 flex-1 rounded-lg px-2.5 py-3 text-left"
+                className="vendor-pressable min-h-[64px] min-w-0 flex-1 rounded-lg px-2.5 py-3 text-left"
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                 onClick={() => router.push(`/vendor/clients/${client.id}`)}
               >

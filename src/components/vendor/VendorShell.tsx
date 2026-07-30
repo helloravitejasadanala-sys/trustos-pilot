@@ -31,6 +31,9 @@ import { vendorProjectHref } from '@/lib/vendor-workspace'
 const NewProjectModal = dynamic(() => import('@/components/vendor/NewProjectModal'), {
   ssr: false,
 })
+const AddToHomePrompt = dynamic(() => import('@/components/vendor/AddToHomePrompt'), {
+  ssr: false,
+})
 
 const NAV = [
   { href: '/vendor', label: 'Today', icon: CalendarDays, exact: true },
@@ -427,9 +430,10 @@ export default function VendorShell({ children }: { children: ReactNode }) {
             </button>
           </header>
 
-          {/* Mobile list pages: topbar is hidden — Bell must still be reachable. */}
+          {/* Mobile list pages: pinned date + Inbox (content scrolls underneath). */}
           {!inWorkspace && (
             <div className="vendor-mobile-inboxbar">
+              <span className="vendor-mobile-inboxbar__date num">{formatTopbarDate()}</span>
               {notifyLink('vendor-topbar__notify vendor-mobile-inboxbar__notify')}
             </div>
           )}
@@ -478,6 +482,8 @@ export default function VendorShell({ children }: { children: ReactNode }) {
               })}
             </nav>
           )}
+
+          {!inWorkspace && <AddToHomePrompt />}
         </div>
       </div>
 
