@@ -428,7 +428,7 @@ export default function TodayPage() {
       {/* Mobile compact greeting — date lives in pinned chrome (VendorShell). */}
       <div className="vendor-mobile-head mb-3">
         <div>
-          <h1 className="serif" style={{ fontSize: 26, lineHeight: 1.05 }}>
+          <h1 className="serif vendor-large-title" style={{ fontSize: 26, lineHeight: 1.05 }}>
             {greetingLine}
           </h1>
           {summaryBits.length > 0 && (
@@ -455,7 +455,7 @@ export default function TodayPage() {
 
       {/* Desktop greeting */}
       <div className="mb-5 hidden md:block">
-        <h1 className="serif" style={{ fontSize: 32, lineHeight: 1 }}>
+        <h1 className="serif vendor-large-title" style={{ fontSize: 32, lineHeight: 1 }}>
           {greetingLine}
         </h1>
         <p className="mt-1 text-[color:var(--muted)]">

@@ -485,21 +485,21 @@ export default function VendorShell({ children }: { children: ReactNode }) {
 
           {!inWorkspace && <AddToHomePrompt />}
         </div>
-      </div>
 
-      {showCreate && (
-        <NewProjectModal
-          prefill={createPrefill ?? undefined}
-          onClose={() => {
-            setShowCreate(false)
-            setCreatePrefill(null)
-          }}
-          onCreated={() => {
-            setShowCreate(false)
-            setCreatePrefill(null)
-          }}
-        />
-      )}
+        {showCreate && (
+          <NewProjectModal
+            prefill={createPrefill ?? undefined}
+            onClose={() => {
+              setShowCreate(false)
+              setCreatePrefill(null)
+            }}
+            onCreated={() => {
+              setShowCreate(false)
+              setCreatePrefill(null)
+            }}
+          />
+        )}
+      </div>
     </VendorChromeContext.Provider>
   )
 }

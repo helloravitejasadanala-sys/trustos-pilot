@@ -1,6 +1,7 @@
 /* All global CSS enters through this one file (imported by root layout). */
 @import "../styles/tokens.css";
 @import "../styles/vendor-chrome.css";
+@import "../styles/vendor-theme.css";
 
 @tailwind base;
 @tailwind components;
