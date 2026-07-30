@@ -592,11 +592,6 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
       : isWaitingOnClient(project.status, primaryService)
 
   const journeySteps = journeyStagesForService(primaryService)
-  const currentJourneyIndex = summary.allDone
-    ? journeySteps.length - 1
-    : Math.max(0, summary.currentIndex)
-  const stageOf = journeySteps.length
-  const stageNum = currentJourneyIndex + 1
 
   const primary: { label: string; action: () => Promise<void> | void } | null = (() => {
     if (archived) {
@@ -702,33 +697,33 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
     return false
   }).length
   const moneyChip = !project.proposal
-    ? { label: 'To do', cls: 'chip chip-amber', hint: 'Quote not sent' }
+    ? { label: 'To do', cls: 'chip chip-muted', hint: 'Quote not sent' }
     : method === 'free'
-      ? { label: 'Free', cls: 'chip chip-success', hint: 'No payment required' }
+      ? { label: 'Free', cls: 'chip chip-muted', hint: 'No payment required' }
       : deposit
-        ? { label: 'Received', cls: 'chip chip-success', hint: `${serviceProfile.depositLabel} in` }
-        : { label: 'Awaiting', cls: 'chip chip-amber', hint: `Awaiting ${serviceProfile.depositLabel.toLowerCase()}` }
+        ? { label: 'Received', cls: 'chip chip-muted', hint: `${serviceProfile.depositLabel} in` }
+        : { label: 'Awaiting', cls: 'chip chip-muted', hint: `Awaiting ${serviceProfile.depositLabel.toLowerCase()}` }
 
   const pendingPayment = pendingDeposit || pendingFinal || null
   const paymentStatusChip = (() => {
-    if (method === 'free') return <span className="chip chip-success">No payment required</span>
+    if (method === 'free') return <span className="chip chip-muted">No payment required</span>
     if (pendingPayment) {
       const kind =
         pendingPayment.type === 'FINAL' || pendingPayment.type === 'INSTALMENT'
           ? 'balance'
           : serviceProfile.depositLabel.toLowerCase()
-      return <span className="chip chip-amber">Client reported {kind} · waiting on you</span>
+      return <span className="chip chip-coral">Client reported {kind} · waiting on you</span>
     }
     if (deposit && balanceOutstanding && balanceRequested) {
-      return <span className="chip chip-amber">Balance requested · waiting on client</span>
+      return <span className="chip chip-muted">Balance requested · waiting on client</span>
     }
     if (deposit && balanceOutstanding && !balanceRequested) {
-      return <span className="chip chip-success">{serviceProfile.depositLabel} received</span>
+      return <span className="chip chip-muted">{serviceProfile.depositLabel} received</span>
     }
     if (deposit) {
-      return <span className="chip chip-success">{serviceProfile.depositLabel} received</span>
+      return <span className="chip chip-muted">{serviceProfile.depositLabel} received</span>
     }
-    if (project.proposal) return <span className="chip chip-amber">Awaiting transfer</span>
+    if (project.proposal) return <span className="chip chip-muted">Awaiting transfer</span>
     return <span className="chip chip-muted">Not sent</span>
   })()
 
@@ -747,13 +742,8 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
         </span>
         <div className="min-w-0 flex-1 basis-[min(100%,12rem)]">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <span className="chip" style={{ background: 'var(--forest-soft)', color: 'var(--forest)' }}>
-              {serviceProfile.label}
-            </span>
-            <span className="chip" style={{ background: 'var(--gold-soft)', color: 'var(--gold-ink, #7a4a1e)' }}>{typeLabel}</span>
-            <span className="num" style={{ fontSize: 12, color: 'var(--muted)' }}>
-              Stage {stageNum} of {stageOf}
-            </span>
+            <span className="chip chip-lime">{serviceProfile.label}</span>
+            <span className="chip chip-muted">{typeLabel}</span>
           </div>
           <h1
             className="serif break-words"
@@ -767,7 +757,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
           {(archived || vendorClosed) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
               {archived && <span className="chip chip-muted">Archived</span>}
-              {vendorClosed && <span className="chip chip-success">Closed</span>}
+              {vendorClosed && <span className="chip chip-muted">Closed</span>}
             </div>
           )}
         </div>
@@ -835,57 +825,18 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
         </div>
       </div>
 
-      {/* Progress first: Completed → Current → Next */}
+      {/* Progress: Current · Next (no numbered stage anxiety) */}
       <div className="panel mb-3 md:mb-4" style={{ padding: '14px 16px' }}>
         <div
-          className="ws-journey"
-          role="img"
-          aria-label={`Completed: ${summary.completedLabels.slice(-1)[0] || 'Start'}. Current: ${summary.currentLabel}. Next: ${summary.nextLabel || 'Done'}`}
+          style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45 }}
+          aria-label={`Current: ${summary.currentLabel}. Next: ${summary.nextLabel || 'Done'}`}
         >
-          {journeySteps.map((step, i) => {
-            const done = progress[step.key as keyof typeof progress] && i < currentJourneyIndex
-            const isCurrent = i === currentJourneyIndex && !summary.allDone
-            const isDoneFinal = summary.allDone && i <= currentJourneyIndex
-            const filled = done || isDoneFinal
-            return (
-              <div key={step.key} style={{ display: 'contents' }}>
-                {i > 0 && (
-                  <span
-                    className="ws-journey__line"
-                    style={{ background: i <= currentJourneyIndex ? 'var(--forest)' : 'var(--line)' }}
-                  />
-                )}
-                <span
-                  className="ws-journey__dot num"
-                  style={
-                    filled
-                      ? { background: 'var(--forest)', color: 'var(--lime-ink)' }
-                      : isCurrent
-                        ? { background: 'var(--lime)', color: 'var(--lime-ink)', border: '2px solid var(--lime-deep)' }
-                        : { background: 'var(--panel)', color: 'var(--faint)', border: '2px solid var(--line)' }
-                  }
-                  title={step.label}
-                >
-                  {filled ? '✓' : i + 1}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45 }}>
-          {summary.completedLabels.length > 0 && (
-            <>
-              <span style={{ color: 'var(--ink)' }}>Completed</span>
-              {' '}{summary.completedLabels[summary.completedLabels.length - 1]}
-              {' · '}
-            </>
-          )}
           <span style={{ color: 'var(--ink)', fontWeight: 700 }}>Current</span>
           {' '}{summary.currentLabel}
           {summary.nextLabel ? (
             <>
               {' · '}
-              <span style={{ color: 'var(--ink)' }}>Next</span>
+              <span style={{ color: 'var(--ink)', fontWeight: 700 }}>Next</span>
               {' '}{summary.nextLabel}
             </>
           ) : null}
@@ -920,8 +871,8 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                     style={{
                       width: 36,
                       height: 36,
-                      background: waitingOnClient ? 'var(--nav-2)' : 'var(--lime)',
-                      color: waitingOnClient ? 'var(--on-dark-mut)' : 'var(--lime-ink)',
+                      background: 'var(--recessed)',
+                      color: waitingOnClient ? 'var(--muted)' : 'var(--ink)',
                     }}
                   >
                     V
@@ -938,8 +889,8 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                     style={{
                       width: 36,
                       height: 36,
-                      background: waitingOnClient ? 'var(--lav)' : 'var(--nav-2)',
-                      color: waitingOnClient ? '#fff' : 'var(--on-dark-mut)',
+                      background: 'var(--recessed)',
+                      color: 'var(--ink)',
                     }}
                   >
                     {initials(project.client?.name)}
@@ -1107,7 +1058,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             <div>
               <div style={{ font: 'var(--t-h2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {serviceProfile.questionnaireLabel}
-                {detailsDone && <span className="chip chip-success">Done</span>}
+                {detailsDone && <span className="chip chip-muted">Done</span>}
               </div>
               {detailsDone ? (
                 <div className="context">
@@ -1207,7 +1158,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                 style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
               >
-                <span className="marker" style={{ width: 30, height: 30, background: 'var(--success-soft)', color: 'var(--success)', fontSize: 13 }}>£</span>
+                <span className="marker" style={{ width: 30, height: 30, background: 'var(--recessed)', color: 'var(--ink)', fontSize: 13 }}>£</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>Money</div>
                   <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{moneyChip.hint}</div>
@@ -1222,7 +1173,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                   style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
                 >
-                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--gold-soft)', color: 'var(--gold-ink, #7a4a1e)', fontSize: 12 }}>✓</span>
+                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--recessed)', color: 'var(--ink)', fontSize: 12 }}>✓</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>
                       {journeySteps.find(s => s.key === 'prep')?.label || 'Prep'}
@@ -1231,7 +1182,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                       {prepDoneCount} of {prepFields.length} fields
                     </div>
                   </div>
-                  <span className={prepDoneCount === prepFields.length ? 'chip chip-success' : prepDoneCount > 0 ? 'chip chip-success' : 'chip chip-muted'}>
+                  <span className="chip chip-muted">
                     {prepDoneCount === 0 ? 'To do' : prepDoneCount === prepFields.length ? 'Ready' : 'In progress'}
                   </span>
                 </button>
@@ -1243,7 +1194,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                 className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                 style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
               >
-                <span className="marker" style={{ width: 30, height: 30, background: 'var(--coral-soft)', color: 'var(--coral-deep)', fontSize: 12 }}>✉</span>
+                <span className="marker" style={{ width: 30, height: 30, background: 'var(--recessed)', color: 'var(--ink)', fontSize: 12 }}>✉</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>Chat</div>
                   <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
@@ -1261,7 +1212,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   className="flex w-full items-center gap-2.5 border-0 bg-transparent py-2.5 text-left"
                   style={{ borderTop: '1px solid var(--line-soft)', cursor: 'pointer' }}
                 >
-                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--recessed)', color: 'var(--muted)', fontSize: 12 }}>⬇</span>
+                  <span className="marker" style={{ width: 30, height: 30, background: 'var(--recessed)', color: 'var(--ink)', fontSize: 12 }}>⬇</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>
                       {journeySteps.find(s => s.key === 'delivery')?.label || 'Delivery'}
@@ -1279,7 +1230,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   {!progress.service && !deliverablesSent
                     ? <span className="chip chip-muted">Not yet</span>
                     : deliveryApproved
-                      ? <span className="chip chip-success">Done</span>
+                      ? <span className="chip chip-muted">Done</span>
                       : null}
                 </button>
               )}

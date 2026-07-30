@@ -295,25 +295,28 @@
   color: var(--muted) !important;
 }
 
-/* Chip soft markers */
-.vendor-shell .marker-photo {
-  background: var(--gold-soft);
-  color: var(--gold-ink);
-}
-
-.vendor-shell .marker-stream {
-  background: var(--lav-soft);
-  color: #a8aef0;
-}
-
+/* Identity / section tiles — neutral only (not status colours) */
+.vendor-shell .marker,
+.vendor-shell .marker-photo,
+.vendor-shell .marker-stream,
 .vendor-shell .marker-done {
-  background: var(--success-soft);
-  color: #6dcea0;
+  background: var(--recessed) !important;
+  color: var(--ink) !important;
 }
 
-.vendor-shell .chip-muted {
+/* Status chips — muted surface + white meaning text (no RAG scale) */
+.vendor-shell .chip-muted,
+.vendor-shell .chip-amber,
+.vendor-shell .chip-success,
+.vendor-shell .chip-lav {
   background: #2c2c2e;
-  color: var(--muted);
+  color: var(--ink);
+}
+
+/* Attention only — coral still means “waiting on you now” */
+.vendor-shell .chip-coral {
+  background: var(--coral);
+  color: #fff;
 }
 
 .vendor-shell .chip-lime {

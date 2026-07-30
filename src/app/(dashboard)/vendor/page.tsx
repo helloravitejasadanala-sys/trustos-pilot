@@ -323,6 +323,11 @@ export default function TodayPage() {
     list[0] ? vendorProjectHref(list[0].slug, tab) : '/vendor/projects'
 
   const showMoneyGlance = liveProjects.length > 0
+  const moneyGlanceQuiet =
+    pendingPayments.length === 0 &&
+    balanceNudges.length === 0 &&
+    depositWaiting.length === 0 &&
+    moneySettled.length === 0
 
   const deadlines = useMemo(() => {
     return projects
@@ -437,14 +442,17 @@ export default function TodayPage() {
         </div>
         <Link
           href="/vendor/settings"
-          className="marker"
           style={{
             width: 40,
             height: 40,
             borderRadius: 11,
-            background: 'var(--forest)',
-            color: '#fff',
+            background: 'var(--lime)',
+            color: 'var(--lime-ink)',
             textDecoration: 'none',
+            display: 'grid',
+            placeItems: 'center',
+            font: '800 15px/1 var(--font-ui)',
+            flexShrink: 0,
           }}
           aria-label="Open settings"
           title="Settings"
@@ -468,6 +476,9 @@ export default function TodayPage() {
           {showMoneyGlance && (
             <div>
               <div className="kicker mb-2.5">Money at a glance</div>
+              {moneyGlanceQuiet ? (
+                <p className="m-0 text-[13.5px] text-[color:var(--muted)]">No payments moving yet</p>
+              ) : (
               <div className="today-money-glance" aria-label="Money at a glance">
                 <Link
                   href={moneyHref(pendingPayments)}
@@ -502,12 +513,13 @@ export default function TodayPage() {
                   <span className="today-money-tile__label">Deposit in</span>
                 </Link>
               </div>
+              )}
             </div>
           )}
 
           {/* Do This First */}
           <div>
-            <div className="kicker mb-2.5 text-[color:var(--coral-deep)]">● Do this first</div>
+            <div className="kicker mb-2.5 text-[color:var(--lime)]">● Do this first</div>
             <div className="action">
               <div className="flex gap-3 md:gap-5">
                 {focusProject && focusEventDate && !isNaN(focusEventDate.getTime()) && (
@@ -539,10 +551,10 @@ export default function TodayPage() {
                         {focusProject.client?.name || 'Client'} · {projectTypeLabel(focusProject.type || 'OTHER')}
                       </span>
                       {focusUi.chip === 'Payment' && <span className="chip chip-coral">Payment</span>}
-                      {focusUi.chip === 'Balance' && <span className="chip chip-amber">Balance</span>}
+                      {focusUi.chip === 'Balance' && <span className="chip chip-muted">Balance</span>}
                       {focusUi.chip === 'Message' && <span className="chip chip-coral">Message</span>}
                       {focusUi.chip === 'Delivery' && <span className="chip chip-coral">Delivery</span>}
-                      {focusUi.chip === 'Tomorrow' && <span className="chip chip-amber">Tomorrow</span>}
+                      {focusUi.chip === 'Tomorrow' && <span className="chip chip-muted">Tomorrow</span>}
                     </div>
                   )}
                   <div style={{ font: 'var(--t-h1)', marginBottom: 6 }}>{focusUi.headline}</div>
@@ -604,7 +616,7 @@ export default function TodayPage() {
                 <h2 style={{ font: 'var(--t-h2)', margin: 0 }}>Next up</h2>
                 <span className="num text-[12px] text-[color:var(--muted)]">{nextUp.length}</span>
               </div>
-              <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--amber)' }}>
+              <div className="panel overflow-hidden" style={{ borderLeft: '3px solid var(--lime)' }}>
                 {nextUp.map(item => {
                   const copy = queueCopy(item)
                   return (
@@ -625,7 +637,7 @@ export default function TodayPage() {
                           className={
                             copy.chip === 'Message' || copy.chip === 'Payment' || copy.chip === 'Delivery'
                               ? 'chip chip-coral'
-                              : 'chip chip-amber'
+                              : 'chip chip-muted'
                           }
                         >
                           {copy.chip}
@@ -665,7 +677,7 @@ export default function TodayPage() {
                             : na.nextAction}
                         </div>
                       </div>
-                      <span className="chip chip-lav">Waiting</span>
+                      <span className="chip chip-muted">Waiting</span>
                     </Link>
                   )
                 })}
@@ -685,9 +697,7 @@ export default function TodayPage() {
                 {servicesSoon.map(p => {
                   const d = new Date(p.eventDate!)
                   const na = getNextAction(p.status, bookingService(p, primaryService))
-                  const chip =
-                    na.responsible === 'Vendor' ? 'chip chip-amber' :
-                    na.responsible === 'Client' ? 'chip chip-lav' : 'chip chip-muted'
+                  const chip = 'chip chip-muted'
                   const chipLabel =
                     na.responsible === 'Vendor' ? 'Your turn' :
                     na.responsible === 'Client' ? 'Waiting' : 'Done'
