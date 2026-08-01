@@ -40,6 +40,11 @@ export async function sendProjectAgreement(projectId: string): Promise<SendAgree
     }
   }
 
+  // Standing rule: never rewrite content once signed (see agreement-immutability).
+  if (project.contract?.signedAt) {
+    return { ok: true, alreadySent: true }
+  }
+
   const serviceKey = project.service || project.vendor.primaryService
   const content =
     (project.contract?.content || '').trim() ||
@@ -68,6 +73,8 @@ export async function sendProjectAgreement(projectId: string): Promise<SendAgree
     where: { projectId: project.id },
     update: {
       sentAt: new Date(),
+      // Only fill content when empty — never overwrite an existing unsigned draft either
+      // unless it was cleared on purpose. Signed rows never reach here.
       ...(!hadContent ? { content } : {}),
     },
     create: { projectId: project.id, sentAt: new Date(), content },

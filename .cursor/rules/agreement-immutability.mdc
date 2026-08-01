@@ -1,0 +1,13 @@
+---
+description: Signed agreement content is immutable; never rewrite after the fact
+alwaysApply: true
+---
+
+# Agreement content immutability
+
+**Stored agreement `content` is immutable once signed** (`signedAt` is set).
+
+- Do not clear, rewrite, regenerate, or “fix the template” on signed contracts — including test fixtures and completed bookings.
+- Signed text is a record of what the client agreed to. Changing it after the fact is not a judgement call.
+- Unsigned content may be cleared or regenerated (e.g. empty `content` so `defaultAgreementContent` fills on next send) when explicitly requested.
+- When changing `defaultAgreementContent`, only new/empty contracts pick it up; leave existing signed rows alone.
