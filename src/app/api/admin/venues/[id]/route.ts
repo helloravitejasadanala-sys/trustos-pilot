@@ -51,9 +51,9 @@ export async function PATCH(
 
     // Intelligence fields — admin-only storage; never exposed on vendor APIs
     const intelKeys = [
-      'parking', 'power', 'restrictions', 'internet', 'dronePolicy',
-      'bestCeremonyArea', 'loadingArea', 'accessibility', 'preferredVendors',
-      'previousNotes', 'internalTeamNotes', 'trustScore', 'media',
+      'access', 'parking', 'power', 'restrictions', 'internet', 'lighting',
+      'dronePolicy', 'bestCeremonyArea', 'loadingArea', 'accessibility',
+      'preferredVendors', 'previousNotes', 'internalTeamNotes', 'trustScore', 'media',
     ] as const
 
     for (const key of intelKeys) {

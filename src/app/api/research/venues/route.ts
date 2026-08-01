@@ -2,17 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import {
+  firstPersonLikeField,
+  PLACES_NOT_PEOPLE_REASON,
+} from '@/lib/venue-research-guard'
 
 function trim(v: unknown, max = 500) {
   if (typeof v !== 'string') return ''
   return v.trim().slice(0, max)
 }
 
+const INTEL_MAX = 120
+const TIP_MAX = 200
+
 /**
  * Public venue research intake.
- * Supports:
- * - Classic admin archive form (name/address/city/country + contributor)
- * - Fast experience survey (under a minute — venue + role + issues; tip optional)
+ * Experience survey (v3): venue + role + issue chips + structured intel fields.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -34,15 +39,27 @@ export async function POST(req: NextRequest) {
         ? { ...(body.answers as Record<string, unknown>) }
         : {}
 
+    let access: string | null = null
+    let power: string | null = null
+    let internet: string | null = null
+    let lighting: string | null = null
+    let restrictions: string | null = null
+
     if (isExperience) {
       const role = trim(body.role ?? answers.contributor_role, 40)
-      const advice = trim(body.advice ?? answers.advice_for_next_professional, 200)
+      const advice = trim(body.advice ?? answers.advice_for_next_professional, TIP_MAX)
       const issuesRaw = body.issues ?? answers.issues ?? answers.primary_challenge
       const issues = Array.isArray(issuesRaw)
         ? issuesRaw.map(v => trim(v, 80)).filter(Boolean).slice(0, 3)
         : trim(issuesRaw, 200)
           ? [trim(issuesRaw, 200)]
           : []
+
+      access = trim(body.access, INTEL_MAX) || null
+      power = trim(body.power, INTEL_MAX) || null
+      internet = trim(body.internet, INTEL_MAX) || null
+      lighting = trim(body.lighting, INTEL_MAX) || null
+      restrictions = trim(body.restrictions, INTEL_MAX) || null
 
       if (!venueName || venueName.length < 2) {
         return NextResponse.json({ error: 'Add a venue name to continue.' }, { status: 400 })
@@ -56,16 +73,26 @@ export async function POST(req: NextRequest) {
       if (issues.length === 0) {
         return NextResponse.json({ error: 'Pick at least one real issue.' }, { status: 400 })
       }
-      // Tip is optional — venue + role + issues already carry the signal.
+
+      const personField = firstPersonLikeField({
+        access,
+        power,
+        internet,
+        lighting,
+        restrictions,
+        tip: advice,
+      })
+      if (personField) {
+        return NextResponse.json({ error: PLACES_NOT_PEOPLE_REASON }, { status: 400 })
+      }
 
       answers.form = 'venue_experience'
-      answers.survey_version = '2.1.0'
+      answers.survey_version = '3.0.0'
       answers.contributor_role = role
       answers.issues = issues
       answers.primary_challenge = issues[0]
       answers.advice_for_next_professional = advice
 
-      // UK pilot — no Maps / email / country picker on the form.
       address = address || `${venueName}, ${city}`
       country = 'United Kingdom'
       contributorName = contributorName || 'Anonymous contributor'
@@ -111,6 +138,9 @@ export async function POST(req: NextRequest) {
         workspaceId,
         status: 'PENDING',
         answers: answers as Prisma.InputJsonValue,
+        ...(isExperience
+          ? { access, power, internet, lighting, restrictions }
+          : {}),
       },
       select: { id: true, status: true, submittedAt: true },
     })

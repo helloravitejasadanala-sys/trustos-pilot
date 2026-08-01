@@ -568,10 +568,13 @@ model VenueResearch {
   answers           Json                @default("{}")
 
   // Future intelligence — admin-only later; never expose to vendors in Phase 1
+  // access + lighting align with VenueNote for option-C import later
+  access            String?             @db.Text
   parking           String?             @db.Text
   power             String?             @db.Text
   restrictions      String?             @db.Text
   internet          String?             @db.Text
+  lighting          String?             @db.Text
   dronePolicy       String?             @map("drone_policy") @db.Text
   bestCeremonyArea  String?             @map("best_ceremony_area") @db.Text
   loadingArea       String?             @map("loading_area") @db.Text

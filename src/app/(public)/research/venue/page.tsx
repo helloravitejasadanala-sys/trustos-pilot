@@ -1,8 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { parseJsonResponse } from '@/lib/safe-json'
+import {
+  firstPersonLikeField,
+  PLACES_NOT_PEOPLE_REASON,
+} from '@/lib/venue-research-guard'
 
 /** Who was on site — filter intel per trade later. */
 const ROLES = [
@@ -17,20 +21,30 @@ const ROLES = [
   { value: 'OTHER', label: 'Other' },
 ] as const
 
-/** Real problems the next vendor needs to know. */
+/** Place-shaped issues — no “venue team / staff” (invites naming people). */
 const ISSUES = [
-  { value: 'Parking / drop-off', label: 'Parking' },
-  { value: 'Load-in / access', label: 'Load-in' },
-  { value: 'Power', label: 'Power' },
-  { value: 'Internet / mobile signal', label: 'Signal' },
-  { value: 'Lighting', label: 'Lighting' },
-  { value: 'Noise / quiet space', label: 'Noise' },
-  { value: 'Venue staff / coordination', label: 'Venue team' },
-  { value: 'Timing / run of show', label: 'Timing' },
-  { value: 'Restrictions (rules)', label: 'Rules' },
-  { value: 'Space / staging', label: 'Space' },
-  { value: 'Other', label: 'Other' },
+  { value: 'Parking / drop-off', label: 'Parking', focus: null },
+  { value: 'Load-in / access', label: 'Load-in', focus: 'access' as const },
+  { value: 'Power', label: 'Power', focus: 'power' as const },
+  { value: 'Internet / mobile signal', label: 'Signal', focus: 'internet' as const },
+  { value: 'Lighting', label: 'Lighting', focus: 'lighting' as const },
+  { value: 'Noise / quiet space', label: 'Noise', focus: null },
+  { value: 'Timing / run of show', label: 'Timing', focus: null },
+  { value: 'Restrictions (rules)', label: 'Rules', focus: 'restrictions' as const },
+  { value: 'Space / staging', label: 'Space', focus: null },
+  { value: 'Other', label: 'Other', focus: null },
 ] as const
+
+const INTEL_FIELDS = [
+  { key: 'access' as const, label: 'Access', placeholder: 'Side gate, locked after 6pm' },
+  { key: 'power' as const, label: 'Power', placeholder: 'One socket by the stage' },
+  { key: 'internet' as const, label: 'Internet', placeholder: 'No signal in the basement' },
+  { key: 'lighting' as const, label: 'Lighting', placeholder: 'East room goes dark by 4pm' },
+  { key: 'restrictions' as const, label: 'Restrictions', placeholder: 'No drone, no confetti' },
+]
+
+const PLACES_BANNER =
+  'Write about the place, not the people. No names, no “the manager”, no staff — only rooms, doors, power, signal, rules.'
 
 const PROGRESS_NOTES = [
   'Three quick steps',
@@ -39,14 +53,22 @@ const PROGRESS_NOTES = [
 ] as const
 
 const TIP_LIMIT = 200
+const INTEL_LIMIT = 120
 const MAX_ISSUES = 3
 const TOTAL_STEPS = 3
+
+type IntelKey = (typeof INTEL_FIELDS)[number]['key']
 
 type FormState = {
   venue: string
   city: string
   role: string
   issues: string[]
+  access: string
+  power: string
+  internet: string
+  lighting: string
+  restrictions: string
   tip: string
 }
 
@@ -55,6 +77,11 @@ const EMPTY: FormState = {
   city: '',
   role: '',
   issues: [],
+  access: '',
+  power: '',
+  internet: '',
+  lighting: '',
+  restrictions: '',
   tip: '',
 }
 
@@ -64,10 +91,19 @@ export default function VenueResearchFormPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  const [focusField, setFocusField] = useState<IntelKey | null>(null)
 
   const roleLabel = ROLES.find(r => r.value === form.role)?.label || form.role
 
-  function toggleIssue(value: string) {
+  const highlighted = useMemo(() => {
+    const keys = new Set<IntelKey>()
+    for (const issue of ISSUES) {
+      if (form.issues.includes(issue.value) && issue.focus) keys.add(issue.focus)
+    }
+    return keys
+  }, [form.issues])
+
+  function toggleIssue(value: string, focus: IntelKey | null) {
     setForm(f => {
       if (f.issues.includes(value)) {
         return { ...f, issues: f.issues.filter(i => i !== value) }
@@ -75,7 +111,20 @@ export default function VenueResearchFormPage() {
       if (f.issues.length >= MAX_ISSUES) return f
       return { ...f, issues: [...f.issues, value] }
     })
+    if (focus) setFocusField(focus)
     setError('')
+  }
+
+  function personBlockReason(): string | null {
+    const hit = firstPersonLikeField({
+      access: form.access,
+      power: form.power,
+      internet: form.internet,
+      lighting: form.lighting,
+      restrictions: form.restrictions,
+      tip: form.tip,
+    })
+    return hit ? PLACES_NOT_PEOPLE_REASON : null
   }
 
   function validateStep(n: number): string | null {
@@ -89,11 +138,23 @@ export default function VenueResearchFormPage() {
       if (form.tip.trim().length > TIP_LIMIT) {
         return `Keep the tip under ${TIP_LIMIT} characters.`
       }
+      for (const f of INTEL_FIELDS) {
+        if (form[f.key].trim().length > INTEL_LIMIT) {
+          return `Keep ${f.label.toLowerCase()} under ${INTEL_LIMIT} characters.`
+        }
+      }
+      const person = personBlockReason()
+      if (person) return person
     }
     return null
   }
 
   async function submit() {
+    const person = personBlockReason()
+    if (person) {
+      setError(person)
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
@@ -108,6 +169,11 @@ export default function VenueResearchFormPage() {
           country: 'United Kingdom',
           role: form.role,
           issues: form.issues,
+          access: form.access.trim(),
+          power: form.power.trim(),
+          internet: form.internet.trim(),
+          lighting: form.lighting.trim(),
+          restrictions: form.restrictions.trim(),
           advice: form.tip.trim(),
         }),
       })
@@ -145,6 +211,7 @@ export default function VenueResearchFormPage() {
     setStep(1)
     setError('')
     setDone(false)
+    setFocusField(null)
   }
 
   return (
@@ -172,6 +239,15 @@ export default function VenueResearchFormPage() {
         </header>
 
         {!done && (
+          <div
+            className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-3 text-[13px] leading-snug text-ink-800"
+            role="note"
+          >
+            {PLACES_BANNER}
+          </div>
+        )}
+
+        {!done && (
           <div className="mb-5 mt-5">
             <div className="grid grid-cols-3 gap-1.5">
               {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
@@ -195,7 +271,7 @@ export default function VenueResearchFormPage() {
           <div className="mt-6 rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
             <p className="serif text-[26px] leading-tight text-ink-900">Saved — thank you.</p>
             <p className="mt-2 text-[14px] text-ink-500">
-              That tip is now in the TrustOS research archive for this venue.
+              Saved to the research archive. Tips about places help the next vendor; we don&apos;t keep notes about people.
             </p>
             <dl className="mt-5 space-y-2.5 rounded-xl bg-sand-50 px-4 py-3 text-[13.5px]">
               <div className="flex justify-between gap-3">
@@ -213,9 +289,6 @@ export default function VenueResearchFormPage() {
                 <dd className="text-right font-medium text-ink-900">{form.issues.join(', ')}</dd>
               </div>
             </dl>
-            <p className="mt-4 border-l-2 border-forest-200 pl-3 text-[14px] italic text-ink-600">
-              “{form.tip.trim()}”
-            </p>
             <button type="button" className="btn btn-ghost mt-6 w-full" onClick={reset}>
               Add another venue
             </button>
@@ -274,7 +347,7 @@ export default function VenueResearchFormPage() {
             {step === 2 && (
               <fieldset className="min-w-0 border-0 p-0">
                 <legend className="serif text-[22px] leading-snug text-ink-900">
-                  What went wrong on site?
+                  What was rough on site?
                 </legend>
                 <p className="mt-2 text-[13.5px] text-ink-500">
                   Your role, then up to {MAX_ISSUES} issues — required.
@@ -314,7 +387,7 @@ export default function VenueResearchFormPage() {
                         key={issue.value}
                         type="button"
                         disabled={full}
-                        onClick={() => toggleIssue(issue.value)}
+                        onClick={() => toggleIssue(issue.value, issue.focus)}
                         className={`min-h-[48px] rounded-xl border px-3 py-3 text-left text-[14px] font-medium transition disabled:opacity-40 ${
                           active
                             ? 'border-forest-700 bg-forest-50 text-forest-950'
@@ -335,32 +408,73 @@ export default function VenueResearchFormPage() {
             {step === 3 && (
               <fieldset className="min-w-0 border-0 p-0">
                 <legend className="serif text-[22px] leading-snug text-ink-900">
-                  One tip for the next vendor
+                  What should the next vendor know?
                 </legend>
                 <p className="mt-2 text-[13.5px] text-ink-500">
-                  Optional. A short note helps — skip if you have nothing useful.
+                  Optional shorts — fill what you remember. Skip the rest.
                 </p>
+
+                <div className="mt-5 space-y-3">
+                  {INTEL_FIELDS.map(field => {
+                    const hot = highlighted.has(field.key) || focusField === field.key
+                    return (
+                      <div key={field.key}>
+                        <label className="label" htmlFor={field.key}>
+                          {field.label}
+                          {hot ? (
+                            <span className="ml-1.5 text-[11px] font-semibold text-forest-700">
+                              from your tags
+                            </span>
+                          ) : null}
+                        </label>
+                        <input
+                          id={field.key}
+                          className={`w-full text-base ${
+                            hot ? 'border-forest-400 ring-1 ring-forest-200' : ''
+                          }`}
+                          maxLength={INTEL_LIMIT}
+                          value={form[field.key]}
+                          onChange={e => {
+                            setForm(f => ({ ...f, [field.key]: e.target.value }))
+                            setError('')
+                          }}
+                          placeholder={field.placeholder}
+                          autoComplete="off"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+
                 <label className="label mt-5" htmlFor="tip">
-                  Tip
+                  Anything else?
                 </label>
                 <textarea
                   id="tip"
                   className="w-full text-base"
-                  rows={3}
+                  rows={2}
                   maxLength={TIP_LIMIT}
                   value={form.tip}
-                  onChange={e => setForm(f => ({ ...f, tip: e.target.value }))}
-                  placeholder="e.g. Load in via rear gate — main door has a step, no ramp. Power is behind the bar."
-                  autoFocus
+                  onChange={e => {
+                    setForm(f => ({ ...f, tip: e.target.value }))
+                    setError('')
+                  }}
+                  placeholder="e.g. Dancefloor is under a low beam — tall kit won’t fit."
                 />
-                <p className="mt-1.5 text-right text-[12px] text-ink-400">
+                <p className="mt-1.5 text-[12.5px] text-ink-500">
+                  Places only — skip names and staff.
+                </p>
+                <p className="mt-1 text-right text-[12px] text-ink-400">
                   {form.tip.length}/{TIP_LIMIT}
                 </p>
               </fieldset>
             )}
 
             {error && (
-              <div className="mt-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              <div
+                className="mt-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="alert"
+              >
                 {error}
               </div>
             )}
