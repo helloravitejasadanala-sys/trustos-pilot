@@ -38,6 +38,8 @@ import {
   deliveryOpenCopy,
   getServiceProfile,
   journeyStagesForService,
+  markCompleteCta,
+  markCompleteHint,
   prepFieldLabels,
   prepSaveLabel,
   projectTypesForService,
@@ -642,13 +644,13 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             action: () => selectTab('Prep'),
           }
         }
-        return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
+        return { label: na.ctaLabel || markCompleteCta(primaryService), action: completeDelivery }
       }
       case 'FULLY_PAID':
         if (serviceProfile.features.showDelivery) {
           return { label: na.ctaLabel || 'Add delivery →', action: () => selectTab('Delivery') }
         }
-        return { label: na.ctaLabel || 'Mark service complete →', action: completeDelivery }
+        return { label: na.ctaLabel || markCompleteCta(primaryService), action: completeDelivery }
       case 'COMPLETED': {
         const rescueBalance = needsScheduleBalanceRequest({
           status: project.status,
@@ -1692,13 +1694,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
               }).ok && (
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
                 <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 10px' }}>
-                  When the{' '}
-                  {serviceProfile.key === 'DJ'
-                    ? 'performance'
-                    : serviceProfile.key === 'PHOTO_EDITOR' || serviceProfile.key === 'VIDEO_EDITOR'
-                      ? 'edit'
-                      : 'appointment'}{' '}
-                  is done, mark it complete.
+                  {markCompleteHint(primaryService)}
                 </p>
                 <button
                   type="button"
@@ -1706,13 +1702,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   disabled={!!busy}
                   onClick={() => run('complete', completeDelivery)}
                 >
-                  {serviceProfile.key === 'DJ'
-                    ? 'Mark performance complete →'
-                    : serviceProfile.key === 'MAKEUP_ARTIST'
-                      ? 'Mark appointment complete →'
-                      : serviceProfile.key === 'PHOTO_EDITOR' || serviceProfile.key === 'VIDEO_EDITOR'
-                        ? 'Mark editing complete →'
-                        : 'Mark service complete →'}
+                  {markCompleteCta(primaryService)}
                 </button>
               </div>
             )}
@@ -1779,7 +1769,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
               </span>
               <div style={{ font: 'var(--t-h2)' }}>{deliveryLockedCopy(primaryService)}</div>
               <p style={{ fontSize: 13, color: 'var(--on-dark-mut)', maxWidth: '40ch', margin: '5px auto 16px' }}>
-                When you are ready, mark the service complete — then add the link for {clientName}.
+                {markCompleteHint(primaryService)}
               </p>
               <div style={{ marginTop: 8 }}>
                 <button
@@ -1788,7 +1778,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                   disabled={!!busy}
                   onClick={() => run('complete', completeDelivery)}
                 >
-                  Mark service complete →
+                  {markCompleteCta(primaryService)}
                 </button>
               </div>
             </div>
@@ -1796,15 +1786,23 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
             <>
               {!vendorClosed && (project.status === 'COMPLETED' || progress.service) && (
                 <div className="banner banner-success">
-                  Service marked complete — add the {deliveryOpenCopy(primaryService).title.toLowerCase()} link below.
+                  {serviceProfile.key === 'PHOTO_EDITOR'
+                    ? 'Editing marked complete — add the exports link below.'
+                    : serviceProfile.key === 'VIDEO_EDITOR'
+                      ? 'Final cut marked complete — add the link below.'
+                      : `Service marked complete — add the ${deliveryOpenCopy(primaryService).title.toLowerCase()} link below.`}
                 </div>
               )}
               {!vendorClosed && !(project.status === 'COMPLETED' || progress.service) && (
                 <div>
                   <button type="button" className="btn btn-lime" disabled={!!busy} onClick={() => run('complete', completeDelivery)}>
-                    Mark service complete →
+                    {markCompleteCta(primaryService)}
                   </button>
-                  <p style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)' }}>Do this once the service has taken place.</p>
+                  <p style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)' }}>
+                    {serviceProfile.key === 'PHOTO_EDITOR' || serviceProfile.key === 'VIDEO_EDITOR'
+                      ? 'Do this once editing is finished.'
+                      : 'Do this once the service has taken place.'}
+                  </p>
                 </div>
               )}
 

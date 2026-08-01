@@ -180,6 +180,8 @@ enum ProjectType {
   MAKEUP
   EVENT_PLANNING
   DJ
+  PHOTO_EDIT
+  VIDEO_EDIT
 }
 
 model Questionnaire {

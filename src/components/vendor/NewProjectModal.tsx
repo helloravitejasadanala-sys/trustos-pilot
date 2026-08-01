@@ -58,6 +58,7 @@ export default function NewProjectModal({
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail.trim())
   const canCreate = title.trim().length > 0 && emailValid
+  const isEditor = service === 'PHOTO_EDITOR' || service === 'VIDEO_EDITOR'
 
   async function create() {
     if (!canCreate || saving) return
@@ -71,7 +72,8 @@ export default function NewProjectModal({
           service,
           type,
           eventDate: eventDate || undefined,
-          location: location || undefined,
+          // Editors have no physical venue — omit rather than invent a location.
+          location: isEditor ? undefined : location || undefined,
           clientName: clientName.trim() || undefined,
           clientEmail: clientEmail.trim() || undefined,
           clientPhone: clientPhone.trim() || undefined,
@@ -152,24 +154,26 @@ export default function NewProjectModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className={isEditor ? 'min-w-0' : 'grid grid-cols-1 gap-4 sm:grid-cols-2'}>
             <div className="min-w-0">
               <label className="label">Service date</label>
               <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full max-w-full" />
             </div>
-            <div className="min-w-0">
-              <label className="label">Location</label>
-              <input
-                value={location}
-                onChange={e => setLocation(e.target.value)}
-                onBlur={() => setLookupLocation(location.trim())}
-                placeholder="e.g. City or venue"
-                className="w-full max-w-full"
-              />
-            </div>
+            {!isEditor && (
+              <div className="min-w-0">
+                <label className="label">Location</label>
+                <input
+                  value={location}
+                  onChange={e => setLocation(e.target.value)}
+                  onBlur={() => setLookupLocation(location.trim())}
+                  placeholder="e.g. City or venue"
+                  className="w-full max-w-full"
+                />
+              </div>
+            )}
           </div>
 
-          <VenueMemoryPanel location={lookupLocation} city="" variant="modal" />
+          {!isEditor && <VenueMemoryPanel location={lookupLocation} city="" variant="modal" />}
 
           <div className="min-w-0 space-y-4 rounded-xl border border-forest-100 bg-forest-50/40 p-3.5 sm:p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-forest-600">Client</p>

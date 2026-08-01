@@ -694,10 +694,34 @@ export function prepSaveLabel(service?: string | null): string {
 export function deliveryLockedCopy(service?: string | null): string {
   const key = getServiceProfile(service).key
   if (key === 'PHOTO_EDITOR') return 'Export links unlock after editing starts.'
-  if (key === 'VIDEO_EDITOR') return 'Final cut links unlock when exports are ready.'
+  if (key === 'VIDEO_EDITOR') return 'Final cut links unlock after editing starts.'
   const kind = getServiceProfile(service).features.deliverableKind
   if (kind === 'recording') return 'Recording links unlock after the live event.'
   return 'Gallery links unlock after the shoot.'
+}
+
+/** CTA for marking mid-journey work done (before / with delivery). */
+export function markCompleteCta(service?: string | null): string {
+  const key = getServiceProfile(service).key
+  if (key === 'PHOTO_EDITOR') return 'Mark editing complete →'
+  if (key === 'VIDEO_EDITOR') return 'Mark final cut complete →'
+  if (key === 'DJ') return 'Mark performance complete →'
+  if (key === 'MAKEUP_ARTIST') return 'Mark appointment complete →'
+  return 'Mark service complete →'
+}
+
+/** Short helper under locked delivery / money complete prompts. */
+export function markCompleteHint(service?: string | null): string {
+  const key = getServiceProfile(service).key
+  if (key === 'PHOTO_EDITOR') {
+    return 'When editing is done, mark it complete — then add the export link.'
+  }
+  if (key === 'VIDEO_EDITOR') {
+    return 'When the final cut is ready, mark it complete — then add the link.'
+  }
+  if (key === 'DJ') return 'When the performance is done, mark it complete.'
+  if (key === 'MAKEUP_ARTIST') return 'When the appointment is done, mark it complete.'
+  return 'When you are ready, mark the service complete — then add the delivery link.'
 }
 
 export function deliveryOpenCopy(service?: string | null): { title: string; addLabel: string } {
