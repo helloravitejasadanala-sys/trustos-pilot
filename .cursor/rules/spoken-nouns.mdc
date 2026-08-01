@@ -1,0 +1,15 @@
+---
+description: Canonical spoken nouns for TrustOS UI (booking vs project vs job vs event)
+alwaysApply: true
+---
+
+# Spoken nouns (locked decision — apply Monday in one pass)
+
+- **booking** — primary noun in all spoken / visible UI (vendor and client).
+- **/projects** — keep in URLs and code identifiers (`/vendor/projects`, `projectId`, etc.). Do not rename routes in the Monday copy pass unless explicitly asked.
+- **job** — only as a *type* label if needed (prefer “booking type”). Never “open any job”, “add the job”, etc.
+- **event** — only when the booking genuinely is an event. Prefer booking / session / appointment for other services.
+
+Do not mix Projects / booking / job in the same vendor sentence. Client-facing share text and portal headers must not say “project” or overclaim “secure”.
+
+Related parked work: Money tab simplification canvas + voice audit — revisit with tester evidence; do not preempt with broad rewrites.

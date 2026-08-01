@@ -126,7 +126,7 @@ export default function ClientFormModal({
         <div className="space-y-4 p-5">
           <div>
             <label className="label">Name <span className="text-red-400">*</span></label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Sarah Test" autoFocus />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Priya Sharma" autoFocus />
           </div>
           <div>
             <label className="label">Email <span className="text-red-400">*</span></label>

@@ -322,7 +322,7 @@ This is placeholder wording for the pilot and has not been reviewed by a solicit
     proposalTitle: 'One-Year Motherhood Journey',
     proposalDesc: 'A year of sessions capturing your journey into motherhood — maternity, newborn, six months and first birthday, with a final printed collection.',
     price: 2400, deposit: 400,
-    clientName: 'Sarah Test', clientEmail: 'sarah.test@minimomentz.demo',
+    clientName: 'Priya Sharma', clientEmail: 'sarah.test@minimomentz.demo',
     demoToken: 'demo-minimomentz-motherhood-0000000000000000000000',
     milestones: ['Consultation', 'Maternity session', 'Newborn session', 'Six-month session', 'First birthday', 'Final collection'],
   })
@@ -332,7 +332,7 @@ This is placeholder wording for the pilot and has not been reviewed by a solicit
     proposalTitle: 'Two-Camera Wedding Live Stream',
     proposalDesc: 'A professional two-camera live stream of your wedding, with an internet check, a stream test beforehand, and a recording delivered afterwards.',
     price: 900, deposit: 200,
-    clientName: 'James Test', clientEmail: 'james.test@agaralive.demo',
+    clientName: 'James Okonkwo', clientEmail: 'james.test@agaralive.demo',
     demoToken: 'demo-agaralive-wedding-000000000000000000000000000',
     milestones: ['Booking', 'Requirements', 'Internet check', 'Stream test', 'Live event', 'Recording delivery', 'Completion'],
   })
