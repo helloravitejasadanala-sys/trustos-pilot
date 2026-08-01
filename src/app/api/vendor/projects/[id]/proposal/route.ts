@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { trackEvent } from '@/lib/analytics'
-import { isStripeCheckoutReady, normalizePaymentMethod } from '@/lib/stripe-config'
+import { isStripePortalPayAvailable, normalizePaymentMethod } from '@/lib/stripe-config'
 import { applyDefaultPaymentStages } from '@/lib/apply-default-stages'
 
 export const dynamic = 'force-dynamic'
@@ -36,8 +36,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const method = normalizePaymentMethod(b.method)
     const free = method === 'free'
 
-    // Card checkout stays off until Elements are wired (STRIPE_CHECKOUT_ENABLED).
-    if (method === 'stripe' && !isStripeCheckoutReady()) {
+    // Same gate as the client portal — never offer Stripe on a quote if the
+    // portal cannot actually take a card (env flag alone is not enough).
+    if (method === 'stripe' && !isStripePortalPayAvailable()) {
       return NextResponse.json(
         { error: 'Online card payment is not available in this pilot yet. Choose Manual transfer or Free collaboration.' },
         { status: 400 }

@@ -116,7 +116,8 @@ export default function AdminPilotUsersPage() {
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Pilot Users</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Vendors and admins. Issue a one-time password reset link when someone is locked out.
+          Vendors and admins. Forgot-password requests from sign-in land here — copy a
+          one-time link and send it yourself (no email goes out automatically).
         </p>
       </div>
 
@@ -138,8 +139,11 @@ export default function AdminPilotUsersPage() {
       {resets.length > 0 && (
         <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
           <div className="text-[13px] font-semibold text-ink-900">
-            {resets.length} pending password reset {resets.length === 1 ? 'request' : 'requests'}
+            {resets.length} pending forgot-password {resets.length === 1 ? 'request' : 'requests'}
           </div>
+          <p className="mt-1 text-[12px] text-ink-600">
+            Someone used Reset password on sign-in. Copy a fresh link and send it to them.
+          </p>
           <ul className="mt-2 space-y-2">
             {resets.slice(0, 8).map(r => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">

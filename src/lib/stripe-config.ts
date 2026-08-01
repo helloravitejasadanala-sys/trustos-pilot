@@ -27,8 +27,8 @@ export function isStripeConfigured(): boolean {
 }
 
 /**
- * Env + keys gate used by vendor quote UI / server PaymentIntent path.
- * Does NOT mean the client portal can take cards — see isStripePortalPayAvailable.
+ * Env + keys gate for server PaymentIntent / webhook plumbing.
+ * Does NOT mean the client can pay by card — see isStripePortalPayAvailable.
  */
 export function isStripeCheckoutReady(): boolean {
   if (!isStripeConfigured()) return false
@@ -36,8 +36,9 @@ export function isStripeCheckoutReady(): boolean {
 }
 
 /**
- * Client portal "Pay online" — only when Elements UI is actually wired.
- * Env flag alone must never show a dead button. Keep false until Elements ship.
+ * Real card-pay capability for BOTH vendor quote method selector and client
+ * portal. Env/keys alone must never show "Pay securely online" — keep false
+ * until Elements (or equivalent) actually works end-to-end on /p/[token].
  */
 export function isStripePortalPayAvailable(): boolean {
   return false

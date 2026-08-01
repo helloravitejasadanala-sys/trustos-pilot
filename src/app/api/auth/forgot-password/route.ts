@@ -11,8 +11,8 @@ const schema = z.object({
 
 /**
  * Request a password reset. Always returns the same success shape
- * (no account enumeration). Token is stored hashed; support copies
- * the raw link from Admin → Pilot Users until transactional email ships.
+ * (no account enumeration). No email is sent — a hashed token is queued
+ * and a human copies a fresh link from Admin → Pilot Users.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       message:
-        'If that email has a workspace, a reset link is ready for support to send you within one business day.',
+        'If that email has a workspace, your request is saved for the TrustOS team. No reset email is sent automatically.',
     })
   } catch (error: any) {
     if (error instanceof z.ZodError) {

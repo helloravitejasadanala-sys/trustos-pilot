@@ -15,6 +15,7 @@ type Overview = {
     verifiedVenues: number
     totalResearchContributors: number
     feedbackWaiting: number
+    pendingPasswordResets: number
     systemStatus: string
   }
   recentActivities: Array<{
@@ -51,6 +52,7 @@ const CARD_META: Array<{ key: keyof Overview['cards']; label: string; href?: str
   { key: 'verifiedVenues', label: 'Verified venues', href: '/admin/venues?status=VERIFIED' },
   { key: 'totalVenues', label: 'All venues', href: '/admin/venues' },
   { key: 'feedbackWaiting', label: 'Unread feedback', href: '/admin/feedback?status=UNREAD' },
+  { key: 'pendingPasswordResets', label: 'Password resets', href: '/admin/users' },
   { key: 'totalResearchContributors', label: 'Contributors', href: '/admin/contributors' },
   { key: 'systemStatus', label: 'System', href: '/admin/health' },
 ]
@@ -96,11 +98,16 @@ export default function AdminOverviewPage() {
   }
 
   const nextAction =
-    data.cards.pendingVenueReviews > 0
-      ? { label: `Review ${data.cards.pendingVenueReviews} pending venue${data.cards.pendingVenueReviews === 1 ? '' : 's'}`, href: '/admin/venues?status=PENDING' }
-      : data.cards.feedbackWaiting > 0
-        ? { label: `Read ${data.cards.feedbackWaiting} unread feedback`, href: '/admin/feedback?status=UNREAD' }
-        : null
+    data.cards.pendingPasswordResets > 0
+      ? {
+          label: `Issue ${data.cards.pendingPasswordResets} password reset${data.cards.pendingPasswordResets === 1 ? '' : 's'}`,
+          href: '/admin/users',
+        }
+      : data.cards.pendingVenueReviews > 0
+        ? { label: `Review ${data.cards.pendingVenueReviews} pending venue${data.cards.pendingVenueReviews === 1 ? '' : 's'}`, href: '/admin/venues?status=PENDING' }
+        : data.cards.feedbackWaiting > 0
+          ? { label: `Read ${data.cards.feedbackWaiting} unread feedback`, href: '/admin/feedback?status=UNREAD' }
+          : null
 
   return (
     <div className="space-y-6">

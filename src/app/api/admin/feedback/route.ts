@@ -10,10 +10,24 @@ export async function GET(req: NextRequest) {
     await requireAuth(['ADMIN'])
 
     const status = req.nextUrl.searchParams.get('status')
-    const where =
-      status && STATUSES.includes(status as PilotFeedbackStatus)
-        ? { status: status as PilotFeedbackStatus }
-        : {}
+    const kind = (req.nextUrl.searchParams.get('kind') || 'feedback').toLowerCase()
+
+    const where: {
+      status?: PilotFeedbackStatus
+      source?: string | { not: string }
+    } = {}
+
+    if (status && STATUSES.includes(status as PilotFeedbackStatus)) {
+      where.status = status as PilotFeedbackStatus
+    }
+
+    // Demo requests must stay separable from bug/product feedback.
+    if (kind === 'demo') {
+      where.source = 'request_demo'
+    } else if (kind === 'feedback') {
+      where.source = { not: 'request_demo' }
+    }
+    // kind=all → no source filter
 
     const feedback = await prisma.pilotFeedback.findMany({
       where,

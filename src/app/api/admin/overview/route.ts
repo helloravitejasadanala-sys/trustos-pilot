@@ -15,6 +15,7 @@ export async function GET() {
       pendingVenueReviews,
       verifiedVenues,
       feedbackWaiting,
+      pendingPasswordResets,
       recentActivities,
       newestVenues,
       newestPilotUsers,
@@ -29,6 +30,9 @@ export async function GET() {
       prisma.venueResearch.count({ where: { status: 'PENDING' } }),
       prisma.venueResearch.count({ where: { status: 'VERIFIED' } }),
       prisma.pilotFeedback.count({ where: { status: 'UNREAD' } }),
+      prisma.passwordResetToken.count({
+        where: { usedAt: null, expiresAt: { gt: new Date() } },
+      }),
       prisma.activityLog.findMany({
         take: 12,
         orderBy: { createdAt: 'desc' },
@@ -80,6 +84,7 @@ export async function GET() {
         verifiedVenues,
         totalResearchContributors: distinctContributors.length,
         feedbackWaiting,
+        pendingPasswordResets,
         systemStatus: dbOk ? 'ok' : 'degraded',
       },
       recentActivities,

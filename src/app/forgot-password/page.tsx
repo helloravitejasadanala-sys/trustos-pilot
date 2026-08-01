@@ -8,10 +8,13 @@ import { PRODUCT_BADGE, PRODUCT_NAME } from '@/lib/brand'
 import { AuthCard, AuthLayout } from '@/components/layout'
 import { parseJsonResponse } from '@/lib/safe-json'
 
+const SUPPORT_MAIL =
+  'mailto:support@trustos.app?subject=Password%20reset%20%E2%80%94%20locked%20out&body=Hi%20TrustOS%2C%0A%0AI%20need%20a%20password%20reset.%0AWorkspace%20email%3A%20'
+
 /**
- * Pilot: no transactional email yet. Submitting an email creates a hashed
- * reset token; TrustOS support copies the one-time link from Admin and
- * sends it to the vendor within one business day.
+ * Pilot: no transactional email. Submitting queues a hashed reset token for
+ * Admin → Pilot Users. A human copies the one-time link and sends it —
+ * nothing arrives in the vendor's inbox automatically.
  */
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -31,13 +34,15 @@ export default function ForgotPasswordPage() {
       const parsed = await parseJsonResponse<{ message?: string; error?: string }>(res)
       if (!parsed.ok) throw new Error(parsed.data.error || 'Could not submit request')
       setDone(true)
-      toast.success('Request received')
+      toast.success('Request saved — no email is sent automatically')
     } catch (err: any) {
       toast.error(err.message || 'Could not submit request')
     } finally {
       setLoading(false)
     }
   }
+
+  const supportHref = `${SUPPORT_MAIL}${encodeURIComponent(email.trim())}`
 
   return (
     <AuthLayout brandName={PRODUCT_NAME} brandBadge={PRODUCT_BADGE}>
@@ -52,13 +57,22 @@ export default function ForgotPasswordPage() {
         {done ? (
           <>
             <p className="mt-3 text-sm leading-relaxed text-ink-500">
-              If <strong>{email.trim()}</strong> has a workspace, TrustOS support will email
-              you a one-time reset link within one business day (check spam). Your request is
-              already queued for the team.
+              Request saved for <strong className="text-ink-700">{email.trim()}</strong>.
+              No reset email is sent automatically — a person on the TrustOS team
+              issues the link by hand.
             </p>
+            <p className="mt-3 text-sm leading-relaxed text-ink-500">
+              If you&apos;re locked out now, message us directly rather than waiting:
+            </p>
+            <a
+              href={supportHref}
+              className="btn-primary mt-5 inline-flex w-full items-center justify-center bg-forest-800 py-3.5 hover:bg-forest-900"
+            >
+              Email support@trustos.app
+            </a>
             <Link
               href="/login"
-              className="btn-primary mt-6 inline-flex w-full items-center justify-center bg-forest-800 py-3.5 hover:bg-forest-900"
+              className="mt-4 inline-flex w-full items-center justify-center text-sm text-ink-400 transition hover:text-forest-700"
             >
               Back to sign in
             </Link>
@@ -66,8 +80,8 @@ export default function ForgotPasswordPage() {
         ) : (
           <>
             <p className="mt-3 text-sm leading-relaxed text-ink-500">
-              Enter the email you used for your workspace. During the pilot, resets are
-              handled personally so we can verify it&apos;s you — usually within one business day.
+              Enter the email for your workspace. We don&apos;t send reset emails yet —
+              submitting queues a request for a human to issue your link.
             </p>
             <form onSubmit={submit} className="mt-6 space-y-4 text-left">
               <div>
@@ -94,14 +108,15 @@ export default function ForgotPasswordPage() {
                 disabled={loading || !email.trim()}
                 className="btn-primary w-full bg-forest-800 py-3.5 hover:bg-forest-900"
               >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : 'Request reset link'}
+                {loading ? <Loader2 size={16} className="animate-spin" /> : 'Save reset request'}
               </button>
             </form>
-            <p className="mt-4 text-[12.5px] text-ink-400">
-              Or email{' '}
-              <a href="mailto:support@trustos.app?subject=Password%20reset%20request" className="font-medium text-forest-700">
-                support@trustos.app
+            <p className="mt-4 text-[12.5px] leading-relaxed text-ink-400">
+              Locked out right now?{' '}
+              <a href={supportHref} className="font-medium text-forest-700 hover:text-forest-900">
+                Email support@trustos.app
               </a>
+              {' '}— don&apos;t wait for an automated message that won&apos;t arrive.
             </p>
             <Link
               href="/login"

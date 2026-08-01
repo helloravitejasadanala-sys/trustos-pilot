@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureActiveInvitation, formatInvitationLink } from '@/lib/invitations'
-import { isStripeCheckoutReady } from '@/lib/stripe-config'
+import { isStripePortalPayAvailable } from '@/lib/stripe-config'
 import { DB_UNAVAILABLE_USER_MESSAGE, isDbInfrastructureError } from '@/lib/db-errors'
 
 export const dynamic = 'force-dynamic'
@@ -72,7 +72,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       },
       /** Prefer per-booking service; Settings primary is fallback only. */
       primaryService: bookingService,
-      stripeConfigured: isStripeCheckoutReady(),
+      stripeConfigured: isStripePortalPayAvailable(),
     })
   } catch (err: any) {
     if (err?.status === 401 || err?.status === 403) {

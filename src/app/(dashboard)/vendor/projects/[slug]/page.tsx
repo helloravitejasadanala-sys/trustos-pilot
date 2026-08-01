@@ -172,16 +172,21 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
         p.vendor?.primaryService,
       ),
     )
-    setStripeConfigured(!!detailJson.data.stripeConfigured)
+    const portalCardPay = !!detailJson.data.stripeConfigured
+    setStripeConfigured(portalCardPay)
     const clientJson = await parseJsonResponse<{ clients?: any[] }>(clientRes)
     if (clientJson.ok) setClients(clientJson.data.clients || [])
-    setQuote(q => ({
-      method: normalizePaymentMethod(p.paymentMethod || q.method),
-      title: p.proposal?.title || q.title || `${projectTypeLabel(p.type)} package`,
-      price: p.proposal ? String(p.proposal.price ?? '') : q.price,
-      deposit: p.proposal ? String(p.proposal.depositAmount ?? p.proposal.deposit ?? '') : q.deposit,
-      description: p.proposal?.description || q.description,
-    }))
+    // Don't leave "stripe" selected when the portal cannot take cards.
+    setQuote(q => {
+      const nextMethod = normalizePaymentMethod(p.paymentMethod || q.method)
+      return {
+        method: nextMethod === 'stripe' && !portalCardPay ? 'manual' : nextMethod,
+        title: p.proposal?.title || q.title || `${projectTypeLabel(p.type)} package`,
+        price: p.proposal ? String(p.proposal.price ?? '') : q.price,
+        deposit: p.proposal ? String(p.proposal.depositAmount ?? p.proposal.deposit ?? '') : q.deposit,
+        description: p.proposal?.description || q.description,
+      }
+    })
     const nextLocation = p.location || ''
     setPrep({
       eventDate: p.eventDate ? new Date(p.eventDate).toISOString().slice(0, 16) : '',
