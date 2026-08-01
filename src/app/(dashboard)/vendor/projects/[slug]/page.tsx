@@ -360,7 +360,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
   }
   async function requestReview() {
     await post('review-request')
-    toast.success('Review request noted — ask your client when you’re ready')
+    toast.success('Review request sent — your client will see it in Chat')
     await load()
   }
   async function archiveBooking() {

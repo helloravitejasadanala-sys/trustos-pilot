@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isStripeConfigured } from '@/lib/stripe-config'
 
 export async function GET() {
   try {
@@ -18,7 +19,7 @@ export async function GET() {
       authSecret: !!process.env.AUTH_SECRET,
       databaseUrl: !!process.env.DATABASE_URL,
       appUrl: !!process.env.APP_URL || !!process.env.NEXT_PUBLIC_APP_URL || !!process.env.VERCEL_URL,
-      stripe: !!process.env.STRIPE_SECRET_KEY,
+      stripe: isStripeConfigured(),
     }
 
     const systemStatus =

@@ -3,7 +3,7 @@
  * Populate after real tester sessions — never invent quotes.
  * MiniMomentz and Tattva must never appear as customers.
  *
- * While PROOF_STORIES is empty, this section does not render (same as PressStrip).
+ * While PROOF_STORIES is empty, this section does not render.
  */
 
 export type ProofStory = {
