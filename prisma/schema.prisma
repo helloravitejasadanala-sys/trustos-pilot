@@ -54,6 +54,8 @@ enum PrimaryService {
   LIVE_STREAMING
   MAKEUP_ARTIST
   DJ
+  PHOTO_EDITOR
+  VIDEO_EDITOR
 }
 
 model VendorProfile {

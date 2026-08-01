@@ -10,6 +10,8 @@ const ROLES = [
   { value: 'LIVE_STREAMING', label: 'Live stream' },
   { value: 'DJ', label: 'DJ' },
   { value: 'MAKEUP_ARTIST', label: 'Makeup' },
+  { value: 'PHOTO_EDITOR', label: 'Photo editor' },
+  { value: 'VIDEO_EDITOR', label: 'Video editor' },
   { value: 'DECOR', label: 'Decor' },
   { value: 'EVENT_PLANNER', label: 'Planner' },
   { value: 'OTHER', label: 'Other' },

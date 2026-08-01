@@ -102,7 +102,7 @@ export default function LandingPage() {
               <span className="relative inline-flex h-2 w-2 rounded-full bg-forest-500"></span>
             </span>
             <span className="text-xs font-medium text-forest-700">
-              For photographers, livestream, makeup &amp; DJs
+              For photographers, editors, livestream, makeup &amp; DJs
             </span>
           </div>
 
@@ -189,7 +189,7 @@ export default function LandingPage() {
             You bring the clients. TrustOS runs the job after booking.
           </p>
           <p className="mt-1 text-sm text-ink-400">
-            Photography, live streaming, makeup and DJ — same calm booking flow.
+            Photography, editing, live streaming, makeup and DJ — same calm booking flow.
           </p>
           <ul className="mx-auto mt-8 max-w-md space-y-2 text-left text-sm text-ink-500">
             <li>✓ No card to start the pilot</li>

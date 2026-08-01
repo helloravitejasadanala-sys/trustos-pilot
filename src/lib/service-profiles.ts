@@ -12,7 +12,14 @@
 import type { DetailField } from '@/lib/project-types'
 import { BASE_DETAIL_FIELDS, PROJECT_TYPES, detailQuestionsFor } from '@/lib/project-types'
 
-export const SERVICE_KEYS = ['PHOTOGRAPHY', 'LIVE_STREAMING', 'MAKEUP_ARTIST', 'DJ'] as const
+export const SERVICE_KEYS = [
+  'PHOTOGRAPHY',
+  'LIVE_STREAMING',
+  'MAKEUP_ARTIST',
+  'DJ',
+  'PHOTO_EDITOR',
+  'VIDEO_EDITOR',
+] as const
 export type ServiceKey = (typeof SERVICE_KEYS)[number]
 
 export type PrepFieldKey = 'eventDate' | 'location' | 'moodboard' | 'notes' | 'equipment' | 'music'
@@ -60,6 +67,13 @@ export type ServiceProfile = {
   depositLabel: string
   /** Extra questionnaire fields always asked for this service (before type-specific). */
   questionnaireExtras: DetailField[]
+  /**
+   * When set, replaces BASE + extras + type (max 8). Used by remote editor profiles.
+   * Unset = existing BASE + extras + type composition.
+   */
+  questionnaireFields?: DetailField[]
+  /** Required answer keys to complete the questionnaire. Default: mainContact, phone, date, venue. */
+  requiredDetailKeys?: string[]
   stages: ProfileStage[]
   features: ServiceFeatures
   /** Overrides for journey next-action copy (status → fields). */
@@ -79,6 +93,100 @@ const PHOTO_TYPES = [
 const STREAM_TYPES = ['LIVE_STREAM', 'EVENT', 'WEDDING', 'INDIAN_CEREMONY', 'OTHER']
 const MAKEUP_TYPES = ['MAKEUP', 'WEDDING', 'INDIAN_CEREMONY', 'EVENT', 'OTHER']
 const DJ_TYPES = ['DJ', 'WEDDING', 'INDIAN_CEREMONY', 'EVENT', 'EVENT_PLANNING', 'OTHER']
+const PHOTO_EDITOR_TYPES = ['PHOTO_EDIT', 'OTHER']
+const VIDEO_EDITOR_TYPES = ['VIDEO_EDIT', 'VIDEOGRAPHY', 'OTHER']
+
+const PHOTO_EDITOR_QUESTIONNAIRE: DetailField[] = [
+  {
+    key: 'mainContact',
+    label: 'Who signs off the exports?',
+    type: 'text',
+    placeholder: 'Name',
+  },
+  {
+    key: 'phone',
+    label: 'Best number for deadline questions',
+    type: 'text',
+    placeholder: '07…',
+  },
+  { key: 'date', label: 'Delivery deadline', type: 'date' },
+  {
+    key: 'sourceVolume',
+    label: 'Rough volume to edit',
+    type: 'text',
+    placeholder: 'e.g. 200 selects, or full card dump',
+  },
+  {
+    key: 'deliverableFormat',
+    label: 'Export type',
+    type: 'select',
+    options: ['Web gallery', 'Print-ready files', 'Both', 'Other'],
+  },
+  {
+    key: 'colorStyle',
+    label: 'Colour treatment',
+    type: 'select',
+    options: ['Natural', 'Film', 'High contrast', 'Match my references', 'Not sure — guide me'],
+  },
+  {
+    key: 'revisionRounds',
+    label: 'Revisions included',
+    type: 'select',
+    options: ['1 round', '2 rounds', '3 rounds', 'Discuss in the quote'],
+  },
+  {
+    key: 'notes',
+    label: 'Additional instructions',
+    type: 'textarea',
+    placeholder: 'Transfer links, brand rules, must-keep shots, naming…',
+  },
+]
+
+const VIDEO_EDITOR_QUESTIONNAIRE: DetailField[] = [
+  {
+    key: 'mainContact',
+    label: 'Who signs off the cut?',
+    type: 'text',
+    placeholder: 'Name',
+  },
+  {
+    key: 'phone',
+    label: 'Best number for deadline questions',
+    type: 'text',
+    placeholder: '07…',
+  },
+  { key: 'date', label: 'Delivery deadline', type: 'date' },
+  {
+    key: 'footageVolume',
+    label: 'Footage volume',
+    type: 'text',
+    placeholder: 'e.g. 4 hours, or 2 cards',
+  },
+  {
+    key: 'format',
+    label: 'Final format',
+    type: 'select',
+    options: ['Highlight film', 'Full-length edit', 'Social clips', 'Multiple formats'],
+  },
+  {
+    key: 'targetLength',
+    label: 'Target finished length',
+    type: 'text',
+    placeholder: 'e.g. 3–5 min highlight, or 20 min film',
+  },
+  {
+    key: 'musicLicensing',
+    label: 'Music',
+    type: 'select',
+    options: ['Client provides music', 'Need licensed tracks', 'Mixed — discuss'],
+  },
+  {
+    key: 'notes',
+    label: 'Additional instructions',
+    type: 'textarea',
+    placeholder: 'Transfer links, brand refs, revision notes, must-include moments…',
+  },
+]
 
 export const SERVICE_PROFILES: Record<ServiceKey, ServiceProfile> = {
   PHOTOGRAPHY: {
@@ -296,6 +404,116 @@ export const SERVICE_PROFILES: Record<ServiceKey, ServiceProfile> = {
       },
     },
   },
+
+  PHOTO_EDITOR: {
+    key: 'PHOTO_EDITOR',
+    label: 'Photo Editor',
+    description: 'Remote photo editing with briefs, revisions, and export delivery.',
+    allowedProjectTypes: PHOTO_EDITOR_TYPES,
+    defaultProjectType: 'PHOTO_EDIT',
+    questionnaireLabel: 'Edit brief',
+    questionnaireSectionLabel: 'Edit brief',
+    depositLabel: 'Deposit',
+    questionnaireExtras: [],
+    questionnaireFields: PHOTO_EDITOR_QUESTIONNAIRE,
+    requiredDetailKeys: ['mainContact', 'phone', 'date', 'sourceVolume'],
+    stages: [
+      { key: 'created', label: 'Created', doneLabel: 'Created' },
+      { key: 'questionnaire', label: 'Edit brief', doneLabel: 'Brief confirmed' },
+      { key: 'quote', label: 'Quote', doneLabel: 'Quote accepted' },
+      { key: 'deposit', label: 'Deposit', doneLabel: 'Deposit received' },
+      { key: 'prep', label: 'Footage and brief', doneLabel: 'Footage and brief ready' },
+      { key: 'service', label: 'Editing', doneLabel: 'Editing done' },
+      { key: 'delivery', label: 'Exports', doneLabel: 'Exports sent' },
+      { key: 'approved', label: 'Completed', doneLabel: 'Completed' },
+      { key: 'archived', label: 'Archived', doneLabel: 'Archived' },
+    ],
+    features: {
+      showPrep: true,
+      showDelivery: true,
+      showGallery: true,
+      showEditing: false,
+      showTechnicalRequirements: false,
+      showMusicPreferences: false,
+      showApproval: true,
+      prepFields: ['eventDate', 'location', 'moodboard', 'notes'],
+      deliverableKind: 'gallery',
+    },
+    actionCopy: {
+      QUESTIONNAIRE_COMPLETED: {
+        label: 'Brief in',
+        nextAction: 'Review the edit brief and send the quote',
+        ctaLabel: 'Review brief →',
+      },
+      DEPOSIT_PAID: {
+        nextAction: 'Confirm footage and references',
+        ctaLabel: 'Open footage and brief →',
+      },
+      FULLY_PAID: {
+        nextAction: 'Send the exports',
+        ctaLabel: 'Add export link →',
+      },
+      COMPLETED: {
+        nextAction: 'Send exports or request a review',
+        ctaLabel: 'Open exports →',
+      },
+    },
+  },
+
+  VIDEO_EDITOR: {
+    key: 'VIDEO_EDITOR',
+    label: 'Video Editor',
+    description: 'Remote video editing with briefs, revisions, and final-cut delivery.',
+    allowedProjectTypes: VIDEO_EDITOR_TYPES,
+    defaultProjectType: 'VIDEO_EDIT',
+    questionnaireLabel: 'Edit brief',
+    questionnaireSectionLabel: 'Edit brief',
+    depositLabel: 'Deposit',
+    questionnaireExtras: [],
+    questionnaireFields: VIDEO_EDITOR_QUESTIONNAIRE,
+    requiredDetailKeys: ['mainContact', 'phone', 'date', 'footageVolume'],
+    stages: [
+      { key: 'created', label: 'Created', doneLabel: 'Created' },
+      { key: 'questionnaire', label: 'Edit brief', doneLabel: 'Brief confirmed' },
+      { key: 'quote', label: 'Quote', doneLabel: 'Quote accepted' },
+      { key: 'deposit', label: 'Deposit', doneLabel: 'Deposit received' },
+      { key: 'prep', label: 'Footage and brief', doneLabel: 'Footage and brief ready' },
+      { key: 'service', label: 'Editing', doneLabel: 'Editing done' },
+      { key: 'delivery', label: 'Final cut', doneLabel: 'Final cut sent' },
+      { key: 'approved', label: 'Completed', doneLabel: 'Completed' },
+      { key: 'archived', label: 'Archived', doneLabel: 'Archived' },
+    ],
+    features: {
+      showPrep: true,
+      showDelivery: true,
+      showGallery: true,
+      showEditing: false,
+      showTechnicalRequirements: false,
+      showMusicPreferences: false,
+      showApproval: true,
+      prepFields: ['eventDate', 'location', 'moodboard', 'notes'],
+      deliverableKind: 'gallery',
+    },
+    actionCopy: {
+      QUESTIONNAIRE_COMPLETED: {
+        label: 'Brief in',
+        nextAction: 'Review the edit brief and send the quote',
+        ctaLabel: 'Review brief →',
+      },
+      DEPOSIT_PAID: {
+        nextAction: 'Confirm footage and references',
+        ctaLabel: 'Open footage and brief →',
+      },
+      FULLY_PAID: {
+        nextAction: 'Send the final cut',
+        ctaLabel: 'Add final cut link →',
+      },
+      COMPLETED: {
+        nextAction: 'Send the final cut or request a review',
+        ctaLabel: 'Open final cut →',
+      },
+    },
+  },
 }
 
 export function isServiceKey(value: unknown): value is ServiceKey {
@@ -333,9 +551,21 @@ export function defaultProjectTypeForService(service?: string | null) {
   return getServiceProfile(service).defaultProjectType
 }
 
-/** Essentials + service extras + type-specific questions (never mixed across services). */
+/** Default required keys when a profile does not set requiredDetailKeys. */
+export const DEFAULT_REQUIRED_DETAIL_KEYS = ['mainContact', 'phone', 'date', 'venue'] as const
+
+export function requiredDetailKeysForService(service?: string | null): string[] {
+  const profile = getServiceProfile(service)
+  return profile.requiredDetailKeys ?? [...DEFAULT_REQUIRED_DETAIL_KEYS]
+}
+
+/**
+ * Essentials + service extras + type-specific questions (never mixed across services).
+ * When profile.questionnaireFields is set, that list alone is used (≤8, no BASE stack).
+ */
 export function allDetailFieldsForService(projectType: string, service?: string | null): DetailField[] {
   const profile = getServiceProfile(service)
+  if (profile.questionnaireFields?.length) return profile.questionnaireFields
   return [
     ...BASE_DETAIL_FIELDS,
     ...profile.questionnaireExtras,
@@ -345,6 +575,7 @@ export function allDetailFieldsForService(projectType: string, service?: string 
 
 export function detailQuestionsForService(projectType: string, service?: string | null): DetailField[] {
   const profile = getServiceProfile(service)
+  if (profile.questionnaireFields?.length) return []
   return [...profile.questionnaireExtras, ...detailQuestionsFor(projectType)]
 }
 
@@ -373,12 +604,15 @@ export function vendorTabLabel(tab: string, service?: string | null): string {
     if (/look/i.test(stage)) return 'Look'
     if (/equipment/i.test(stage)) return 'Equipment'
     if (/music/i.test(stage)) return 'Music'
+    if (/footage/i.test(stage)) return 'Footage'
     return 'Prep'
   }
   if (tab === 'Delivery') {
     const stage = profile.stages.find(s => s.key === 'delivery')?.label || 'Delivery'
     if (/recording/i.test(stage)) return 'Recording'
     if (/gallery/i.test(stage)) return 'Gallery'
+    if (/export/i.test(stage)) return 'Exports'
+    if (/final cut/i.test(stage)) return 'Final cut'
     return 'Delivery'
   }
   return tab
@@ -389,15 +623,35 @@ export function prepFieldLabels(
   service?: string | null,
 ): { label: string; placeholder?: string } {
   const profile = getServiceProfile(service)
+  const isEditor = profile.key === 'PHOTO_EDITOR' || profile.key === 'VIDEO_EDITOR'
   switch (key) {
     case 'eventDate':
+      if (isEditor) return { label: 'Deadline' }
       return { label: 'Date & time' }
     case 'location':
+      if (isEditor) {
+        return {
+          label: 'Footage transfer (link)',
+          placeholder: 'Dropbox, Drive, WeTransfer…',
+        }
+      }
       return {
         label: profile.key === 'LIVE_STREAMING' ? 'Venue / stream location' : 'Location',
         placeholder: 'Venue or address',
       }
     case 'moodboard':
+      if (profile.key === 'PHOTO_EDITOR') {
+        return {
+          label: 'Reference stills / grade refs',
+          placeholder: 'https://…',
+        }
+      }
+      if (profile.key === 'VIDEO_EDITOR') {
+        return {
+          label: 'Reference grade / refs',
+          placeholder: 'https://…',
+        }
+      }
       return {
         label: profile.key === 'MAKEUP_ARTIST' ? 'Look inspiration link' : 'Moodboard / inspiration link',
         placeholder: 'https://…',
@@ -411,6 +665,12 @@ export function prepFieldLabels(
       }
       if (profile.key === 'DJ') {
         return { label: 'Event notes', placeholder: 'Timings, MC cues, access…' }
+      }
+      if (isEditor) {
+        return {
+          label: 'Brief notes',
+          placeholder: 'Revision rules, naming, must-keep moments…',
+        }
       }
       return { label: 'Notes', placeholder: 'Timings, access, anything to remember' }
     case 'equipment':
@@ -427,19 +687,40 @@ export function prepSaveLabel(service?: string | null): string {
   if (key === 'MAKEUP_ARTIST') return 'Save look notes'
   if (key === 'LIVE_STREAMING') return 'Save equipment prep'
   if (key === 'DJ') return 'Save event prep'
+  if (key === 'PHOTO_EDITOR' || key === 'VIDEO_EDITOR') return 'Save footage and brief'
   return 'Save preparation'
 }
 
 export function deliveryLockedCopy(service?: string | null): string {
+  const key = getServiceProfile(service).key
+  if (key === 'PHOTO_EDITOR') return 'Export links unlock after editing starts.'
+  if (key === 'VIDEO_EDITOR') return 'Final cut links unlock when exports are ready.'
   const kind = getServiceProfile(service).features.deliverableKind
   if (kind === 'recording') return 'Recording links unlock after the live event.'
   return 'Gallery links unlock after the shoot.'
 }
 
 export function deliveryOpenCopy(service?: string | null): { title: string; addLabel: string } {
+  const key = getServiceProfile(service).key
+  if (key === 'PHOTO_EDITOR') {
+    return { title: 'Exports', addLabel: 'Add export link' }
+  }
+  if (key === 'VIDEO_EDITOR') {
+    return { title: 'Final cut', addLabel: 'Add final cut link' }
+  }
   const kind = getServiceProfile(service).features.deliverableKind
   if (kind === 'recording') {
     return { title: 'Recording', addLabel: 'Add recording link' }
   }
   return { title: 'Gallery', addLabel: 'Add gallery link' }
+}
+
+/** Client portal label for delivered files. */
+export function clientFilesLabel(service?: string | null): string {
+  const key = getServiceProfile(service).key
+  if (key === 'PHOTO_EDITOR') return 'Your exports'
+  if (key === 'VIDEO_EDITOR') return 'Your cut'
+  const kind = getServiceProfile(service).features.deliverableKind
+  if (kind === 'recording') return 'Your recording'
+  return 'Your gallery'
 }

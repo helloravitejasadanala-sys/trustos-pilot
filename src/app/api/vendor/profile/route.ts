@@ -6,7 +6,9 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
 const patchSchema = z.object({
-  primaryService: z.enum(['PHOTOGRAPHY', 'LIVE_STREAMING', 'MAKEUP_ARTIST', 'DJ']).optional(),
+  primaryService: z
+    .enum(['PHOTOGRAPHY', 'LIVE_STREAMING', 'MAKEUP_ARTIST', 'DJ', 'PHOTO_EDITOR', 'VIDEO_EDITOR'])
+    .optional(),
 })
 
 /** Update workspace profile fields used by Service Profiles. */

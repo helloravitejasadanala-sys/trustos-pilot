@@ -1030,7 +1030,7 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
               <div className="panel" style={{ padding: 16, maxWidth: 520 }}>
                 <div style={{ font: 'var(--t-h2)', marginBottom: 6 }}>Service for this booking</div>
                 <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--muted)' }}>
-                  Photography today, livestream tomorrow — each booking can be different. Prep and the client questionnaire follow this choice.
+                  Photography today, edit tomorrow — each booking can be different. Prep and the client questionnaire follow this choice.
                 </p>
                 <select
                   value={primaryService}
@@ -1692,7 +1692,13 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
               }).ok && (
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line-soft)' }}>
                 <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 10px' }}>
-                  When the {serviceProfile.key === 'DJ' ? 'performance' : 'appointment'} is done, mark it complete.
+                  When the{' '}
+                  {serviceProfile.key === 'DJ'
+                    ? 'performance'
+                    : serviceProfile.key === 'PHOTO_EDITOR' || serviceProfile.key === 'VIDEO_EDITOR'
+                      ? 'edit'
+                      : 'appointment'}{' '}
+                  is done, mark it complete.
                 </p>
                 <button
                   type="button"
@@ -1704,7 +1710,9 @@ function VendorProjectWorkspace({ params }: { params: { slug: string } }) {
                     ? 'Mark performance complete →'
                     : serviceProfile.key === 'MAKEUP_ARTIST'
                       ? 'Mark appointment complete →'
-                      : 'Mark service complete →'}
+                      : serviceProfile.key === 'PHOTO_EDITOR' || serviceProfile.key === 'VIDEO_EDITOR'
+                        ? 'Mark editing complete →'
+                        : 'Mark service complete →'}
                 </button>
               </div>
             )}

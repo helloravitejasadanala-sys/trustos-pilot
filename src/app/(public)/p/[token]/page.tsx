@@ -6,8 +6,11 @@ import { toast } from 'react-hot-toast'
 import { parseJsonResponse } from '@/lib/safe-json'
 import { BASE_DETAIL_FIELDS, projectTypeLabel, type DetailField } from '@/lib/project-types'
 import {
+  allDetailFieldsForService,
+  clientFilesLabel,
   detailQuestionsForService,
   getServiceProfile,
+  requiredDetailKeysForService,
   sectionLabelForService,
 } from '@/lib/service-profiles'
 import { ClientPortalLayout } from '@/components/layout'
@@ -370,8 +373,7 @@ export default function ClientJourney({ params }: { params: { token: string } })
           : 'Your event'
 
   const bookingLine = [typeLabel, eventDate].filter(Boolean).join(' · ')
-  const filesLabel =
-    serviceProfile.features.deliverableKind === 'recording' ? 'Your recording' : 'Your gallery'
+  const filesLabel = clientFilesLabel(serviceProfile.key)
   const fileLinks = hasGallery
     ? (project.files as any[]).filter((f: any) => f.type === 'gallery' || f.type === 'recording')
     : []
@@ -643,9 +645,12 @@ export default function ClientJourney({ params }: { params: { token: string } })
 function ProjectDetails({ inviteToken, project, existing, busy, setBusy, onDone }: any) {
   const service = project?.service || project?.vendor?.primaryService
   const profile = getServiceProfile(service)
-  const essentials = BASE_DETAIL_FIELDS
-  const typeFields = detailQuestionsForService(project?.type ?? 'OTHER', service)
-  const requiredKeys = new Set(['mainContact', 'phone', 'date', 'venue'])
+  const usesOwnFields = !!profile.questionnaireFields?.length
+  const essentials = usesOwnFields
+    ? allDetailFieldsForService(project?.type ?? 'OTHER', service)
+    : BASE_DETAIL_FIELDS
+  const typeFields = usesOwnFields ? [] : detailQuestionsForService(project?.type ?? 'OTHER', service)
+  const requiredKeys = new Set(requiredDetailKeysForService(service))
   const [values, setValues] = useState<Record<string, string>>(() => {
     const seed: Record<string, string> = { ...(existing || {}) }
     // Pre-fill the basics the vendor already knows so the client only confirms.
@@ -686,11 +691,9 @@ function ProjectDetails({ inviteToken, project, existing, busy, setBusy, onDone 
   }
 
   async function submit() {
-    const missing = ['mainContact', 'phone', 'date', 'venue'].filter(
-      k => !String(values[k] ?? '').trim(),
-    )
+    const missing = Array.from(requiredKeys).filter(k => !String(values[k] ?? '').trim())
     if (missing.length) {
-      toast.error('Fill contact name, phone, date, and venue before confirming.')
+      toast.error('Fill the required brief fields before confirming.')
       return
     }
     setBusy(true)
@@ -728,7 +731,9 @@ function ProjectDetails({ inviteToken, project, existing, busy, setBusy, onDone 
           {typeFields.map(renderField)}
         </>
       )}
-      <Primary onClick={submit} busy={busy}>Confirm event details</Primary>
+      <Primary onClick={submit} busy={busy}>
+        {usesOwnFields ? 'Confirm edit brief' : 'Confirm event details'}
+      </Primary>
       <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
         Next: your vendor prepares the quote. You’ll see it here.
       </p>

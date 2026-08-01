@@ -38,6 +38,8 @@ export const PROJECT_TYPES: ProjectTypeInfo[] = [
   { value: 'WEDDING', label: 'Wedding', group: 'Weddings & ceremonies' },
   { value: 'INDIAN_CEREMONY', label: 'Indian ceremony', group: 'Weddings & ceremonies' },
   { value: 'VIDEOGRAPHY', label: 'Videography', group: 'Video' },
+  { value: 'PHOTO_EDIT', label: 'Photo edit', group: 'Editing' },
+  { value: 'VIDEO_EDIT', label: 'Video edit', group: 'Editing' },
   { value: 'LIVE_STREAM', label: 'Live streaming', group: 'Video' },
   { value: 'DECOR', label: 'Decor & styling', group: 'Events' },
   { value: 'MAKEUP', label: 'Makeup & hair', group: 'Events' },
@@ -130,6 +132,10 @@ const OTHER: DetailField[] = [
   { key: 'requirements', label: 'What do you need? Describe it in your own words.', type: 'textarea' },
 ]
 
+/** Thin type sets — editor services use profile.questionnaireFields instead. */
+const PHOTO_EDIT: DetailField[] = []
+const VIDEO_EDIT: DetailField[] = []
+
 const QUESTION_SETS: Record<string, DetailField[]> = {
   FAMILY_SESSION: FAMILY,
   MATERNITY: FAMILY,
@@ -141,6 +147,8 @@ const QUESTION_SETS: Record<string, DetailField[]> = {
   WEDDING,
   INDIAN_CEREMONY: WEDDING,
   VIDEOGRAPHY,
+  PHOTO_EDIT,
+  VIDEO_EDIT,
   LIVE_STREAM,
   DECOR,
   MAKEUP,

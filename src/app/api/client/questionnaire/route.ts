@@ -37,12 +37,19 @@ export async function POST(req: NextRequest) {
     }
 
     if (complete) {
-      const missing = missingRequiredDetails(answers as Record<string, unknown>)
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: {
+          service: true,
+          vendor: { select: { primaryService: true } },
+        },
+      })
+      const service = project?.service || project?.vendor?.primaryService
+      const missing = missingRequiredDetails(answers as Record<string, unknown>, service)
       if (missing.length > 0) {
         return NextResponse.json(
           {
-            error:
-              'Please fill contact name, phone, date, and venue before confirming — so your vendor can prepare.',
+            error: 'Please fill the required brief fields before confirming — so your vendor can prepare.',
             missing,
           },
           { status: 400 },
